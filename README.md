@@ -131,6 +131,27 @@ se.zzmax.cn 是私有 schema（`/api/chat/stream` 只认 `model/subModel/message
 - 回归不回退：普通对话 `stop` / Claude `reasoning_content` / `search` 返回 `sources` / 流式干净 `[DONE]` ✅
 
 **修复的关键 bug**：之前 `do_POST` 缺 tools 解析，流式路径引用未定义的 `msgs_up/tools_enabled` → `NameError` 被 except 吞，只吐 error SSE 不发 `[DONE]`，客户端永远显示"回复中"并最终 `AbortError` / `Idle timeout`。已修。
+### 模型组兼容性（实测 2026-08-01，工具调用 calc）
+
+se.zzmax 上游为**每组模型注入了自己的工具 system prompt**（实证：让模型自述可用工具，GPT 组答 `functions.cpa_final_answer`+`multi_tool_use.parallel`，Claude 组答 file/python/web，Grok 组答 search/memory/time）。可见 se.zzmax 本质是**带工具上下文的反代**——这也解释了网页版为何能开关联网/调思考强度。这层注入会与我们注入的 calc 冲突，故加了禁令 prompt + 末尾重申 system 来压制。
+
+| 模型 | 工具调用 | 备注 |
+|---|---|---|
+| Claude Sonnet 5 / Opus 4.8 | ✅ 可用 | 主力推荐，思考流式可见 |
+| Grok-4.5 | ✅ 可用 | |
+| deepseek-v4-pro / v4-flash | ✅ 可用 | 禁令强化后从失败转可用 |
+| qwen3.6-plus / MiMo-V2.5-Pro | ✅ 可用 | |
+| 豆包 | ✅ 可用 | |
+| gemini-3.5-flash / 3.1-pro-preview | ✅ 可用 | |
+| GPT-5.5 / gpt-5.6-sol / gpt-5.6-terra | ❌ 不可用 | 上游被 `cpa_final_answer` 锁成"答题器"，直接吐答案不调外部工具；纯对话/思考仍可用 |
+| MiniMax-M2.7 | ❌ 不可用 | 不听 tools 指令，`tool_choice=required` 仍走 prose |
+| Kimi K2 / kimi-k2.5 | ⚠ 上游繁忙 | se.zzmax 后端 Kimi provider 偶发"模型服务繁忙"，代理透传 502（非 bug） |
+
+> **结论：标准 agent（Codex/OpenClaw/Cherry Studio）做工具调用，主力用 Claude Sonnet 5 / Opus 4.8 / Grok-4.5 / deepseek / qwen / MiMo / 豆包 / gemini 这 10 组；GPT 三组只能当纯对话/思考用。**
+
+### GPT 组思考特性（已知上游限制，非代理 bug）
+
+实测 GPT-5.5 流式写一首 haiku：`first_byte=8.6s`（思考期 0 个 content/reasoning chunk），随后 0.3s 瞬间吐 21 个 chunk 全文——**se.zzmax 上游对 GPT 组不流式吐思考，思考完成后才一次性发 content**。因此 Cherry Studio 里 GPT 表现为"加载一会儿全部一起输出"，且思考内容客户端看不到。代理已把 SSE 心跳从 5s 降到 **1s**，防止 8s+ 思考期被判 idle timeout（实测 8s 思考期 9 个 keepalive、间隔恒 1.00s）。Claude 组思考是流式增量可见，故远胜 GPT。
 
 
 ## 限制
