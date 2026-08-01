@@ -263,7 +263,187 @@ class ReasoningFilter:
                 return out
 
 
-def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, max_retry=5):
+TOOL_ID_SEQ = [0]
+
+
+def _make_tool_id():
+    TOOL_ID_SEQ[0] += 1
+    return "call_%d" % TOOL_ID_SEQ[0]
+
+
+def _make_tools_prompt(tools, tool_choice):
+    """Build the instruction that teaches the model to emit structured tool calls.
+    OpenAI function-type tools only. None when inactive (none/empty)."""
+    if not tools:
+        return None
+    funcs = []
+    for t in tools:
+        if isinstance(t, dict) and t.get("type") == "function" and isinstance(t.get("function"), dict):
+            f = t["function"]
+            funcs.append({"name": f.get("name", ""), "description": f.get("description", ""),
+                          "parameters": f.get("parameters", {}) or {}})
+    if not funcs:
+        return None
+    if tool_choice == "none":
+        return None
+    o = chr(0x3c)
+    OC = o + "tool_call" + chr(0x3e)
+    CC = o + "/tool_call" + chr(0x3e)
+    nl = chr(10)
+    force_one = (tool_choice == "required") or (isinstance(tool_choice, dict) and tool_choice.get("type") == "function")
+    force_name = None
+    if isinstance(tool_choice, dict) and tool_choice.get("type") == "function" and isinstance(tool_choice.get("function"), dict):
+        force_name = tool_choice["function"].get("name")
+    head = ("You are a tool-using assistant with access to the callable tools listed below. "
+            + "When (and only when) you need a tool, you MUST emit a tool call using EXACTLY this XML-like tag form — no other tag name, no markdown, no code fence: " + nl
+            + OC + nl + "{\"name\": \"<function_name>\", \"arguments\": { \"<param>\": \"<value>\" }}" + nl + CC + nl)
+    head += ("Rules: "
+            + "(1) the block body is pure JSON with keys \"name\" and \"arguments\"; "
+            + "(2) arguments MUST be a JSON object matching the tool parameter schema (strings quoted, numbers unquoted); "
+            + "(3) put ONLY the JSON between the tags — no prose, no backticks, no explanation; "
+            + "(4) one call per block; multiple calls = multiple separate " + OC + "..." + CC + " blocks; "
+            + "(5) if no tool is needed, answer normally in prose and emit NO block at all. ")
+    head += ("Example — to call a tool named get_weather with city=Beijing, output exactly:" + nl
+            + OC + nl + "{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Beijing\"}}" + nl + CC)
+    if force_one and force_name:
+        head = "You MUST call the tool named " + chr(34) + force_name + chr(34) + " now. Emit one block wrapped as " + OC + nl + "{\"name\": \"" + force_name + "\", \"arguments\": { ... }}" + nl + CC + "."
+    elif force_one:
+        head = "You MUST call at least one tool. Emit one block per call wrapped as " + OC + nl + "{\"name\": \"<name>\", \"arguments\": { ... }}" + nl + CC + "."
+    return head + nl + nl + "Available tools (JSON-schema):" + nl + json.dumps(funcs, ensure_ascii=False)
+
+
+def _build_messages_with_tools(tools, tool_choice, messages):
+    """Flatten OpenAI messages for the private upstream schema: prepend a tools system message, render prior assistant tool_calls as text blocks, render role tool results as user-wrapped observations. Returns (msgs, enabled)."""
+    prompt = _make_tools_prompt(tools, tool_choice)
+    if prompt is None:
+        return messages, False
+    name_by_callid = {}
+    for m in messages:
+        if isinstance(m, dict) and m.get("tool_calls"):
+            for ca in m["tool_calls"]:
+                fn = ca.get("function") or {}
+                cid = ca.get("id")
+                if cid and fn.get("name"):
+                    name_by_callid[cid] = fn["name"]
+    o = chr(0x3c)
+    OC = o + "tool_call" + chr(0x3e)
+    CC = o + "/tool_call" + chr(0x3e)
+    nl = chr(10)
+    out = [{"role": "system", "content": prompt}]
+    for m in messages:
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role")
+        content = m.get("content")
+        tcs = m.get("tool_calls")
+        if tcs is None and content is None:
+            continue
+        if role == "assistant" and tcs:
+            txt2 = content or ""
+            for ca in tcs:
+                fn = ca.get("function") or {}
+                a0 = fn.get("arguments")
+                try:
+                    if isinstance(a0, str) and a0: arg2 = json.loads(a0)
+                    else: arg2 = a0 if a0 else {}
+                except Exception:
+                    arg2 = a0 if isinstance(a0, dict) else {}
+                obj2 = {"name": fn.get("name", ""), "arguments": arg2}
+                txt2 += nl + OC + json.dumps(obj2, ensure_ascii=False) + CC
+            out.append({"role": "assistant", "content": txt2})
+        elif role == "tool":
+            cid = m.get("tool_call_id")
+            name = name_by_callid.get(cid, "tool")
+            inner = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
+            out.append({"role": "user", "content": "Observation from tool " + chr(34) + name + chr(34) + " (call_id " + str(cid) + "):" + nl + inner})
+        else:
+            out.append(m)
+    return out, True
+
+
+class ToolCallParser:
+    """Tolerant streaming parser: peel tool-call blocks from answer text using ANY
+    of several common tag forms the model may emit (it is nondeterministic about
+    the exact spelling): <tool_call>, <call>, <tool_use>, <function_call>, <tool>.
+    Two states: OUTSIDE scans for the earliest open tag (holding a suffix that may
+    start the longest one); INSIDE accumulates the body until the matching close
+    tag arrives. A block split across SSE chunks (open/body/close each possibly
+    split) parses exactly once. flush() emits any held leftover as content
+    (malformed/unclosed fallback)."""
+    TAGS = [
+        (bytes([0x3c]) + b"tool_call" + bytes([0x3e]), bytes([0x3c, 0x2f]) + b"tool_call" + bytes([0x3e])),
+        (bytes([0x3c]) + b"call" + bytes([0x3e]), bytes([0x3c, 0x2f]) + b"call" + bytes([0x3e])),
+        (bytes([0x3c]) + b"tool_use" + bytes([0x3e]), bytes([0x3c, 0x2f]) + b"tool_use" + bytes([0x3e])),
+        (bytes([0x3c]) + b"function_call" + bytes([0x3e]), bytes([0x3c, 0x2f]) + b"function_call" + bytes([0x3e])),
+        (bytes([0x3c]) + b"tool" + bytes([0x3e]), bytes([0x3c, 0x2f]) + b"tool" + bytes([0x3e])),
+    ]
+    def __init__(self):
+        self.buf = b""
+        self.inside = False
+        self.cur = None
+    def feed(self, text):
+        self.buf += text.encode("utf-8")
+        out = []
+        while True:
+            if not self.inside:
+                best = -1
+                pair = None
+                for op, cl in self.TAGS:
+                    i = self.buf.find(op)
+                    if i == -1:
+                        continue
+                    if best == -1 or i < best or (i == best and len(op) > len(pair[0])):
+                        best = i
+                        pair = (op, cl)
+                if best == -1:
+                    keep = max(len(op) for op, _ in self.TAGS) - 1
+                    if len(self.buf) > keep:
+                        out.append(("content", self.buf[:-keep].decode("utf-8", "ignore")))
+                        self.buf = self.buf[-keep:]
+                    return out
+                if best > 0:
+                    out.append(("content", self.buf[:best].decode("utf-8", "ignore")))
+                    self.buf = self.buf[best:]
+                self.buf = self.buf[len(pair[0]):]
+                self.inside = True
+                self.cur = pair
+                continue
+            op, cl = self.cur
+            cidx = self.buf.find(cl)
+            if cidx == -1:
+                return out
+            inner = self.buf[:cidx].decode("utf-8", "ignore").strip()
+            self.buf = self.buf[cidx + len(cl):]
+            self.inside = False
+            self.cur = None
+            call = None
+            if inner:
+                js = inner
+                try:
+                    jo = json.loads(js)
+                    if isinstance(jo, dict) and jo.get("name"):
+                        a = jo.get("arguments", {})
+                        if isinstance(a, str):
+                            try: a = json.loads(a)
+                            except Exception: pass
+                        if not isinstance(a, dict): a = {}
+                        call = {"id": _make_tool_id(), "name": jo["name"], "arguments": a}
+                except Exception:
+                    call = None
+            if call:
+                out.append(("tool_call", call))
+            else:
+                out.append(("content", chr(0x3c) + "tool_call" + chr(0x3e) + inner + chr(0x3c) + "/tool_call" + chr(0x3e)))
+    def flush(self):
+        if not self.buf:
+            return []
+        piece = self.buf.decode("utf-8", "ignore")
+        self.buf = b""
+        self.inside = False
+        self.cur = None
+        return [("content", piece)]
+
+def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, tools_enabled=False, max_retry=5):
     grp, sub, disp = resolve_model(model_field)
     payload = {"model": grp, "subModel": sub, "messages": messages, "stream": True}
     if reasoning_effort and reasoning_effort != "off":
@@ -272,6 +452,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         payload["search"] = True
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     filt = ReasoningFilter(include_reasoning=include_reasoning)
+    tparser = ToolCallParser() if tools_enabled else None
     sources_sent = False
     for attempt in range(1, max_retry + 1):
         xff = rand_ip()
@@ -325,11 +506,18 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                             if kind == "reasoning" and include_reasoning:
                                 yield ("reasoning", piece)
                             elif kind == "content":
-                                yield ("content", piece)
+                                if tparser is not None:
+                                    for tk, tp in tparser.feed(piece):
+                                        yield (tk, tp)
+                                else:
+                                    yield ("content", piece)
                     if obj.get("sources") is not None and not sources_sent:
                         sources_sent = True
                         yield ("sources", obj.get("sources"))
                     if obj.get("done"):
+                        if tparser is not None:
+                            for tk, tp in tparser.flush():
+                                yield (tk, tp)
                         return
             if volatile and attempt < max_retry:
                 sys.stderr.write("[volatile %d/%d] retry new IP\n" % (attempt, max_retry))
@@ -403,9 +591,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         turn_id = "chatcmpl-%d" % int(time.time() * 1000)
         created = int(time.time())
+        tools = req.get("tools") or []
+        tool_choice = req.get("tool_choice")
+        if tool_choice is None and tools:
+            tool_choice = "auto"
+        msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
         if not stream:
-            answer, reason, err, sources = [], [], None, []
-            for kind, data in upstream(model, messages, include_reasoning, str(effort).lower(), search, max_retry=5):
+            answer, reason, tcs_out, err, sources = [], [], [], None, []
+            for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
                 if kind == "error":
                     err = data.get("error")
                     break
@@ -413,16 +606,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     answer.append(data)
                 elif kind == "reasoning":
                     reason.append(data)
+                elif kind == "tool_call":
+                    tcs_out.append(data)
                 elif kind == "sources":
                     sources = data or []
             if err:
                 return self._send(502, {"error": {"message": err}})
-            msg = {"role": "assistant", "content": "".join(answer)}
+            content = "".join(answer)
+            if tools_enabled and tcs_out:
+                msg = {"role": "assistant", "content": content if content else None,
+                       "tool_calls": [{"id": c["id"], "type": "function",
+                                       "function": {"name": c["name"],
+                                                    "arguments": json.dumps(c["arguments"], ensure_ascii=False)}}
+                                      for c in tcs_out]}
+            else:
+                msg = {"role": "assistant", "content": content}
             if include_reasoning:
                 msg["reasoning_content"] = "".join(reason)
             out = {
                 "id": turn_id, "object": "chat.completion", "created": created, "model": disp,
-                "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}],
+                "choices": [{"index": 0, "message": msg, "finish_reason": "tool_calls" if (tools_enabled and tcs_out) else "stop"}],
                 "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1}}
             if sources:
                 out["sources"] = sources
@@ -457,7 +660,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                  "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}]})
-            for kind, data in upstream(model, messages, include_reasoning, str(effort).lower(), search, max_retry=5):
+            tool_call_count = 0
+            for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
                 if kind == "content":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"content": data}, "finish_reason": None}]})
@@ -467,10 +671,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "sources":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "sources": data})
+                elif kind == "tool_call":
+                    tool_call_count += 1
+                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                         "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tool_call_count - 1, "id": data["id"], "type": "function", "function": {"name": data["name"], "arguments": json.dumps(data["arguments"], ensure_ascii=False)}}]}, "finish_reason": None}]})
                 elif kind == "error":
                     sse({"error": {"message": data.get("error")}})
             sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                 "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})
+                 "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
             emit(b"data: [DONE]\n\n")
         except Exception as e:
             try:
