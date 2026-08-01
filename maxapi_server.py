@@ -80,7 +80,6 @@ RAW_MODELS = [
     ("Claude Sonnet 5",        "claude",   "claude-opus-4-8",       "premium"),
     ("Claude Opus 4.8",        "claude",   "claude-opus-4.8",       "premium"),
     ("claude-opus-4-6",        "claude",   "claude-opus-4-6",       "normal"),
-    ("Grok-4.5",               "grok",     "claude-opus-4-8",       "premium"),
     ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-luna",          "normal"),
     ("gpt-5.6-terra",          "chatgpt",  "gpt-5.6-terra",         "normal"),
     ("GPT-5.5",                "chatgpt",  "gpt-5.5",               "premium"),
@@ -88,10 +87,6 @@ RAW_MODELS = [
     ("deepseek-v4-flash",      "deepseek", "deepseek-v4-flash",     "normal"),
     ("qwen3.6-plus",           "qwen",     "qwen3.6-plus",         "premium"),
     ("MiMo-V2.5-Pro",          "mimo",     "qwen3.6-plus",          "premium"),
-    ("MiniMax-M2.7",           "minimax",  "glm-5.1",               "premium"),
-    ("豆包",           "doubao",   "glm-5.1",               "normal"),
-    ("Kimi K2",                "kimi",     "kimi-k2",               "premium"),
-    ("kimi-k2.5",              "kimi",     "kimi-k2.5",             "premium"),
     ("gemini-3.5-flash",       "gemini",   "gemini-3.5-flash",      "normal"),
     ("gemini-3.1-pro-preview", "gemini",   "gemini-3.1-pro-preview","normal"),
 ]
@@ -107,17 +102,9 @@ MODEL_BY_DISPLAY = {m[0]: (m[1], m[2]) for m in RAW_MODELS}
 # their canonical display so behavior stays well-defined.
 MODEL_ALIASES = {
     "claude/claude-opus-4-8": "Claude Sonnet 5",
-    "grok/claude-opus-4-8": "Grok-4.5",
-    "grok-4.5": "Grok-4.5",
-    "grok-claude-opus-4-8": "Grok-4.5",
     "qwen/qwen3.6-plus": "qwen3.6-plus",
     "mimo/qwen3.6-plus": "MiMo-V2.5-Pro",
     "mimo-qwen3.6-plus": "MiMo-V2.5-Pro",
-    "minimax/glm-5.1": "MiniMax-M2.7",
-    "minimax-glm-5.1": "MiniMax-M2.7",
-    "doubao/glm-5.1": "豆包",
-    "doubao-glm-5.1": "豆包",
-    "doubao": "豆包",
     "chatgpt/gpt-5.6-luna": "gpt-5.6-sol",
     "chatgpt/gpt-5.6-terra": "gpt-5.6-terra",
     "chatgpt/gpt-5.5": "GPT-5.5",
@@ -127,8 +114,6 @@ MODEL_ALIASES = {
     "deepseek/deepseek-v4-flash": "deepseek-v4-flash",
     "gemini/gemini-3.5-flash": "gemini-3.5-flash",
     "gemini/gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
-    "kimi/kimi-k2": "Kimi K2",
-    "kimi/kimi-k2.5": "kimi-k2.5",
     # plain (unambiguous) actuals
     "gpt-5.6-luna": "gpt-5.6-sol",
     "gpt-5.6-terra": "gpt-5.6-terra",
@@ -137,14 +122,11 @@ MODEL_ALIASES = {
     "claude-opus-4-6": "claude-opus-4-6",
     "deepseek-v4-pro": "deepseek-v4-pro",
     "deepseek-v4-flash": "deepseek-v4-flash",
-    "kimi-k2.5": "kimi-k2.5",
     "gemini-3.5-flash": "gemini-3.5-flash",
     "gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
     # ambiguous plain actuals -> canonical display (preferred group)
     "claude-opus-4-8": "Claude Sonnet 5",
     "qwen3.6-plus": "qwen3.6-plus",
-    "glm-5.1": "MiniMax-M2.7",
-    "kimi-k2": "Kimi K2",
 }
 
 DEFAULT_MODEL = "deepseek-v4-flash"
@@ -404,8 +386,12 @@ class ToolCallParser:
                 if best == -1:
                     keep = max(len(op) for op, _ in self.TAGS) - 1
                     if len(self.buf) > keep:
-                        out.append(("content", self.buf[:-keep].decode("utf-8", "ignore")))
-                        self.buf = self.buf[-keep:]
+                        cut = len(self.buf) - keep
+                        c = cut
+                        while c > 0 and (self.buf[c] & 0xC0) == 0x80:
+                            c -= 1
+                        out.append(("content", self.buf[:c].decode("utf-8", "replace")))
+                        self.buf = self.buf[c:]
                     return out
                 if best > 0:
                     out.append(("content", self.buf[:best].decode("utf-8", "ignore")))
