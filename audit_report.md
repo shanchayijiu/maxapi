@@ -193,3 +193,10 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 - 回归不回退: 普通对话 `stop` / Claude `reasoning_content` (206 字符) / `search` 返回 `sources` / 流式干净 `[DONE]`.
 
 **方案定位**: prompt 注入 + 文本块解析 + 转 OpenAI tool_calls 是无原生 tool use 上游的通行补齐法 (同向于 LiteLLM fallback / reAct 文本协议); 非本次审计的支付/鉴权漏洞, 仅记载在产物演进.
+## 九、中文乱码修复 + 模型精简 (2026-08-01 本轮追加)
+
+**乱码根因 (实证)**: tools_enabled 时 ToolCallParser 压住最长标签 (function_call=12字节) 尾部, 再 buf[:-12].decode(utf-8,ignore) 把切断的多字节中文吞掉 -> 中文丢字乱码. 复现: 1字节喂入“我在这里测试...”经解析只剩“好世界。”, 几乎全吞. 用户截图 GPT-5.5 输出“这发工;道求先回试具用”即此 bug.
+
+**修复**: 压住尾部时回退到 UTF-8 字符边界 (buf[c] & 0xC0 != 0x80 才切, 即位置 c 不落在续字节上), 部分字节留给下一轮, 绝不丢字. 单测 1/2/3/4/5/7字节喂入全 lossless=True; 中文+emoji+ASCII混合完整保真; tool_call解析不受影响. live 实测带 tools 流式 7 模型中文全完整无损.
+
+**模型精简**: 17 -> 12, 仅保留 claude(3)/gpt(3)/deepseek(2)/qwen(1)/mimo(1)/gemini(2); 删 grok/doubao/kimi/minimax 及其 alias. 上游工具注入实证 (GPT=cpa_final_answer / Claude=file,python,web / Grok=search,memory,time) -> se.zzmax 本质是带工具上下文的反代; 工具可用 9 组, GPT×3 上游cpa锁死仅能纯对话.

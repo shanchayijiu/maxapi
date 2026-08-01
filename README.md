@@ -36,7 +36,7 @@
 - **别碰被拒路径**：image/video/audio 已删保持删掉，触发被拒次数也是访客滥用信号。
 - **不贪量**：一个流式请求耗上游真实算力，峰值是过载级信号。
 
-## 17 模型（对齐 se.zzmax 网页显示名 + 实测）
+## 12 模型（对齐 se.zzmax 网页显示名 + 实测）
 
 `/v1/models` 返回网页显示名，客户端直接用显示名做 `model`：
 
@@ -138,22 +138,22 @@ se.zzmax 上游为**每组模型注入了自己的工具 system prompt**（实�
 | 模型 | 工具调用 | 备注 |
 |---|---|---|
 | Claude Sonnet 5 / Opus 4.8 | ✅ 可用 | 主力推荐，思考流式可见 |
-| Grok-4.5 | ✅ 可用 | |
 | deepseek-v4-pro / v4-flash | ✅ 可用 | 禁令强化后从失败转可用 |
 | qwen3.6-plus / MiMo-V2.5-Pro | ✅ 可用 | |
-| 豆包 | ✅ 可用 | |
 | gemini-3.5-flash / 3.1-pro-preview | ✅ 可用 | |
-| GPT-5.5 / gpt-5.6-sol / gpt-5.6-terra | ❌ 不可用 | 上游被 `cpa_final_answer` 锁成"答题器"，直接吐答案不调外部工具；纯对话/思考仍可用 |
-| MiniMax-M2.7 | ❌ 不可用 | 不听 tools 指令，`tool_choice=required` 仍走 prose |
-| Kimi K2 / kimi-k2.5 | ⚠ 上游繁忙 | se.zzmax 后端 Kimi provider 偶发"模型服务繁忙"，代理透传 502（非 bug） |
+| GPT-5.5 / gpt-5.6-sol / gpt-5.6-terra | ❌ 不可用 | 上游被 cpa_final_answer 锁成“答题器”，直接吐答案不调外部工具；纯对话/思考仍可用 |
 
-> **结论：标准 agent（Codex/OpenClaw/Cherry Studio）做工具调用，主力用 Claude Sonnet 5 / Opus 4.8 / Grok-4.5 / deepseek / qwen / MiMo / 豆包 / gemini 这 10 组；GPT 三组只能当纯对话/思考用。**
+> **结论：本版仅保留 claude / gpt / deepseek / qwen / mimo / gemini 6 组共 12 个模型。工具调用主力用 Claude Sonnet 5 / Opus 4.8 / deepseek / qwen / MiMo / gemini（共 9 组可用）；GPT 三组只能当纯对话/思考用（上游 cpa 锁死，无 code 可解）。已删 grok/doubao/kimi/minimax。
 
 ### GPT 组思考特性（已知上游限制，非代理 bug）
 
 实测 GPT-5.5 流式写一首 haiku：`first_byte=8.6s`（思考期 0 个 content/reasoning chunk），随后 0.3s 瞬间吐 21 个 chunk 全文——**se.zzmax 上游对 GPT 组不流式吐思考，思考完成后才一次性发 content**。因此 Cherry Studio 里 GPT 表现为"加载一会儿全部一起输出"，且思考内容客户端看不到。代理已把 SSE 心跳从 5s 降到 **1s**，防止 8s+ 思考期被判 idle timeout（实测 8s 思考期 9 个 keepalive、间隔恒 1.00s）。Claude 组思考是流式增量可见，故远胜 GPT。
 
 
+
+### 中文乱码修复（2026-08-01 本轮，关键 bug）
+
+带 tools 的请求曾出现中文乱码。根因: tools 开启时 ToolCallParser 压住最长标签(function_call=12字节)尾部再 decode(utf-8,ignore)，把切断的多字节中文吞掉。已修: 压住尾部时回退到 UTF-8 字符边界(buf[c] 非续字节才切)，部分字节留给下一轮，绝不丢字。单测 1/2/3/4/5/7 字节喂入全 lossless=True，中文+emoji+ASCII 混合完整保真；live 实测带 tools 流式 7 模型中文全完整无损。
 ## 限制
 
 - 访客档每日每 IP 2 次额度 → 伪造 XFF 循环 IP 绕过；遇 `额度/2次/登录/频繁`（per-IP）自动换 IP 重试；遇 `繁忙/稍后`（后端忙）直接透传真实错误不重试。
