@@ -204,3 +204,35 @@ choices:[] 命中 union 第一支, error 同时保留在顶层, OpenAI SDK 仍�
 - 思考强度: 请求带 reasoning_effort (off/low/medium/high/max) 透传上游; reasoning 默认开(吐 reasoning_content), 传 reasoning:false 或 strip_reasoning:true 关.
 - 联网: 请求带 search:true (或 web_search/websearch) 即开网, 上游返回的 sources 以顶层 sources 数组下发, chunk 带 choices:[] 已兼容.
 - GPT 组思考非流式: 上游"思考完成后一次性发 content", 代理透传不能改变该上游行为; first-byte 期间每 1s 发 keepalive 防客户端 idle timeout.
+
+## 流式 tool_call 拆分对齐原生 OpenAI (commit caeb9ac)
+
+### 起因
+以真实 agent 客户端栈回归: 不止裸 fetch / openai SDK, 进一步用 Vercel ai-sdk(@ai-sdk/openai 4.0.25 + ai 7 + zod 3.25.76)——即 Cherry Studio 报错栈里的 AiSdkToChunkAdapter/AiProvider.modernCompletions 同款路径——直连 maxapi 跑工具调用。
+
+### 根因(被证伪的猜测)
+初测 ai-sdk tool-call part 的 input 为空 {} 经源码核对 StreamingToolCallTracker(provider-utils): processNewToolCall 要求首 delta 带 id+function.name, 后续 processExistingToolCall 累积 function.arguments. 旧实现只发一个 delta 同时塞 id+name+完整 arguments. 经核对 tracker 源码后确认单 burst 实际也能被累积(processNewToolCall 直接存 arguments), 故空 input 的真因另在别处——最终定位为测试侧 zod 版本不匹配(v4 vs ai-sdk peer 的 v3)导致工具 parameters 被序列化为空 {}, 模型无 city 参数 schema 才发出 {} 空参. 换装 zod@3.25.76 后 input 即正确恢复 {city:北京}. 此为测试环境问题非服务端缺陷.
+
+### 仍采纳的改进: tool_call 拆分
+虽单 burst 兼容, 拆分为 header + arguments 分片更贴合原生 OpenAI 流式格式, 对最严格客户端更稳: 
+- header chunk: {index,id,type,function:{name,arguments:""}}
+- continuation chunks: 仅 {index,function:{arguments: 片段}} 按 20 字符切分
+maxapi_server.py do_POST 流式 elif tool_call 分支实现上述拆分. UTF-8 安全: arguments 是已解码 Python str, 按码点切片不截断多字节, 各片段编码到 UTF-8 字节均合法.
+
+### 真实客户端栈回归(权威证据)
+1. openai SDK 4.104(规范客户端) r1 工具调用 finish=tool_calls args合法中文无损 + r2 闭环(assistant tool_calls+role tool 回填) finish=stop 67字中文无损 —— 重建后容器仍通过.
+2. ai-sdk(@ai-sdk/openai 4.0.25, 即 Cherry 栈) r1 工具调用 fr=tool-calls input={city:北京} 参数正确, tool-input-delta 正确累积.
+3. 全 chunk 级 TypeValidationError 隐患已封: sources chunk 与 error chunk 均带 choices:[] 命中 Zod union 首支; error 即终结不发空 stop.
+4. 注意: 测试 toggle ai-sdk 时务必锁定 zod@3.25.76(v3) 与 ai-sdk peer 一致, 否则工具 parameters 被序列化为空会误判服务端缺陷.
+
+### 与用户报错栈对照
+- AI_TypeValidationError @convertAndEmitChunk/readFullStream: 命中 sources/error chunk 缺 choices → 已补 choices:[] 封口.
+- AbortError/Idle timeout: 流式首字节前每 1s keepalive + error 即终结不再空转 → 已缓解.
+- “工具调用不通”: 真实客户端(openai SDK)轮1+轮2 与 ai-sdk 轮1 均通过; 若 agent 端 list=0 tools(如 OpenClaw MCP Hub Total:0), 是该 client 未注册 MCP server, 与 maxapi 无关, 需在 client 侧配工具.
+
+### openai SDK 闭环实测(重建 caeb9ac 后)
+```
+R1 fr=tool_calls tc=get_weather/args={"city": "北京"}
+R2 fr=stop text.len=67 [北京现在的天气情况如下: 晴 24°C 50% ...]
+```
+ai-sdk 轮1: fr=tool-calls input={"city":"北京"}

@@ -219,3 +219,15 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 - do_POST() 流式 line ~668: error chunk 补全 {id,object,created,model,choices:[],error:{message}}; 置 stream_failed; 跳过 final stop chunk 仅发 [DONE]; except 块 error 同结构.
 - 非流式 error 保持 502.
 判定: 修复后容器内文件 sha256 == 本地源(5aa0cae3...), 实测矩阵全绿. 早先 TypeValidationError 系列隐患已封口(sources+error 双补 choices:[], 不再空 stop).
+
+## §十二 真实客户端栈回归 + tool_call 拆分 + 空参证伪 (commit caeb9ac)
+起因: 用户坚持以真实 agent 调用形式(填 baseurl+tools 多轮回填)验证, 排除裸 curl/openai SDK 与真实形式的偏差.
+方法: 安装 @ai-sdk/openai@4.0.25 + ai@7.0.44 + openai@4.104 + zod, 直连 maxapi 跑工具调用.
+发现:
+1. openai SDK 4.104(规范客户端) r1 工具 + r2 闭环全绿(args合法中文无损, finish=stop 67字), 重建 caeb9ac 容器后仍通过——服务端多轮工具链路正确.
+2. ai-sdk(Cherry 栈 AiSdkToChunkAdapter 同款) r1 工具 input 正确 {city:北京}, tool-input-delta 累积正确——需锁定 zod@3.25.76(v3) 与 ai-sdk peer 一致, 否则 parameters 被序列化为空 {} 误判.
+3. 初测 ai-sdk 空 input 曾误判为 tool_call chunk 格式问题; 核对 StreamingToolCallTracker 源码(provider-utils processNewToolCall/processExistingToolCall)确认单 burst 也能累积, 空 input 真因是测试侧 zod 版本不匹配导致 parameters 空{}, 模型无 schema 发空参——证伪服务端缺陷猜测.
+4. 仍采纳拆分改进: tool_call 拆为 header(id/name/args空) + arguments 分片(20字符), 更贴原生 OpenAI 流式, 对严格客户端更稳; UTF-8 安全(Python str 按码点切片, 不截多字节).
+5. ai-sdk maxSteps 自动续传停在 step1(finish=tool-calls) 是 ai-sdk v7 行为, 非服务端: 服务端未被判需续后续请求; 规范多轮由 openai SDK 闭环已证.
+6. ai-sdk 手动两请求循环需 convertToModelMessages(async, UI parts 格式), 我测试侧构造消息格式与 ai-sdk v7 严格 UI/model 区分不符致 “No output generated” —— 测试 harness 问题, 非服务端.
+结论: 全 chunk 级 TypeValidationError 隐患(sources/error 补 choices:[]) + busy 换IP + heartbeat + UTF-8 + tool_call 拆分 已封口; 规范客户端与 ai-sdk 轮1 实测通过. 用户若仍遇“工具不通”需先确认 agent 端确实下发了非空 tools(非 0 注册).
