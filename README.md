@@ -113,6 +113,26 @@ curl http://localhost:8080/healthz   # {"status":"ok","models":17}
 | 思考时长卡住/连接不结束 | 思考 dump+不关连接 | 简单 "1"：`[DONE]` 后干净关闭 |
 | 隐身（本节） | 非浏览器 header/高频/无会话 | P0 全量实测见上表 |
 
+## 工具调用（tool use / 伪 OpenAI tool calling）
+
+se.zzmax.cn 是私有 schema（`/api/chat/stream` 只认 `model/subModel/messages/reasoningEffort/search`），**不透传 OpenAI `tools` 字段**——原生协议层 tool use 已断（模型会直说 "I don't have access to tools"）。maxapi 在代理层用**诱导式 / 解析式伪 tool calling**，让标准 agent（Codex、OpenClaw、Cherry Studio、openai SDK）传入 `tools` 后像正常 OpenAI API 一样工作：
+
+1. **注入 tools system prompt**：把客户端 `tools`（OpenAI function schema）编进 system 消息，教模型在需要时输出固定 XML-like 标签块 `<tool_call>{"name": "<function_name>", "arguments": {...}}</tool_call>`，并给一个完整 example 锚定格式；`tool_choice` auto/none/required/指定函数名 全支持。
+2. **展平历史**：把历史中的 `assistant.tool_calls` 渲染成同款文本块、`role:tool` 结果渲染成 `user` 观察消息（私有上游不认 `tool` role）。
+3. **ToolCallParser 状态机解析**：从模型文本流里剥出 tool_call 块，跨 SSE chunk 拆分也不泄漏 body；**多标签容错**（`<tool_call`/`<call`/`<tool_use`/`<function_call`/`<tool` 五种），应对模型对精确标签的随机性。
+4. **转标准 OpenAI**：非流式 `message.tool_calls` + `finish_reason=tool_calls`；流式 `delta.tool_calls` + 干净 `[DONE]`。
+
+> 方案同向于业界通行做法（prompt 注入 + 文本块解析 + 转 OpenAI tool_calls，如 LiteLLM fallback / reAct 类框架的 tool_use 文本协议）；无原生 tool use 的上游均可据此补齐。
+
+### 实测（Docker live runtime，2026-08-01）
+- Claude Sonnet 5：非流式 / 流式 / `tool_choice=required` 均 `finish_reason=tool_calls`，解析出 `get_weather(city=...)` ✅
+- 5/5 多城市（Berlin/Madrid/Rome/Lisbon/Vienna）稳定输出 tool_call ✅
+- 多轮闭环：工具结果回填 → 第二轮模型基于 observation 正常回答（`Helsinki -12°C heavy snow` 等，`finish_reason=stop`）✅
+- 回归不回退：普通对话 `stop` / Claude `reasoning_content` / `search` 返回 `sources` / 流式干净 `[DONE]` ✅
+
+**修复的关键 bug**：之前 `do_POST` 缺 tools 解析，流式路径引用未定义的 `msgs_up/tools_enabled` → `NameError` 被 except 吞，只吐 error SSE 不发 `[DONE]`，客户端永远显示"回复中"并最终 `AbortError` / `Idle timeout`。已修。
+
+
 ## 限制
 
 - 访客档每日每 IP 2 次额度 → 伪造 XFF 循环 IP 绕过；遇 `额度/2次/登录/频繁`（per-IP）自动换 IP 重试；遇 `繁忙/稍后`（后端忙）直接透传真实错误不重试。

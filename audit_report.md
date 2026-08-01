@@ -175,4 +175,21 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 - **繁琐不再挂死**: 上游 `{"error":"模型服务繁忙",done:true}` 判为终局 -> ~20s 透传真实错误 + 干净 finish+[DONE]; 额度/2次/登录类仍换 IP 重试 (§一 XFF 绕过).
 
 最新产品功能、部署、实测验证表见 `README.md`. 本节仅为审计-产物互链, 不改动 §一~§六 审计原文.
+## 八、产物演进: 伪 OpenAI tool calling (2026-08-01 本轮追加)
 
+**问题**: se.zzmax.cn 私有 schema `/api/chat/stream` 只认 `model/subModel/messages/reasoningEffort/search`, **不透传 OpenAI `tools` 字段**。实测: 客户端传 `tools` 后模型直答 "I don't have access to tools" —— 原生协议层 tool use 已断, 标准 agent (Codex/OpenClaw) 无法多轮调用工具.
+
+**根因实证 (live runtime)**: 前轮实现把 helpers/parser 已写, 但 `do_POST` 缺 tools 解析 -> 流式路径引用**未定义**的 `msgs_up/tools_enabled` -> `NameError` 被 except 捕获 -> 只吐一条 error SSE 且**不发 `data: [DONE]`** -> 客户端 (Cherry Studio) 永远显示"回复中", 可暂停, 最终 `AbortError: Request was aborted` 与 `DomException: Idle timeout exceeded`. 这正是用户现场报错的根因.
+
+**修复 (诱导式/解析式伪 tool calling)**:
+- 注入 tools system prompt: 把客户端 `tools` (OpenAI function schema) 编进 system 消息, 教模型按固定 XML-like 标签块 `<tool_call>{"name":...,"arguments":{...}}</tool_call>` 输出, 给完整 example 锚定; `tool_choice` auto/none/required/指定函数名.
+- 展平历史: `assistant.tool_calls` -> 同款文本块; `role:tool` 结果 -> `user` 观察消息 (私有上游不认 `tool` role).
+- ToolCallParser 两态状态机: 跨 SSE chunk 拆分不泄漏 body; **多标签容错** (`<tool_call`/`<call`/`<tool_use`/`<function_call`/`<tool`), 应对模型对精确标签的随机性 (实测模型一度输出 `<call>` 而非 `<tool_call>`).
+- 转标准 OpenAI: 非流 `message.tool_calls`+`finish_reason=tool_calls`; 流 `delta.tool_calls`+干净 `[DONE]`.
+
+**实测 (Docker live runtime, `localhost:8080`)**:
+- Claude Sonnet 5: 非流/流/`required` 全 `finish_reason=tool_calls`, 解析出 `get_weather`; 5/5 多城市 (Berlin/Madrid/Rome/Lisbon/Vienna) 稳定.
+- 多轮闭环: 工具结果回填 -> 第二轮基于 observation 正常作答 (Helsinki -12°C heavy snow, `finish_reason=stop`).
+- 回归不回退: 普通对话 `stop` / Claude `reasoning_content` (206 字符) / `search` 返回 `sources` / 流式干净 `[DONE]`.
+
+**方案定位**: prompt 注入 + 文本块解析 + 转 OpenAI tool_calls 是无原生 tool use 上游的通行补齐法 (同向于 LiteLLM fallback / reAct 文本协议); 非本次审计的支付/鉴权漏洞, 仅记载在产物演进.
