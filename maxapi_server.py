@@ -662,9 +662,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [], "sources": data})
                 elif kind == "tool_call":
+                    tci = tool_call_count
                     tool_call_count += 1
+                    argstr = json.dumps(data["arguments"], ensure_ascii=False)
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                         "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tool_call_count - 1, "id": data["id"], "type": "function", "function": {"name": data["name"], "arguments": json.dumps(data["arguments"], ensure_ascii=False)}}]}, "finish_reason": None}]})
+                         "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tci, "id": data["id"], "type": "function", "function": {"name": data["name"], "arguments": ""}}]}, "finish_reason": None}]})
+                    step = 20
+                    for off in range(0, len(argstr), step):
+                        piece = argstr[off:off + step]
+                        sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                             "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tci, "function": {"arguments": piece}}]}, "finish_reason": None}]})
                 elif kind == "error":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [], "error": {"message": data.get("error") if isinstance(data, dict) else str(data)}})
