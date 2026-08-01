@@ -163,3 +163,16 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 平台会员体系在 "模型调用" 这一面被访客通道+伪造IP+长历史三连绕飞干净. (见 §一.2) XFF 信任 + (本轮) 服务端无 messages 长度上限 + 多轮上下文直接透出 = 等价于:
 - 无账号 · 无限次 · 长(可客户端维护任意多轮) · premium 模型全可调
 - 修复优先级: P0 (上游话费敞口)
+
+## 七、产物: maxapi 代理
+
+本审计衍生的工程产物 `maxapi` (OpenAI 兼容代理, 仓库 git@github.com:shanchayijiu/maxapi.git, 分支 main) 基于上述发现封装访客旁路:
+
+- **17 个 chat/vision 模型**: `/v1/models` 用 se.zzmax 网页显示名 (Claude Sonnet 5 / gpt-5.6-sol / Grok-4.5 / 豆包 / MiniMax-M2.7 / Kimi K2 / ...), 同时向后兼容 actual id 与组限定别名 (gpt-5.6-luna->gpt-5.6-sol, grok-4.5, doubao-glm-5.1 等).
+- **联网透传**: `search:true` (或 `web_search:true`) -> 上游 `search:true`, sources 透传客户端 (非流顶层数组 / 流式 chunk).
+- **思考强度全可调**: `reasoning_effort` off/low/medium/high/max 全转发; 实测思考量明显可调. (claude 系 provider 始终思考, off=省略字段)
+- **隐身层 P0**: 完整浏览器 header / 令牌桶限速 --rpm / 低频伴随 nav-categories / 不带 conversationId (真访客指纹).
+- **繁琐不再挂死**: 上游 `{"error":"模型服务繁忙",done:true}` 判为终局 -> ~20s 透传真实错误 + 干净 finish+[DONE]; 额度/2次/登录类仍换 IP 重试 (§一 XFF 绕过).
+
+最新产品功能、部署、实测验证表见 `README.md`. 本节仅为审计-产物互链, 不改动 §一~§六 审计原文.
+
