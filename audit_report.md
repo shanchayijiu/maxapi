@@ -200,3 +200,10 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 **修复**: 压住尾部时回退到 UTF-8 字符边界 (buf[c] & 0xC0 != 0x80 才切, 即位置 c 不落在续字节上), 部分字节留给下一轮, 绝不丢字. 单测 1/2/3/4/5/7字节喂入全 lossless=True; 中文+emoji+ASCII混合完整保真; tool_call解析不受影响. live 实测带 tools 流式 7 模型中文全完整无损.
 
 **模型精简**: 17 -> 12, 仅保留 claude(3)/gpt(3)/deepseek(2)/qwen(1)/mimo(1)/gemini(2); 删 grok/doubao/kimi/minimax 及其 alias. 上游工具注入实证 (GPT=cpa_final_answer / Claude=file,python,web / Grok=search,memory,time) -> se.zzmax 本质是带工具上下文的反代; 工具可用 9 组, GPT×3 上游cpa锁死仅能纯对话.
+## 十、流式 sources chunk 兼容性修复 (2026-08-01 本轮追加)
+
+**表现**: Cherry Studio search 时报 AI_TypeValidationError: Zod union 霂 choices(array) 或 error(object), 而 sources chunk `{id,object,created,model,sources}`(如 `{"model":"claude-opus-4-6","sources":[]}`) 两者皆缺 -> Invalid input.
+
+**根因**: 之前流式 sources chunk照 `sse({..., "sources": data})` 只带 sources、**没有 choices 数组**, 违反 OpenAI chunk discriminated union. 非流式路径不受影响(往已含 choices 的 completion 对象上加 sources头).
+
+**修复**: sources chunk 加 `choices: []`(空数组满足 array 分支, sources 扩展字段仍可读). 实证(monkeypatch 假 upstream 强制 yield sources): sources chunk keys=[choices,created,id,model,object,sources], has_choices_array=True → Zod union 命中 → TypeValidationError 消除. 不依赖上游 flaky search, 确定性单行修复.

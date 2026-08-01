@@ -659,7 +659,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                          "choices": [{"index": 0, "delta": {"reasoning_content": data}, "finish_reason": None}]})
                 elif kind == "sources":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                         "sources": data})
+                         "choices": [], "sources": data})
                 elif kind == "tool_call":
                     tool_call_count += 1
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,

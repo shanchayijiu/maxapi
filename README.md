@@ -154,6 +154,9 @@ se.zzmax 上游为**每组模型注入了自己的工具 system prompt**（实�
 ### 中文乱码修复（2026-08-01 本轮，关键 bug）
 
 带 tools 的请求曾出现中文乱码。根因: tools 开启时 ToolCallParser 压住最长标签(function_call=12字节)尾部再 decode(utf-8,ignore)，把切断的多字节中文吞掉。已修: 压住尾部时回退到 UTF-8 字符边界(buf[c] 非续字节才切)，部分字节留给下一轮，绝不丢字。单测 1/2/3/4/5/7 字节喂入全 lossless=True，中文+emoji+ASCII 混合完整保真；live 实测带 tools 流式 7 模型中文全完整无损。
+### 流式 sources chunk 兼容性修复（2026-08-01，AI_TypeValidationError）
+
+开启 search 时、上游返回 sources 字段，代理会发一个单独的 sources chunk。之前该 chunk 形态为 `{id,object,created,model,sources}` **缺 choices 数组**，OpenAI chunk schema 是 discriminated union（需 choices(array) 或 error(object)），Cherry Studio Zod 校验报 `AI_TypeValidationError: expected array at path choices`（原 chunk 如 `{"model":"claude-opus-4-6","sources":[]}` 无 choices）。**已修**: sources chunk 加 `choices: []`，满足 array 分支、sources 扩展字段仍可被客户端读取。实证(monkeypatch 假 upstream 强制 yield sources): sources chunk keys=[choices,created,id,model,object,sources]，has_choices_array=True → Zod union 命中。
 ## 限制
 
 - 访客档每日每 IP 2 次额度 → 伪造 XFF 循环 IP 绕过；遇 `额度/2次/登录/频繁`（per-IP）自动换 IP 重试；遇 `繁忙/稍后`（后端忙）直接透传真实错误不重试。
