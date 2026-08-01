@@ -3,11 +3,12 @@
 把 se.zzmax.cn 的访客免登录 + 伪造 X-Forwarded-For（无限重置每日 2 次额度）+ 客户端维护长上下文，
 封装成标准 OpenAI Chat Completions。纯 Python 标准库、零依赖、单文件 Docker。
 
-## 上游机制（实证，2026-07-31）
+## 上游机制（实证，2026-08-01）
 
 - **端点**：chat/vision 全部走 `https://se.zzmax.cn/api/chat/stream`（SSE）。image/video/audio 走专用 `/image|/video|/audio/generate`，访客 `401`，已删。
 - **绕过**：访客免鉴权 + 每请求伪造 `X-Forwarded-For`/`X-Real-IP` → 服务端按 IP 重置额度，无限试用；`messages[]` 无上限 → 客户端维护长上下文。
-- **思考触发**：请求体带 `reasoningEffort`（`low|medium|high|max`，`off`=省略）上游才发思考流。缺它不发——这是先前 GPT 无思考、grok 超时报错的根因。
+- **联网模式**：请求体带 `search: true`，上游开启 web 检索，SSE 多出 `status`/`sources` 字段；代理把 `sources` 透传给客户端（非流式顶层 `sources` 数组、流式一条带 `sources` 的 chunk）。
+- **思考强度**：请求体带 `reasoningEffort`（`low|medium|high|max`，`off`=省略）上游才发思考流。强度递增、思考量明显不同（实测 low~496 字 / 默认~1285 字）。缺它上游不发思考流。
 - **思考标签**：思考块以 `<think> … </think>` 形式混进上游 `content`，`ReasoningFilter` 按字节流识别（跨 chunk）转成 OpenAI `reasoning_content` delta，答案进 `content`。
 
 ## 隐身层（降低被发现概率，已实现 P0）
@@ -26,7 +27,7 @@
 
 ### P1 部署层（削弱 XFF 硬命门，需你做）
 
-- **多出口 IP 轮换**：NAS + 家宽 + VPS 各跑一个代理实例，或前置一个代理池让出口 IP 分散。让"一个 TCP 源 IP 顶几十 XFF"变成"多个源 IP 各顶少量"，直接削弱最易被审计的 pattern。
+- **多出口 IP 轮换**：NAS + 家宽 + VPS 各跑一个代理实例，或前置一个代理池让出口 IP 分散。
 - **--rpm 按出口设小**：每出口限到接近真人访客的频率（几分钟一次级），别让一个出口高速跑。
 
 ### P2 行为层
@@ -35,14 +36,33 @@
 - **别碰被拒路径**：image/video/audio 已删保持删掉，触发被拒次数也是访客滥用信号。
 - **不贪量**：一个流式请求耗上游真实算力，峰值是过载级信号。
 
-## 18 模型（`/api/chat/models` 权威表 + 实测）
+## 17 模型（对齐 se.zzmax 网页显示名 + 实测）
 
-| 类别 | 模型 |
-|---|---|
-| chat | deepseek-v4-flash/pro, claude-opus-4-6/4-8/4.8, gpt-5.6-luna/terra, gpt-5.5, gemini-3.5-flash/3.1-pro-preview, grok-4.5, doubao-glm-5.1, minimax-glm-5.1, kimi-k2, mimo-qwen3.6-plus |
-| vision | qwen3.6-plus, kimi-k2.5 |
+`/v1/models` 返回网页显示名，客户端直接用显示名做 `model`：
 
-> grok 组实际路由 `claude-opus-4-8` 后端；补 `reasoningEffort` 后 4.2s 出思考，已实测修复。
+| 显示名 | 背后 actual | 组 |
+|---|---|---|
+| Claude Sonnet 5 | claude-opus-4-8 | claude |
+| Claude Opus 4.8 | claude-opus-4.8 | claude |
+| claude-opus-4-6 | claude-opus-4-6 | claude |
+| Grok-4.5 | claude-opus-4-8 | grok |
+| gpt-5.6-sol | gpt-5.6-luna | chatgpt |
+| gpt-5.6-terra | gpt-5.6-terra | chatgpt |
+| GPT-5.5 | gpt-5.5 | chatgpt |
+| deepseek-v4-pro | deepseek-v4-pro | deepseek |
+| deepseek-v4-flash | deepseek-v4-flash | deepseek |
+| qwen3.6-plus | qwen3.6-plus | qwen（vision） |
+| MiMo-V2.5-Pro | qwen3.6-plus | mimo |
+| MiniMax-M2.7 | glm-5.1 | minimax |
+| 豆包 | glm-5.1 | doubao |
+| Kimi K2 | kimi-k2 | kimi |
+| kimi-k2.5 | kimi-k2.5 | kimi（vision） |
+| gemini-3.5-flash | gemini-3.5-flash | gemini |
+| gemini-3.1-pro-preview | gemini-3.1-pro-preview | gemini |
+
+- **别名向后兼容**：也接受原始 actual id（如 `gpt-5.6-luna`→`gpt-5.6-sol`）和组限定形式（`claude/claude-opus-4-8`、`grok-4.5`、`doubao-glm-5.1`、`minimax-glm-5.1`、`mimo-qwen3.6-plus`）。歧义 actual（`glm-5.1`/`qwen3.6-plus`/`claude-opus-4-8`）按上表首选组解析。
+- **image2/sora/veo/suno 已删**：走鉴权生成端点，访客 `401`。
+- grok 组后端实际是 claude-opus-4-8（实测回 MiMo 系），是站点自己的回退，非本代理问题。
 
 ## 部署
 
@@ -54,37 +74,50 @@ docker run -d --name maxapi -p 8080:8080 maxapi:latest
 docker run -d --name maxapi -p 8080:8080 maxapi:latest \
   python maxapi_server.py --host 0.0.0.0 --port 8080 --rpm 12
 # 关闭伴随调用：加 --no-companion
-curl http://localhost:8080/healthz   # {"status":"ok","models":18}
+curl http://localhost:8080/healthz   # {"status":"ok","models":17}
 ```
 
 ## API
 
 `GET /healthz` · `GET /v1/models` · `POST /v1/chat/completions`（流式默认）
 
-### reasoning_effort（客户端可选）
+### reasoning_effort（客户端可选，思考强度全可调）
 
 | 值 | 说明 |
 |---|---|
 | 省略 | 代理自动注入 `medium` |
-| `low`/`medium`/`high`/`max` | 思考强度递增，实时流 `reasoning_content` |
-| `off` | 不发该字段，上游不思考 |
+| `low`/`medium`/`high`/`max` | 思考强度递增，实时流 `reasoning_content`（实测低/默认思考量明显不同） |
+| `off` | 不发该字段；claude 系上游始终思考（provider 限制，实测 `thinking:false` 无效），gpt 系本就不思考 |
 
 也接受 `reasoningEffort`（驼峰）。隐藏思考：`"reasoning": false` 或 `"strip_reasoning": true`。
+
+### search / 联网模式（客户端可选）
+
+请求体加 `"search": true`（或 `"web_search": true`）→ 透传上游 `search: true`，开启 web 检索。
+上游返回 `sources`（引用来源），代理透传：非流式放顶层 `sources` 数组，流式发一条带 `sources` 的 chunk。
+
+```json
+{"model":"Claude Sonnet 5","messages":[...],"stream":true,"reasoning_effort":"low","search":true}
+```
 
 ## 实测验证（Docker 内 live runtime）
 
 | 问题 | 根因 | 修复证据 |
 |---|---|---|
-| image2/sora 不可用 | 走鉴权生成端点 | `/image|/video|/audio/generate` 端点访客 `401`；已删 27→18 |
-| grok 报错 | 缺 `reasoningEffort` 上游不流式→超时 | grok-4.5 low：4.2s 思考、5.7s `[DONE]`、无错误 |
-| GPT 无实时思考 | 同上 | gpt-5.5 medium：7.2s 出 36 字符思考 + 153 delta 实时流 |
-| 思考时长卡住/连接不结束 | 思考 dump+不关连接 | 简单 "1"：`[DONE]` 后 80ms 干净关闭，`done≈close` |
+| image2/sora 不可用 | 走鉴权生成端点 | `/image|/video|/audio/generate` 访客 `401`；已删 |
+| grok 报错 | 缺 `reasoningEffort` 上游不流式→超时 | Grok-4.5 实测 200，正常出内容（后端回 MiMo） |
+| GPT 无实时思考 | 同上 | gpt-5.5 实时流 `reasoning_content` delta |
+| 繁忙卡死 ~111s 后 `AbortError`/`Idle timeout` | 上游 `{"error":"模型服务繁忙",done:true}` 被当成可重试，5×~20s ping 后再报错，客户端挂死 | error+done 且含 `繁忙/稍后` 现判终局：~20s 直接透传真实错误 + 干净 `finish`+`[DONE]`，不再挂 |
+| 模型名与网页不一致（Sonnet5/extra） | /v1/models 用 actual id | 改用网页显示名，`/v1/models` 返回 17 个显示名 + 别名向后兼容实测 |
+| 联网模式 | search 未透传 | `search:true` 实测上游回 `sources` 字段，内容正常流式 |
+| 思考时长卡住/连接不结束 | 思考 dump+不关连接 | 简单 "1"：`[DONE]` 后干净关闭 |
 | 隐身（本节） | 非浏览器 header/高频/无会话 | P0 全量实测见上表 |
 
 ## 限制
 
-- 访客档每日每 IP 2 次额度 → 伪造 XFF 循环 IP 绕过；遇 `429`/`繁忙` 自动换 IP 重试（`max_retry=5`）。
+- 访客档每日每 IP 2 次额度 → 伪造 XFF 循环 IP 绕过；遇 `额度/2次/登录/频繁`（per-IP）自动换 IP 重试；遇 `繁忙/稍后`（后端忙）直接透传真实错误不重试。
 - 长上下文由客户端维护（上游 `messages[]` 无上限）。
 - 非确定性思考：上游对同请求有时思考有时直答，属上游特性。
+- claude 系上游始终思考，`off` 无法完全静默（provider 限制）。
 - 被发现风险：P0 削弱代码层指纹，但 XFF 硬命门需 P1 多出口 IP 分散（见隐身层章节）。
 - 支付系统金额篡改/回调伪造不可行（早期已实证）；唯一发现 `/api/payment/status` IDOR（只读）。

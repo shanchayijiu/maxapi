@@ -3,10 +3,9 @@
 """maxapi - se.zzmax.cn guest-bypass OpenAI-compatible HTTP service.
 
 Guest no-auth + forged X-Forwarded-For (unlimited quota reset) + client-side
-long context -> standard OpenAI Chat Completions. 14 chat/vision models routed
+long context -> standard OpenAI Chat Completions. 17 chat/vision models routed
 through the upstream /api/chat/stream SSE endpoint. Image/video/audio generation
-models dropped: they use dedicated /image|/video|/audio/generate endpoints that
-return 401 for guests.
+models dropped: they use dedicated endpoints that return 401 for guests.
 
 Stealth layer (reduce detection risk):
 - Full browser headers (Origin/Referer/Sec-Fetch-*/Sec-Ch-Ua/Accept-Language) so
@@ -19,11 +18,24 @@ Stealth layer (reduce detection risk):
   none (createConversation 401 -> login wall), so omitting it IS the real guest
   fingerprint; forging a random UUID would be rejected as a non-existent session.
 
-reasoningEffort (low/medium/high/max, omitted for off) is sent by default
-(medium) so the upstream streams the <think> ... </think> thinking block via content;
-ReasoningFilter peels it into OpenAI reasoning_content deltas so clients render
-the live thinking stream and no idle timeout occurs during long thinking. SSE
-heartbeat keeps the connection alive; Connection: close ends cleanly.
+Model naming: the external ids returned by /v1/models and accepted in "model"
+are the se.zzmax WEB display names ("Claude Sonnet 5", "gpt-5.6-sol",
+"Grok-4.5", doubao, ...) so clients match what users see on the site.
+resolve_model() also accepts raw actualModelIds and group-qualified aliases
+(e.g. "claude/claude-opus-4-8", "grok-4.5", "doubao-glm-5.1") for backward
+compatibility with older calls.
+
+reasoningEffort (off/low/medium/high/max) is forwarded to the upstream so the
+live thinking block streams back; ReasoningFilter peels it into OpenAI
+reasoning_content deltas so clients render the live thinking and no idle timeout
+occurs during long thinking. SSE heartbeat keeps the connection alive.
+
+search / web_search: when the client sets search=true (or web_search=true) the
+request is forwarded with upstream field "search": true, enabling the built-in
+web-retrieval / online mode for guests. Upstream may then return extra "sources"
+and "status" fields; sources are forwarded as a top-level "sources" array on the
+final non-stream message and as a final SSE chunk on streams so clients that
+render citations can use them.
 """
 import http.server, json, ssl, http.client, random, argparse, sys, time, threading
 
@@ -61,29 +73,97 @@ BROWSER_GET_HEADERS = {
     "Sec-Ch-Ua-Platform": '"' + "Windows" + '"',
 }
 
-MODEL_TABLE = {
-    "deepseek-v4-flash": ("deepseek", "deepseek-v4-flash"),
-    "deepseek-v4-pro":   ("deepseek", "deepseek-v4-pro"),
-    "claude-opus-4-6":   ("claude",   "claude-opus-4-6"),
-    "claude-opus-4-8":   ("claude",   "claude-opus-4-8"),
-    "claude-opus-4.8":   ("claude",   "claude-opus-4.8"),
-    "gpt-5.6-luna":      ("chatgpt",  "gpt-5.6-luna"),
-    "gpt-5.6-terra":     ("chatgpt",  "gpt-5.6-terra"),
-    "gpt-5.5":           ("chatgpt",  "gpt-5.5"),
-    "gemini-3.5-flash":  ("gemini",   "gemini-3.5-flash"),
-    "gemini-3.1-pro-preview": ("gemini", "gemini-3.1-pro-preview"),
-    "grok-4.5":          ("grok",    "claude-opus-4-8"),
-    "grok-claude-opus-4-8": ("grok", "claude-opus-4-8"),
-    "doubao-glm-5.1":    ("doubao",  "glm-5.1"),
-    "minimax-glm-5.1":   ("minimax", "glm-5.1"),
-    "kimi-k2":           ("kimi",    "kimi-k2"),
-    "mimo-qwen3.6-plus": ("mimo",    "qwen3.6-plus"),
-    "qwen3.6-plus":      ("qwen",    "qwen3.6-plus"),
-    "kimi-k2.5":         ("kimi",   "kimi-k2.5"),
+# Canonical model list in se.zzmax web display-name order.
+# Each tuple: (display_id, group, actualModelId, tier)
+# display_id is what /v1/models returns and what clients send in "model".
+RAW_MODELS = [
+    ("Claude Sonnet 5",        "claude",   "claude-opus-4-8",       "premium"),
+    ("Claude Opus 4.8",        "claude",   "claude-opus-4.8",       "premium"),
+    ("claude-opus-4-6",        "claude",   "claude-opus-4-6",       "normal"),
+    ("Grok-4.5",               "grok",     "claude-opus-4-8",       "premium"),
+    ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-luna",          "normal"),
+    ("gpt-5.6-terra",          "chatgpt",  "gpt-5.6-terra",         "normal"),
+    ("GPT-5.5",                "chatgpt",  "gpt-5.5",               "premium"),
+    ("deepseek-v4-pro",        "deepseek", "deepseek-v4-pro",       "premium"),
+    ("deepseek-v4-flash",      "deepseek", "deepseek-v4-flash",     "normal"),
+    ("qwen3.6-plus",           "qwen",     "qwen3.6-plus",         "premium"),
+    ("MiMo-V2.5-Pro",          "mimo",     "qwen3.6-plus",          "premium"),
+    ("MiniMax-M2.7",           "minimax",  "glm-5.1",               "premium"),
+    ("豆包",           "doubao",   "glm-5.1",               "normal"),
+    ("Kimi K2",                "kimi",     "kimi-k2",               "premium"),
+    ("kimi-k2.5",              "kimi",     "kimi-k2.5",             "premium"),
+    ("gemini-3.5-flash",       "gemini",   "gemini-3.5-flash",      "normal"),
+    ("gemini-3.1-pro-preview", "gemini",   "gemini-3.1-pro-preview","normal"),
+]
+
+# Ordered list of external display ids (for /v1/models).
+MODEL_DISPLAY_IDS = [m[0] for m in RAW_MODELS]
+
+# display_id -> (group, actual)
+MODEL_BY_DISPLAY = {m[0]: (m[1], m[2]) for m in RAW_MODELS}
+
+# Backward-compatible aliases accepted in "model": raw actualModelIds and
+# group-qualified forms. Ambiguous actuals (shared by over 1 group) point to
+# their canonical display so behavior stays well-defined.
+MODEL_ALIASES = {
+    "claude/claude-opus-4-8": "Claude Sonnet 5",
+    "grok/claude-opus-4-8": "Grok-4.5",
+    "grok-4.5": "Grok-4.5",
+    "grok-claude-opus-4-8": "Grok-4.5",
+    "qwen/qwen3.6-plus": "qwen3.6-plus",
+    "mimo/qwen3.6-plus": "MiMo-V2.5-Pro",
+    "mimo-qwen3.6-plus": "MiMo-V2.5-Pro",
+    "minimax/glm-5.1": "MiniMax-M2.7",
+    "minimax-glm-5.1": "MiniMax-M2.7",
+    "doubao/glm-5.1": "豆包",
+    "doubao-glm-5.1": "豆包",
+    "doubao": "豆包",
+    "chatgpt/gpt-5.6-luna": "gpt-5.6-sol",
+    "chatgpt/gpt-5.6-terra": "gpt-5.6-terra",
+    "chatgpt/gpt-5.5": "GPT-5.5",
+    "claude/claude-opus-4.8": "Claude Opus 4.8",
+    "claude/claude-opus-4-6": "claude-opus-4-6",
+    "deepseek/deepseek-v4-pro": "deepseek-v4-pro",
+    "deepseek/deepseek-v4-flash": "deepseek-v4-flash",
+    "gemini/gemini-3.5-flash": "gemini-3.5-flash",
+    "gemini/gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
+    "kimi/kimi-k2": "Kimi K2",
+    "kimi/kimi-k2.5": "kimi-k2.5",
+    # plain (unambiguous) actuals
+    "gpt-5.6-luna": "gpt-5.6-sol",
+    "gpt-5.6-terra": "gpt-5.6-terra",
+    "gpt-5.5": "GPT-5.5",
+    "claude-opus-4.8": "Claude Opus 4.8",
+    "claude-opus-4-6": "claude-opus-4-6",
+    "deepseek-v4-pro": "deepseek-v4-pro",
+    "deepseek-v4-flash": "deepseek-v4-flash",
+    "kimi-k2.5": "kimi-k2.5",
+    "gemini-3.5-flash": "gemini-3.5-flash",
+    "gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
+    # ambiguous plain actuals -> canonical display (preferred group)
+    "claude-opus-4-8": "Claude Sonnet 5",
+    "qwen3.6-plus": "qwen3.6-plus",
+    "glm-5.1": "MiniMax-M2.7",
+    "kimi-k2": "Kimi K2",
 }
+
 DEFAULT_MODEL = "deepseek-v4-flash"
 COMPANION_PROB = 0.08
 RATE = None
+
+def resolve_model(name):
+    """Map a client-supplied model id to (group, actualModelId, display_id)."""
+    if not name:
+        name = DEFAULT_MODEL
+    if name in MODEL_BY_DISPLAY:
+        g, a = MODEL_BY_DISPLAY[name]
+        return g, a, name
+    alt = MODEL_ALIASES.get(name)
+    if alt and alt in MODEL_BY_DISPLAY:
+        g, a = MODEL_BY_DISPLAY[alt]
+        return g, a, alt
+    g, a = MODEL_BY_DISPLAY[DEFAULT_MODEL]
+    return g, a, DEFAULT_MODEL
 
 def rand_ip():
     return "%d.%d.%d.%d" % (random.randint(1,250), random.randint(0,251), random.randint(0,251), random.randint(1,250))
@@ -126,7 +206,7 @@ def companion_touch():
 
 
 class ReasoningFilter:
-    """Peel the <think> ... </think> thinking block from upstream content; forward as
+    """Peel the upstream thinking block from content; forward as
     reasoning_content deltas. seek: only wait for more bytes if the buffer is a
     prefix of OPEN_TAG; otherwise answer at once (fixes short answers dropped)."""
     def __init__(self, include_reasoning=False):
@@ -183,15 +263,16 @@ class ReasoningFilter:
                 return out
 
 
-def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", max_retry=5):
-    if model_field not in MODEL_TABLE:
-        model_field = DEFAULT_MODEL
-    grp, sub = MODEL_TABLE[model_field]
+def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, max_retry=5):
+    grp, sub, disp = resolve_model(model_field)
     payload = {"model": grp, "subModel": sub, "messages": messages, "stream": True}
     if reasoning_effort and reasoning_effort != "off":
         payload["reasoningEffort"] = reasoning_effort
+    if search:
+        payload["search"] = True
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     filt = ReasoningFilter(include_reasoning=include_reasoning)
+    sources_sent = False
     for attempt in range(1, max_retry + 1):
         xff = rand_ip()
         h = dict(BROWSER_STREAM_HEADERS)
@@ -229,9 +310,13 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                         continue
                     if obj.get("error"):
                         err = obj["error"]
-                        if any(k in str(err) for k in ("额度", "2次", "登录", "繁忙", "稍后", "频繁", "游客", "套餐")):
+                        etxt = str(err)
+                        if any(k in etxt for k in ("额度", "2次", "登录", "游客", "套餐", "频繁")):
                             volatile = True
                             break
+                        if any(k in etxt for k in ("繁忙", "稍后")):
+                            yield ("error", {"error": err})
+                            return
                         yield ("error", {"error": err})
                         return
                     ct = obj.get("content")
@@ -241,6 +326,9 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                                 yield ("reasoning", piece)
                             elif kind == "content":
                                 yield ("content", piece)
+                    if obj.get("sources") is not None and not sources_sent:
+                        sources_sent = True
+                        yield ("sources", obj.get("sources"))
                     if obj.get("done"):
                         return
             if volatile and attempt < max_retry:
@@ -286,9 +374,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
     def do_GET(self):
         if self.path.startswith("/healthz"):
-            return self._send(200, {"status": "ok", "service": "maxapi", "models": len(MODEL_TABLE)})
+            return self._send(200, {"status": "ok", "service": "maxapi", "models": len(MODEL_DISPLAY_IDS)})
         if self.path.startswith("/v1/models"):
-            data = [{"id": m, "object": "model", "owned_by": "se.zzmax.cn-guest"} for m in MODEL_TABLE]
+            data = [{"id": m, "object": "model", "owned_by": "se.zzmax.cn-guest"} for m in MODEL_DISPLAY_IDS]
             return self._send(200, {"object": "list", "data": data})
         return self._send(404, {"error": {"message": "not found"}})
     def do_POST(self):
@@ -305,17 +393,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(400, {"error": {"message": "bad json: %s" % e}})
         model = req.get("model") or DEFAULT_MODEL
+        grp, sub, disp = resolve_model(model)
         messages = req.get("messages") or []
         stream = bool(req.get("stream"))
         include_reasoning = not (req.get("reasoning") is False or req.get("strip_reasoning"))
         effort = req.get("reasoning_effort") or req.get("reasoningEffort") or "medium"
         if str(effort).lower() not in ("off", "low", "medium", "high", "max"):
             effort = "medium"
+        search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         turn_id = "chatcmpl-%d" % int(time.time() * 1000)
         created = int(time.time())
         if not stream:
-            answer, reason, err = [], [], None
-            for kind, data in upstream(model, messages, include_reasoning, str(effort).lower(), max_retry=5):
+            answer, reason, err, sources = [], [], None, []
+            for kind, data in upstream(model, messages, include_reasoning, str(effort).lower(), search, max_retry=5):
                 if kind == "error":
                     err = data.get("error")
                     break
@@ -323,15 +413,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     answer.append(data)
                 elif kind == "reasoning":
                     reason.append(data)
+                elif kind == "sources":
+                    sources = data or []
             if err:
                 return self._send(502, {"error": {"message": err}})
             msg = {"role": "assistant", "content": "".join(answer)}
             if include_reasoning:
                 msg["reasoning_content"] = "".join(reason)
-            return self._send(200, {
-                "id": turn_id, "object": "chat.completion", "created": created, "model": model,
+            out = {
+                "id": turn_id, "object": "chat.completion", "created": created, "model": disp,
                 "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}],
-                "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1}})
+                "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1}}
+            if sources:
+                out["sources"] = sources
+            return self._send(200, out)
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -360,18 +455,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         hb = threading.Thread(target=heartbeat, daemon=True)
         hb.start()
         try:
-            sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": model,
+            sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                  "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}]})
-            for kind, data in upstream(model, messages, include_reasoning, str(effort).lower(), max_retry=5):
+            for kind, data in upstream(model, messages, include_reasoning, str(effort).lower(), search, max_retry=5):
                 if kind == "content":
-                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": model,
+                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"content": data}, "finish_reason": None}]})
                 elif kind == "reasoning":
-                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": model,
+                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"reasoning_content": data}, "finish_reason": None}]})
+                elif kind == "sources":
+                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                         "sources": data})
                 elif kind == "error":
                     sse({"error": {"message": data.get("error")}})
-            sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": model,
+            sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                  "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})
             emit(b"data: [DONE]\n\n")
         except Exception as e:
@@ -398,7 +496,7 @@ def main():
     RATE = RateLimiter(args.rpm) if args.rpm > 0 else None
     srv = http.server.ThreadingHTTPServer((args.host, args.port), Handler)
     print("maxapi listening on %s:%d  models=%d  rpm=%s  companion=%s" % (
-        args.host, args.port, len(MODEL_TABLE), args.rpm, not args.no_companion))
+        args.host, args.port, len(MODEL_DISPLAY_IDS), args.rpm, not args.no_companion))
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
