@@ -484,10 +484,10 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     if obj.get("error"):
                         err = obj["error"]
                         etxt = str(err)
-                        if any(k in etxt for k in ("额度", "2次", "登录", "游客", "套餐", "频繁")):
+                        if any(k in etxt for k in ("额度", "2次", "登录", "游客", "套餐", "频繁", "繁忙")):
                             volatile = True
                             break
-                        if any(k in etxt for k in ("繁忙", "稍后")):
+                        if any(k in etxt for k in ("稍后",)):
                             yield ("error", {"error": err})
                             return
                         yield ("error", {"error": err})
@@ -650,6 +650,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                  "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}]})
             tool_call_count = 0
+            stream_failed = False
             for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
                 if kind == "content":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
@@ -665,13 +666,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tool_call_count - 1, "id": data["id"], "type": "function", "function": {"name": data["name"], "arguments": json.dumps(data["arguments"], ensure_ascii=False)}}]}, "finish_reason": None}]})
                 elif kind == "error":
-                    sse({"error": {"message": data.get("error")}})
-            sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                 "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
+                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                         "choices": [], "error": {"message": data.get("error") if isinstance(data, dict) else str(data)}})
+                    stream_failed = True
+            if not stream_failed:
+                sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                     "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
             emit(b"data: [DONE]\n\n")
         except Exception as e:
             try:
-                sse({"error": {"message": "server: %s" % e}})
+                sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                     "choices": [], "error": {"message": "server: %s" % e}})
             except Exception:
                 pass
         finally:
