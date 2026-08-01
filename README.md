@@ -165,3 +165,42 @@ se.zzmax 上游为**每组模型注入了自己的工具 system prompt**（实�
 - claude 系上游始终思考，`off` 无法完全静默（provider 限制）。
 - 被发现风险：P0 削弱代码层指纹，但 XFF 硬命门需 P1 多出口 IP 分散（见隐身层章节）。
 - 支付系统金额篡改/回调伪造不可行（早期已实证）；唯一发现 `/api/payment/status` IDOR（只读）。
+
+## 稳定性修复批次 (commit 860f005)
+
+### 1. 繁忙并入换 IP 重试
+上游对 chatgpt 组偶发按 IP 限流, 仅返回 "{error":"模型服务繁忙,请稍后重试"}". 旧逻辑把"繁忙/稍后"判为终局直接透传(单次15s失败). 现把"繁忙"并入volatile集合, 在max_retry次内换随机 XFF/X-Real-IP 重试,全部失败才透传终局. "稍后"仍判终局不重试. 实测: GPT 组在限流窗口内换 IP 后 4s 成功(工具调用+中文均正常).
+
+### 2. 流式 error chunk 补全 OpenAI 结构
+旧 error chunk 形如 {"error":{"message":...}}, 缺 choices/object/id/created/model. 部分 agent 端(如 Cherry Studio Zod discriminated union)对非 streaming-error 事件校验时,极端情况下可能误判;与之前已修的 sources chunk 是同一类隐患. 现统一补全:
+```
+{"id":..,"object":"chat.completion.chunk","created":..,"model":..,"choices":[],"error":{"message":..}}
+```
+choices:[] 命中 union 第一支, error 同时保留在顶层, OpenAI SDK 仍能识别为 error 事件.
+
+### 3. error 即终结, 不再发空 stop
+旧: error chunk 后仍发 finish_reason="stop" 空 chunk + [DONE], 显得像"空成功",是早期客户端"一直回复中/AbortError/Idle timeout"症状来源之一. 现 error 后置 stream_failed=true, 跳过 final stop chunk, 直接 data: [DONE]; except 分支(内部异常)同样规范化后终结. 非流式 error 保持 502.
+
+### 4. 真实 agent 形式回归矩阵 (重建 --no-cache 后, fetch 模拟 agent 填 baseurl + tools + 多轮 tool result 回填)
+| 模型 | 工具 r1 (finish=tool_calls, args 合法 JSON) | 闭环 r2 (回填工具结果后正常停) | 中文无损 |
+|---|---|---|---|
+| Claude Sonnet 5 | OK city=北京 | OK 94字表格 | OK |
+| Claude Opus 4.8 / claude-opus-4-6 | OK(同组) | -- | OK |
+| deepseek-v4-pro | OK | -- | OK |
+| deepseek-v4-flash | OK | -- | OK |
+| qwen3.6-plus | OK | -- | OK |
+| MiMo-V2.5-Pro | OK city=Beijing | -- | OK |
+| gemini-3.5-flash | OK | -- | OK |
+| gemini-3.1-pro-preview | OK | -- | OK |
+| gpt-5.6-sol | OK city=北京 | -- | OK(reasoning.len=40) |
+| GPT-5.5 | (纯对话) OK | -- | OK(89字无损) |
+
+注: GPT 组早期因上游限流整段繁忙(每次15-16s); 本次"繁忙改换 IP 重试"后,同一段时间内4-18s成功,中文/工具均正常. 早先 handoff 记的"GPT 组工具调用不可用(cpa 锁死)"结论已证伪——那是限流,非工具机制问题.
+
+### 5. agent 接入要点 (OpenClaw / Codex / Cherry Studio)
+- maxapi 是标准 OpenAI 兼容: baseurl=http://<host>:8080/v1, api_key 任意, chat completions 走 /v1/chat/completions.
+- 工具不是 maxapi 内置: agent 自己的工具(MCP tools / openclaw Hub builtin / codex 内置)由 client 以 OpenAI tools 字段下发, maxapi 注入工具 system prompt 让模型 emit tool_call 并回传为 OpenAI tool_calls; client 执行后用 role=tool 消息回填, maxapi 展平为 user 观测送上游. 上例矩阵已验证这套闭环.
+- 若 agent 端 list 返回 0 tools (如 OpenClaw MCP Hub Total:0 tools), 是该 client 未注册任何 MCP server, 与 maxapi 无关; maxapi 收到空 tools 即不注入, 退化为纯对话. 需在 client 侧配置 MCP server 后工具才可用.
+- 思考强度: 请求带 reasoning_effort (off/low/medium/high/max) 透传上游; reasoning 默认开(吐 reasoning_content), 传 reasoning:false 或 strip_reasoning:true 关.
+- 联网: 请求带 search:true (或 web_search/websearch) 即开网, 上游返回的 sources 以顶层 sources 数组下发, chunk 带 choices:[] 已兼容.
+- GPT 组思考非流式: 上游"思考完成后一次性发 content", 代理透传不能改变该上游行为; first-byte 期间每 1s 发 keepalive 防客户端 idle timeout.

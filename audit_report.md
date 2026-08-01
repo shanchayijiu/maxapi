@@ -207,3 +207,15 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 **根因**: 之前流式 sources chunk照 `sse({..., "sources": data})` 只带 sources、**没有 choices 数组**, 违反 OpenAI chunk discriminated union. 非流式路径不受影响(往已含 choices 的 completion 对象上加 sources头).
 
 **修复**: sources chunk 加 `choices: []`(空数组满足 array 分支, sources 扩展字段仍可读). 实证(monkeypatch 假 upstream 强制 yield sources): sources chunk keys=[choices,created,id,model,object,sources], has_choices_array=True → Zod union 命中 → TypeValidationError 消除. 不依赖上游 flaky search, 确定性单行修复.
+
+## §十一 流式 error 兼容性 + 繁忙换 IP 重试 + 实测纠错 (commit 860f005)
+起因: 用户反馈权威 agent(OpenClaw)下"工具调用不通/与原生 API 不同". 之前以裸 curl/openai-SDK 验证与真实"填 baseurl + tools 多轮回填"场景有偏差.
+实测纠错 (重建 --no-cache, fetch 模拟 agent 形式):
+1. 全 9 组模型(含 GPT)流式工具调用 r1 + Claude 闭环 r2 全绿, args 合法 JSON, 中文无损.
+2. 早先 handoff "GPT 组工具不可用(cpa 锁死)" 结论证伪: 实为上游按 IP 限流(繁忙), 非工具机制; 限流窗口过/换 IP 即恢复, GPT 工具调用正常 emit tool_calls city=北京.
+3. OpenClaw "list=Total 0 tools / invoke exec Server not found mcp" 是 OpenClaw 自身 MCP Hub 未注册 server, 与 maxapi 无关.
+代码修复:
+- upstream() line ~487: "繁忙"并入 volatile 集(随 额度/2次/登录类), max_retry 内换随机 XFF/X-Real-IP; "稍后"仍终局透传.
+- do_POST() 流式 line ~668: error chunk 补全 {id,object,created,model,choices:[],error:{message}}; 置 stream_failed; 跳过 final stop chunk 仅发 [DONE]; except 块 error 同结构.
+- 非流式 error 保持 502.
+判定: 修复后容器内文件 sha256 == 本地源(5aa0cae3...), 实测矩阵全绿. 早先 TypeValidationError 系列隐患已封口(sources+error 双补 choices:[], 不再空 stop).
