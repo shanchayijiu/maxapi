@@ -266,3 +266,36 @@ ai-sdk 轮1: fr=tool-calls input={"city":"北京"}
 - GPT 组思考非流式: 上游"思考完成才一次性发 content", 代理无法改变上游行为; first-byte 期间每 1s keepalive 防 idle timeout. 极个别 GPT-5.5 思考超长 (实测曾 60s+), 客户端 idle timeout 应设宽 / 或选 GPT-5.5 以外模型做长任务.
 - GPT-5.5 auto 工具偶发拒绝: 上游注入的 cpa_final_answer/multi_tool_use 与本服务 tools prompt 在 auto 下偶有冲突; tool_choice:required 可强制 emit tool_calls, args 合法.
 - 不限: 这是对游客免登录反代的代理, 上游对 chatgpt 组偶发按 IP 限流 (繁忙); 已实现 max_retry 内换随机 XFF/X-Real-IP 重试.
+
+
+## Claude Code (cc-switch) 集成现状 + 排查下一步 (crucial for new session)
+
+### cc-switch 链路实测 (本会话最后确认)
+cc-switch 的 LocalProxy 跑在 `http://127.0.0.1:15721` (`settings.json` 的 `env.ANTHROPIC_BASE_URL`). Claude Code 直连这个 proxy (Anthropic 协议), proxy 应负责把 Anthropic `/v1/messages` 转成 maxapi 的 OpenAI `/v1/chat/completions` 再把响应转回 Anthropic Messages 格式.
+
+实测证据 (本会话):
+- POST `/v1/messages` 到 **maxapi 8080 直连** → 404 (maxapi 只实现 /v1/chat/completions, 符合预期, 无需自己实现 /v1/messages).
+- POST `/v1/messages` 到 **15721 proxy** → 200, 响应为合法 Anthropic Messages 形式:
+```
+{"id":"chatcmpl-...","type":"message","role":"assistant","content":[{"type":"thinking","thinking":"..."},{"type":"text","text":"2"}],"model":"Claude Opus 4.8","stop_...}
+```
+→ 这证明 **proxy 负责了协议转换**, maxapi 8080 + 15721 proxy 整条链对 `.claude settings current` (model=claude-opus-4-8) 是通的, 能正常出 thinking + text.
+
+### 结论: "Claude Code 用不了" 的根因 不在 maxapi
+maxapi 8080 (OpenAI /v1/chat/completions) 与 cc-switch 15721 proxy (Anthropic /v1/messages 转换) 已实测可出完整响应. 真正卡点在 Claude Code 客户端层 或 proxy 在 Claude Code 真实调用模式下的差异.
+
+### 新会话第一步直接做 (不要再翻 cc-switch/claude config — 用户已确认配好, 翻三遍很烦)
+直接 `spawn claude -p` 非交互跑一个简单 prompt, 抓 stdout+stderr+exitcode 看真实错误:
+```
+# claude.ps1 在 PATH; 正常 spawn 即可, 它自己读 ~/.claude/settings.json 的 env 块
+claude -p "回答1+1等于几, 只回数字" --output-format text --dangerously-skip-permissions 2>&1
+```
+重点查 (依据报错选其一):
+1. 报 "stream error" / 连接 reset → proxy 或 maxapi SSE 在 Claude Code 真实流式下断; 抓 15721 收到的请求 + maxapi docker logs.
+2. 报 auth/token → `ANTHROPIC_AUTH_TOKEN=PROXY_MANAGED` 占位 + proxy 在某些路径要真 token; 查 15721 proxy 是否要 X-API-Key.
+3. 报 model 不存在 / not found → maxapi `/v1/models` 返回的 id 里没有 `claude-opus-4-8` (有 "Claude Opus 4.8" 和 "claude-opus-4-6", 无 "claude-opus-4-8"); Claude Code 请求 `model="claude-opus-4-8"` 经 proxy 转到 maxapi 时, maxapi `resolve_model` 没匹配项 → 兜底 DEFAULT_MODEL=deepseek-v4-flash. 这会让 Claude Code 收到 “不是 opus 4.8” 的奇怪回答 但不一定报错. 可考虑把 `claude-opus-4-8` 加进 MODEL_ALIASES → 映射到 "Claude Sonnet 5" (上游实际组) 让它真的走 claude 组.
+4. 工具调用 (Claude Code 内置 Read/Bash/Grep 等): proxy 把 Anthropic tool 转成 OpenAI tools 转发, maxapi 已实测 OpenAI tools 全闭环 OK; 但 Anthropic tool 结构转成 maxapi tools 是否保形, 需抓 15721 转发后的请求 body 确认.
+
+### maxapi 这边需要补的 (可选, 按新会话实测错误再定)
+- 对 `claude-opus-4-8` model id 加别名 (RAW_MODELS 里 "Claude Sonnet 5" 上游实际就是 claude-opus-4-8, 已有别名映射吗?) — 检查 MODEL_ALIASES, 缺则补 "claude-opus-4-8":"Claude Sonnet 5".
+- 不要加 /v1/messages 端点到 maxapi: 15721 proxy 已经做了 Anthropic↔OpenAI 转换, 重复实现是造轮子.

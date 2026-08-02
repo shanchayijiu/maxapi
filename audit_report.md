@@ -257,3 +257,13 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 - GPT-5.5 auto 工具偶发拒绝: 上游 cpa_final_answer/multi_tool_use 注入冲突; tool_choice:required 强制可用.
 - chatgpt 组按 IP 限流: max_retry 内换 XFF 重试已实现.
 结论: 服务端无功能性缺陷. 重建 --no-cache 后全维度回归通过 (流式/非流式/工具/多工具/UTF8/并发/edgecase 全绿), 容器 healthz healthy.
+
+
+## §十四 Claude Code(cc-switch)集成 — 15721 proxy 实测正常 + maxapi 侧根因排除
+背景: 用户在 cc-switch 里把 Claude Code 配到 opus-4.8, 经 settings.json env: ANTHROPIC_BASE_URL=http://127.0.0.1:15721, ANTHROPIC_AUTH_TOKEN=PROXY_MANAGED, 模型全映射到 claude-opus-4-8. cc-switch 是 enableLocalProxy=true, 15721 是它的 LocalProxy. 用户报"用不了", 让自查.
+实测 (本会话最后):
+- maxapi 8080 直连 POST /v1/messages → 404 (maxapi 仅 /v1/chat/completions, 无需 /v1/messages).
+- 15721 proxy POST /v1/messages → 200, 响应合法 Anthropic Messages: {type:message, content:[{type:thinking,...},{type:text,text:"2"}], model:"Claude Opus 4.8"}.
+→ 15721 proxy 已负责 Anthropic↔OpenAI 协议转换, 整链 (Claude Code→15721→maxapi 8080 OpenAI) 对当前配置可正常出完整 thinking+text 响应.
+结论: "用不了"根因 不在 maxapi 8080, 不在 15721 proxy 基本转发层. 待 Claude Code 客户端层实测确认 (见 README 排查下一步). 候选: 流式 SSE 断/model id 不在 maxapi 列表致兜底非opus/auth占位.
+未做 (被用户打断中止): 实际 spawn claude -p 抓真实错误. 新会话第一步直接做这个.
