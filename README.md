@@ -236,3 +236,33 @@ R1 fr=tool_calls tc=get_weather/args={"city": "北京"}
 R2 fr=stop text.len=67 [北京现在的天气情况如下: 晴 24°C 50% ...]
 ```
 ai-sdk 轮1: fr=tool-calls input={"city":"北京"}
+
+
+## 全面排查批次 (Dockerfile HEALTHCHECK + .dockerignore + 全维度回归)
+
+### 容器/构建卫生改进(低风险)
+- Dockerfile 新增 `HEALTHCHECK`: 每 30s 探 /healthz, timeout 5s, start-period 30s 容忍冷启动, 连续 3 次失败才标 unhealthy (90s 窗口). 用镜像自带 python (slim 无 curl/wget) 调 urllib, 不引第三方依赖. 实测重建后 `docker inspect .State.Health.Status = healthy`, ExitCode 0.
+- 新增 `.dockerignore`: 把 __pycache__/.git/pocs_*/maxchat.py/scratch/*.log/*.md 排除出 build context, 加速 build 不影响功能 (Dockerfile 仅 COPY maxapi_server.py).
+
+### 全维度回归矩阵 (重建后实测)
+| 维度 | 结果 |
+|---|---|
+| /v1/models | 12 模型, 标准 object=list/data[] |
+| /healthz | 200, 含 models 计数 |
+| 流式 ping 全12模型 | 12/12 OK, finish=stop, fb~10ms, tot 3-5s |
+| 非流式 全12模型 | 12/12 OK, finish=stop, choices+message+usage 结构标准 |
+| 工具调用 全12模型 (stream, auto) | 11/12 OK finish=tool_calls args 合法 JSON; GPT-5.5 auto 罕见拒参(上游 cpa 干扰), tool_choice:required 可强制 |
+| 多工具一次调用 (Claude) | OK, 一次发 get_weather(city=北京)+get_time(tz=Asia/Tokyo) |
+| 长中文 UTF-8 切分 (deepseek 1102字) | OK, 标准中文标点无损, 无乱码 |
+| 非法 JSON body | 400 + error.message (不崩) |
+| 空 messages | 200, 上游正常响应 (不崩) |
+| 并发 3 模型 | 全 200 stop, 无串扰 |
+| reasoning:false strip | OK, 不返 reasoning nuts, 纯文本 |
+| 无效 model id | 兜底 DEFAULT_MODEL, 200 正常回答 |
+| tool_call 流式拆分 (header+args分片) | OK, 经 PowerShell 实测确认格式对齐原生 OpenAI |
+| HEALTHCHECK | healthy, ExitCode 0 |
+
+### 已知边界 (无法修, 已公示)
+- GPT 组思考非流式: 上游"思考完成才一次性发 content", 代理无法改变上游行为; first-byte 期间每 1s keepalive 防 idle timeout. 极个别 GPT-5.5 思考超长 (实测曾 60s+), 客户端 idle timeout 应设宽 / 或选 GPT-5.5 以外模型做长任务.
+- GPT-5.5 auto 工具偶发拒绝: 上游注入的 cpa_final_answer/multi_tool_use 与本服务 tools prompt 在 auto 下偶有冲突; tool_choice:required 可强制 emit tool_calls, args 合法.
+- 不限: 这是对游客免登录反代的代理, 上游对 chatgpt 组偶发按 IP 限流 (繁忙); 已实现 max_retry 内换随机 XFF/X-Real-IP 重试.

@@ -1,0 +1,15 @@
+# 把无关内容排除出 build context, 加速 + 减小最终镜像层冗余
+__pycache__/
+*.py[cod]
+.git/
+.gitignore
+*.md
+audit_report.md
+README.md
+poc_*.ps1
+poc_*.sh
+poc_*.py
+maxchat.py
+scratch/
+*.log
+.node_repl_*

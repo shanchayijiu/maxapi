@@ -231,3 +231,29 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 5. ai-sdk maxSteps 自动续传停在 step1(finish=tool-calls) 是 ai-sdk v7 行为, 非服务端: 服务端未被判需续后续请求; 规范多轮由 openai SDK 闭环已证.
 6. ai-sdk 手动两请求循环需 convertToModelMessages(async, UI parts 格式), 我测试侧构造消息格式与 ai-sdk v7 严格 UI/model 区分不符致 “No output generated” —— 测试 harness 问题, 非服务端.
 结论: 全 chunk 级 TypeValidationError 隐患(sources/error 补 choices:[]) + busy 换IP + heartbeat + UTF-8 + tool_call 拆分 已封口; 规范客户端与 ai-sdk 轮1 实测通过. 用户若仍遇“工具不通”需先确认 agent 端确实下发了非空 tools(非 0 注册).
+
+
+## §十三 全面排查 + Dockerfile HEALTHCHECK + .dockerignore (本轮)
+起因: 用户要求"全面排查还有没有问题, 做完更新文档并上传".
+排查范围(权威实测):
+1. git/容器/源 sha256 三方一致: 容器内 == 本地 == origin (此前已推).
+2. 流式 ping 全12模型 12/12 ok (fb~10ms, tot 3-5s).
+3. 非流式 全12模型 12/12 ok, choices+message+usage 结构标准.
+4. 工具调用 (stream, auto) 全12: 11/12 ok finish=tool_calls args 合法; GPT-5.5 auto 罕见拒参 (上游 cpa 注入冲突, required 可强制).
+5. 多工具一次调用 (Claude): 一次 emit get_weather+get_time 两 tool_calls, args 各合法.
+6. 长中文 UTF-8 切分 (deepseek 1102字): 无乱码, 标准中文标点无损.
+7. 非法 JSON: 400 error.message, 不崩.
+8. 空 messages: 200 不崩 (上游正常响应).
+9. 并发 3 模型: 全 200 stop 无串扰.
+10. reasoning:false: strip 正常, 纯文本.
+11. 无效 model id: 兜底 DEFAULT_MODEL 200.
+12. tool_call 拆分 (header+args分片): PowerShell 实测格式对齐原生 OpenAI.
+13. HEALTHCHECK (Dockerfile 新增): 重建后 docker inspect .State.Health.Status=healthy, ExitCode 0.
+改进 (低风险, 编排/构建卫生):
+- Dockerfile 加 HEALTHCHECK (python urllib, slim 无 curl/wget), 30s interval / 5s timeout / 30s start-period / 3 retries.
+- 新增 .dockerignore: 排 __pycache__/.git/pocs_*/maxchat.py/scratch/*.log/*.md 出 build context (Dockerfile 仅 COPY maxapi_server.py, 不影响功能).
+未修(已知边界):
+- GPT 组思考非流式: 上游硬限制, 代理不可改; keepalive 1s 防 idle timeout.
+- GPT-5.5 auto 工具偶发拒绝: 上游 cpa_final_answer/multi_tool_use 注入冲突; tool_choice:required 强制可用.
+- chatgpt 组按 IP 限流: max_retry 内换 XFF 重试已实现.
+结论: 服务端无功能性缺陷. 重建 --no-cache 后全维度回归通过 (流式/非流式/工具/多工具/UTF8/并发/edgecase 全绿), 容器 healthz healthy.
