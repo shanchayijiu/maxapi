@@ -267,3 +267,22 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 → 15721 proxy 已负责 Anthropic↔OpenAI 协议转换, 整链 (Claude Code→15721→maxapi 8080 OpenAI) 对当前配置可正常出完整 thinking+text 响应.
 结论: "用不了"根因 不在 maxapi 8080, 不在 15721 proxy 基本转发层. 待 Claude Code 客户端层实测确认 (见 README 排查下一步). 候选: 流式 SSE 断/model id 不在 maxapi 列表致兜底非opus/auth占位.
 未做 (被用户打断中止): 实际 spawn claude -p 抓真实错误. 新会话第一步直接做这个.
+
+
+## §十五 Claude Code 直连 maxapi 原生 /v1/messages — 闭环 (2026-08-03, 勘误 §十四)
+
+**勘误**: §十四 的 "maxapi 仅 /v1/chat/completions, 无需 /v1/messages" 与 "15721 proxy 负责协议转换 → 不重复实现" 已作废. 本节实测后改为: **maxapi 自带原生 Anthropic `/v1/messages` 端点, Claude Code 直连 8080, 无需 cc-switch 15721 做协议转换**(直连链路更短、更可控). cc-switch 现仅作 provider 路由把流量指到 8080.
+
+新增端点与修复 (落 `maxapi_server.py`):
+1. `_handle_messages()`: 原生 Anthropic Messages 协议, 流式 SSE + 非流式 + thinking + tool_use 全支持. 与 `/v1/chat/completions` 共享同一 `upstream()` 与限流重试逻辑, 不重复实现. 辅助函数 `_thinking_signature` / `_flatten_anthropic_messages` / `_anthropic_tools_to_openai` / `_anthropic_tool_choice`.
+2. 流式 SSE 缺顶层 `type` 字段: `sse()` 自动注入 `{"type": ev, ...data}` (Anthropic SDK 路由靠 `data.type`, 不是 SSE event 行名; 未修前 SDK 第一帧即抛 `Unexpected event order, got undefined before "message_start"`).
+3. `content_block` 内多了 `index` (工具调用失败+长输出中断的真因): `open_block()` 的 `start` 去掉 `"index": idx`, 仅保留 `{"type": btype, ...}`. Anthropic 规范 `index` 只在事件顶层, `content_block` 内有 index 会让 Claude Code desktop 把 tool_use 块退化成纯文本 → 后续流式状态机错乱长输出中断.
+4. 本地限流闸 429 + 上游 overloaded 529: 补 `Retry-After: 5` header (Anthropic SDK 见 429/529 + Retry-After 自动退避). `_send()` 扩展 `extra` 参数支持自定义 header.
+
+实测证据 (2026-08-03, claude-cli 2.1.220):
+- `docker logs maxapi`: `POST /v1/messages?beta=true ua=claude-cli/2.1.220 (external, sdk-cli) key=sk-test` 命中容器, 单轮中文回复正确.
+- agentic `Read target.txt` 多轮: claude 经 maxapi 完成 tool_use → tool_result → 第二轮 text, 正确取回 `SECRET-12345`. 证明完整 agentic 闭环 (tool 往返 + 多轮 + stop_reason=tool_use 再调用).
+- Anthropic SDK in-container 7 维度 (非流/流/thinking/tool 往返/stream tool_use input_json_delta 累积/长上下文): 7/7 PASS.
+
+已知边界: 上游 se.zzmax.cn 的 Opus 4.8 偶发不可用时, claude 客户端 classifier 因无 opus 判工具安全性 → 工具被卡/长输出中断 (表现 "输出一会儿就断"), **非 maxapi bug**, 重跑 2-3 次可区分.
+详见 README 「Claude Code 直连 maxapi」节; 自查方法论见 cc_sanity_project/sanity_check.py (7 维度).

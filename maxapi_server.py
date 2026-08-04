@@ -435,6 +435,119 @@ class ToolCallParser:
         self.cur = None
         return [("content", piece)]
 
+ANTHROPIC_VERSION = "2023-06-01"
+
+import hashlib
+
+
+def _thinking_signature(text):
+    """Anthropic thinking blocks carry a 'signature' field (CC validates it as a
+    non-empty opaque string). Derive a stable sig from the thinking text so the
+    block is accepted and cacheable. Format mirrors real API (~100 base-ish chars)."""
+    h = hashlib.sha256(("sig:" + text).encode("utf-8")).hexdigest()
+    return "Eu" + h[:96]
+
+
+def _flatten_anthropic_messages(messages, system_text):
+    """Convert Claude Code / Anthropic Messages request into the OpenAI-style
+    message list that _build_messages_with_tools + upstream() already consume.
+    Anthropic content can be a string or an array of typed blocks:
+      text -> append text
+      tool_use {id,name,input} -> assistant tool_calls (carried verbatim)
+      tool_result {tool_use_id,content} -> role=tool (flattened by _build_messages_with_tools)
+    System string/array -> a leading system message (kept; tools prompt is
+    prepended later by _build_messages_with_tools)."""
+    out = []
+    if system_text:
+        out.append({"role": "system", "content": system_text})
+    for m in messages:
+        role = m.get("role", "user")
+        content = m.get("content")
+        if content is None:
+            content = ""
+        if isinstance(content, str):
+            out.append({"role": role, "content": content})
+            continue
+        # array of blocks
+        text_parts = []
+        tool_calls = []
+        tool_results = []
+        if isinstance(content, list):
+            for blk in content:
+                if not isinstance(blk, dict):
+                    continue
+                bt = blk.get("type")
+                if bt == "text":
+                    text_parts.append(blk.get("text", ""))
+                elif bt == "tool_use":
+                    tool_calls.append({
+                        "id": blk.get("id", ""),
+                        "type": "function",
+                        "function": {"name": blk.get("name", ""),
+                                     "arguments": json.dumps(blk.get("input", {}), ensure_ascii=False)},
+                    })
+                elif bt == "tool_result":
+                    inner = blk.get("content")
+                    if isinstance(inner, list):
+                        # array of result blocks (text only in our case)
+                        inner = "".join(b.get("text", "") for b in inner if isinstance(b, dict) and b.get("type") == "text")
+                    elif not isinstance(inner, str):
+                        inner = json.dumps(inner, ensure_ascii=False)
+                    tool_results.append({"tool_call_id": blk.get("tool_use_id", ""), "content": inner or ""})
+                # image blocks: ignored for now (upstream text-only chat)
+        if role == "assistant":
+            if tool_calls:
+                tc_render = [{"id": c["id"], "function": c["function"]} for c in tool_calls]
+                # _build_messages_with_tools looks for assistant.tool_calls to render text blocks
+                out.append({"role": "assistant", "content": "\n".join(text_parts) if text_parts else None, "tool_calls": tc_render})
+            else:
+                out.append({"role": "assistant", "content": "\n".join(text_parts)})
+        elif role == "user" and tool_results:
+            # tool results come as user messages when CC notícias round-trips; map to tool role
+            for tr in tool_results:
+                out.append({"role": "tool", "tool_call_id": tr["tool_call_id"], "content": tr["content"]})
+            if text_parts:
+                out.append({"role": "user", "content": "\n".join(text_parts)})
+        else:
+            out.append({"role": role, "content": "\n".join(text_parts)})
+    return out
+
+
+def _anthropic_tools_to_openai(tools):
+    """Anthropic tools [{name,description,input_schema}] -> OpenAI function tools."""
+    out = []
+    if not isinstance(tools, list):
+        return out
+    for t in tools:
+        if not isinstance(t, dict):
+            continue
+        name = t.get("name")
+        if not name:
+            continue
+        out.append({"type": "function", "function": {
+            "name": name,
+            "description": t.get("description", ""),
+            "parameters": t.get("input_schema", {}) or {"type": "object", "properties": {}},
+        }})
+    return out
+
+
+def _anthropic_tool_choice(tool_choice):
+    """Anthropic tool_choice variants -> OpenAI tool_choice + whether tools enabled."""
+    if tool_choice is None:
+        return None
+    if tool_choice == "auto":
+        return "auto"
+    if tool_choice == "any":
+        return "required"
+    if tool_choice == "none":
+        return "none"
+    if isinstance(tool_choice, dict) and tool_choice.get("type") == "tool":
+        nm = (tool_choice.get("name") or "")
+        return {"type": "function", "function": {"name": nm}}
+    return "auto"
+
+
 def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, tools_enabled=False, max_retry=5):
     grp, sub, disp = resolve_model(model_field)
     payload = {"model": grp, "subModel": sub, "messages": messages, "stream": True}
@@ -540,19 +653,243 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "*")
         self.send_header("Access-Control-Allow-Methods", "*")
-    def _send(self, code, obj, ctype="application/json"):
+    def _send(self, code, obj, ctype="application/json", extra=None):
         b = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", ctype + "; charset=utf-8")
         self.send_header("Content-Length", str(len(b)))
+        if extra:
+            for k, v in extra.items():
+                self.send_header(k, str(v))
         self._cors()
         self.end_headers()
         self.wfile.write(b)
+    def _handle_responses(self):
+        """Minimal OpenAI Responses API bridge: converts a Responses request into
+        the internal chat/completions upstream and yields Responses-format SSE.
+        Codex++ normally converts chat<->responses itself, so this endpoint is a
+        fallback for direct codex connections. Currently minimal: log + 501."""
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        try:
+            raw = self.rfile.read(length) if length else b"{}"
+            req = json.loads(raw.decode("utf-8", "ignore"))
+        except Exception as e:
+            return self._send(400, {"error": {"message": "bad json: %s" % e}})
+        sys.stderr.write("[responses] stream=%s model=%s ninput=%s body_head=%s\n" % (
+            req.get("stream"), req.get("model"), len(req.get("input") or []) if isinstance(req.get("input"), list) else "?",
+            raw[:400].decode("utf-8","ignore").replace(chr(10)," "))); sys.stderr.flush()
+        return self._send(501, {"error": {"type": "not_implemented", "message": "/v1/responses not yet implemented; Codex++ should convert to chat/completions"}})
+    def _handle_messages(self):
+        """Native Anthropic /v1/messages endpoint: Claude Code / Codex connect
+        directly, no external converter needed. Anthropic request -> private
+        upstream -> Anthropic Messages streaming / non-streaming response."""
+        if RATE and not RATE.acquire(timeout=8):
+            return self._send(429, {"type": "error", "error": {"type": "rate_limit_error", "message": "rate limit: too many requests, try again shortly"}}, extra={"Retry-After": "5"})
+        if COMPANION_PROB and random.random() < COMPANION_PROB:
+            threading.Thread(target=companion_touch, daemon=True).start()
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        try:
+            raw = self.rfile.read(length) if length else b"{}"
+            req = json.loads(raw.decode("utf-8", "ignore"))
+        except Exception as e:
+            return self._send(400, {"type": "error", "error": {"type": "invalid_request_error", "message": "bad json: %s" % e}})
+        model = req.get("model") or DEFAULT_MODEL
+        grp, sub, disp = resolve_model(model)
+        msg_id = "msg_%d" % int(time.time() * 1000000)
+        # messages & system
+        anth_messages = req.get("messages") or []
+        sysc = req.get("system")
+        if isinstance(sysc, list):
+            sysc = " ".join(b.get("text", "") for b in sysc if isinstance(b, dict) and b.get("type") == "text")
+        elif sysc is None:
+            sysc = ""
+        # tools
+        anth_tools = req.get("tools") or []
+        tool_choice = _anthropic_tool_choice(req.get("tool_choice"))
+        openai_tools = _anthropic_tools_to_openai(anth_tools)
+        if tool_choice is None and openai_tools:
+            tool_choice = "auto"
+        openai_msgs = _flatten_anthropic_messages(anth_messages, sysc)
+        msgs_up, tools_enabled = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs)
+        stream = bool(req.get("stream"))
+        # thinking: anthropic 'thinking' param; we pass medium by default unless
+        # client sent a budget — keep reasoning on for claude (upstream always thinks).
+        thinking_cfg = req.get("thinking")
+        include_reasoning = True
+        effort = "medium"
+        if isinstance(thinking_cfg, dict):
+            if thinking_cfg.get("type") == "disabled":
+                include_reasoning = False
+        # CC sometimes sends reasoning_effort via extension; honor it too.
+        eff_in = req.get("reasoning_effort") or req.get("reasoningEffort")
+        if eff_in and str(eff_in).lower() in ("off", "low", "medium", "high", "max"):
+            effort = str(eff_in).lower()
+            if effort == "off":
+                include_reasoning = False
+        search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
+        max_tokens = req.get("max_tokens") or 4096
+        if not stream:
+            answer, reason, tcs_out, err = [], [], [], None
+            for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5):
+                if kind == "error":
+                    err = data.get("error") if isinstance(data, dict) else str(data)
+                    break
+                if kind == "content":
+                    answer.append(data)
+                elif kind == "reasoning":
+                    reason.append(data)
+                elif kind == "tool_call":
+                    tcs_out.append(data)
+            if err:
+                return self._send(529, {"type": "error", "error": {"type": "overloaded_error", "message": str(err)}}, extra={"Retry-After": "5"})
+            content = []
+            if include_reasoning and "".join(reason):
+                content.append({"type": "thinking", "thinking": "".join(reason), "signature": _thinking_signature("".join(reason))})
+            if tcs_out:
+                for c in tcs_out:
+                    content.append({"type": "tool_use", "id": c["id"], "name": c["name"], "input": c["arguments"]})
+                if "".join(answer):
+                    content.append({"type": "text", "text": "".join(answer)})
+                stop_reason = "tool_use"
+            else:
+                content.append({"type": "text", "text": "".join(answer)})
+                stop_reason = "end_turn"
+            # remove empty text blocks
+            content = [b for b in content if not (b.get("type") == "text" and not b.get("text"))]
+            if not content:
+                content.append({"type": "text", "text": ""})
+            out = {
+                "id": msg_id, "type": "message", "role": "assistant", "model": disp,
+                "content": content, "stop_reason": stop_reason, "stop_sequence": None,
+                "usage": {"input_tokens": 1, "output_tokens": 1},
+            }
+            return self._send(200, out)
+        # STREAMING
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.close_connection = True
+        self._cors()
+        self.end_headers()
+        lock = threading.Lock()
+        stop = {"v": False}
+        started_evt = threading.Event()  # barrier: heartbeat must not fire before message_start
+        _dbg = open("/tmp/sse_%d.log" % int(time.time()*1000), "a", encoding="utf-8")
+        def emit(b):
+            with lock:
+                try: _dbg.write(b.decode("utf-8","ignore")); _dbg.flush()
+                except Exception: pass
+                self.wfile.write(b)
+                self.wfile.flush()
+        def sse(ev, data):
+            # Anthropic SDK routes on the TOP-LEVEL "type" field of each parsed
+            # event payload (MessageStream checks event.type === 'message_start'
+            # etc.); the raw SSE "event:" line is not enough. Inject type==ev so
+            # the SDK sees a well-formed event object.
+            if isinstance(data, dict) and data.get("type") is None:
+                data = {"type": ev, **data}
+            emit(("event: %s\ndata: %s\n\n" % (ev, json.dumps(data, ensure_ascii=False))).encode("utf-8"))
+        def heartbeat():
+            started_evt.wait()
+            while not stop["v"]:
+                try:
+                    emit(b"event: ping\ndata: {}\n\n")
+                except Exception:
+                    return
+                time.sleep(15.0)
+        hb = threading.Thread(target=heartbeat, daemon=True)
+        hb.start()
+        # block index management for streaming content blocks (thinking>text>tool_use interleaved)
+        blocks = {}  # type -> index (current open block of that type)
+        next_idx = [0]
+        stop_reason = {"r": "end_turn"}
+        def open_block(btype, extra=None):
+            idx = next_idx[0]
+            next_idx[0] += 1
+            blk = {"type": btype, "index": idx}
+            blocks[btype] = blk
+            # content_block (the block payload itself) must NOT carry "index";
+            # index lives only on the outer SSE event. Anthropic spec content_block
+            # has only {type, ...type-specific fields}; some clients (Claude Code
+            # desktop) mis-handle an extra "index" inside the block.
+            start = {"type": btype}
+            if extra:
+                start.update(extra)
+            sse("content_block_start", {"index": idx, "content_block": start})
+            return idx
+        thinking_acc = {"s": ""}  # accumulate thinking text for one signature at close
+        def close_block(btype):
+            idx = blocks.get(btype, {}).get("index")
+            if idx is not None:
+                if btype == "thinking":
+                    # emit a single full signature as the block closes
+                    sig = _thinking_signature(thinking_acc["s"])
+                    sse("content_block_delta", {"index": idx, "delta": {"type": "signature_delta", "signature": sig}})
+                sse("content_block_stop", {"index": idx})
+        emitted_any = {"v": False}
+        try:
+            sse("message_start", {"message": {"id": msg_id, "type": "message", "role": "assistant", "model": disp, "content": [], "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": 1, "output_tokens": 1}}})
+            started_evt.set()  # allow heartbeat now that message_start is the first event
+            tool_count = 0
+            stream_failed = False
+            for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5):
+                if kind == "reasoning":
+                    if "thinking" not in blocks:
+                        open_block("thinking", {"thinking": "", "signature": ""})
+                    sse("content_block_delta", {"index": blocks["thinking"]["index"], "delta": {"type": "thinking_delta", "thinking": data}})
+                    thinking_acc["s"] += data
+                    emitted_any["v"] = True
+                elif kind == "content":
+                    if "thinking" in blocks:
+                        close_block("thinking")
+                        del blocks["thinking"]
+                    if "text" not in blocks:
+                        open_block("text", {"text": ""})
+                    sse("content_block_delta", {"index": blocks["text"]["index"], "delta": {"type": "text_delta", "text": data}})
+                    emitted_any["v"] = True
+                elif kind == "tool_call":
+                    if "text" in blocks:
+                        close_block("text")
+                        del blocks["text"]
+                    idx = open_block("tool_use", {"id": data["id"], "name": data["name"], "input": {}})
+                    argstr = json.dumps(data["arguments"], ensure_ascii=False)
+                    for off in range(0, len(argstr), 20):
+                        sse("content_block_delta", {"index": idx, "delta": {"type": "input_json_delta", "partial_json": argstr[off:off + 20]}})
+                    tool_count += 1
+                    emitted_any["v"] = True
+                elif kind == "sources":
+                    # upstream sources (empty array in实践中); drop not standard
+                    continue
+                elif kind == "error":
+                    sse("error", {"type": "error", "error": {"type": "api_error", "message": (data.get("error") if isinstance(data, dict) else str(data))}})
+                    stream_failed = True
+            # close any open blocks
+            for bt in list(blocks.keys()):
+                close_block(bt)
+            if tool_count > 0:
+                stop_reason["r"] = "tool_use"
+            if not emitted_any["v"] and not stream_failed:
+                # ensure at least one block so client sees a (empty) message
+                if "text" not in blocks:
+                    open_block("text", {"text": ""})
+                    close_block("text")
+            sse("message_delta", {"delta": {"stop_reason": stop_reason["r"], "stop_sequence": None}, "usage": {"output_tokens": 1}})
+            sse("message_stop", {})
+        except Exception as e:
+            try:
+                sse("error", {"type": "error", "error": {"type": "api_error", "message": "server: %s" % e}})
+            except Exception:
+                pass
+        finally:
+            stop["v"] = True
+            hb.join(1.0)
     def do_OPTIONS(self):
         self.send_response(204)
         self._cors()
         self.end_headers()
     def do_GET(self):
+        sys.stderr.write("GET %s ua=%s\n" % (self.path, self.headers.get("user-agent", "")[:50])); sys.stderr.flush()
         if self.path.startswith("/healthz"):
             return self._send(200, {"status": "ok", "service": "maxapi", "models": len(MODEL_DISPLAY_IDS)})
         if self.path.startswith("/v1/models"):
@@ -560,6 +897,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(200, {"object": "list", "data": data})
         return self._send(404, {"error": {"message": "not found"}})
     def do_POST(self):
+        sys.stderr.write("POST %s ua=%s key=%s\n" % (self.path, self.headers.get("user-agent", "")[:50], self.headers.get("x-api-key", self.headers.get("authorization", ""))[:20])); sys.stderr.flush()
+        if self.path.startswith("/v1/messages"):
+            return self._handle_messages()
+        if self.path.startswith("/v1/responses"):
+            return self._handle_responses()
         if not self.path.startswith("/v1/chat/completions"):
             return self._send(404, {"error": {"message": "not found"}})
         if RATE and not RATE.acquire(timeout=8):
@@ -572,6 +914,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
             req = json.loads(raw.decode("utf-8"))
         except Exception as e:
             return self._send(400, {"error": {"message": "bad json: %s" % e}})
+        # DIAG: dump compact shape of incoming chat/completions request (for Codex++ conversion debugging)
+        try:
+            _msgs = req.get("messages") or []
+            _tools = req.get("tools") or []
+            _roles = [m.get("role") for m in _msgs] if isinstance(_msgs, list) else "?"
+            _tc = any(isinstance(m, dict) and m.get("tool_calls") for m in _msgs) if isinstance(_msgs, list) else False
+            _toolroles = any(m.get("role") == "tool" for m in _msgs) if isinstance(_msgs, list) else False
+            sys.stderr.write("  [chatreq] stream=%s model=%s nmsgs=%d roles=%s ntools=%d has_toolcalls=%s has_toolrole=%s tool_choice=%s body_head=%s\n" % (
+                req.get("stream"), req.get("model"), len(_msgs) if isinstance(_msgs,list) else -1, _roles, len(_tools) if isinstance(_tools,list) else -1, _tc, _toolroles, req.get("tool_choice"), raw[:400].decode("utf-8","ignore").replace(chr(10)," "))); sys.stderr.flush()
+        except Exception as _e:
+            sys.stderr.write("  [chatreq diag err] %s\n" % _e); sys.stderr.flush()
         model = req.get("model") or DEFAULT_MODEL
         grp, sub, disp = resolve_model(model)
         messages = req.get("messages") or []

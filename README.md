@@ -79,7 +79,9 @@ curl http://localhost:8080/healthz   # {"status":"ok","models":17}
 
 ## API
 
-`GET /healthz` · `GET /v1/models` · `POST /v1/chat/completions`（流式默认）
+`GET /healthz` · `GET /v1/models` · `POST /v1/chat/completions`（OpenAI 兼容，流式默认）· `POST /v1/messages`（原生 Anthropic，Claude Code / Codex 直连，流式+非流式+thinking+tool_use 全闭环，2026-08-03 实测）
+
+两个 POST 端点共享同一上游 (`upstream()`) 与限流重试逻辑；`/v1/messages` 直接出 Anthropic Messages 格式，无需外部协议转换层（cc-switch 15721 proxy 路径已非必需，详见文末「Claude Code 直连 maxapi」节）。
 
 ### reasoning_effort（客户端可选，思考强度全可调）
 
@@ -268,34 +270,48 @@ ai-sdk 轮1: fr=tool-calls input={"city":"北京"}
 - 不限: 这是对游客免登录反代的代理, 上游对 chatgpt 组偶发按 IP 限流 (繁忙); 已实现 max_retry 内换随机 XFF/X-Real-IP 重试.
 
 
-## Claude Code (cc-switch) 集成现状 + 排查下一步 (crucial for new session)
+## Claude Code 直连 maxapi (原生 /v1/messages, 已实测闭环 2026-08-03)
 
-### cc-switch 链路实测 (本会话最后确认)
-cc-switch 的 LocalProxy 跑在 `http://127.0.0.1:15721` (`settings.json` 的 `env.ANTHROPIC_BASE_URL`). Claude Code 直连这个 proxy (Anthropic 协议), proxy 应负责把 Anthropic `/v1/messages` 转成 maxapi 的 OpenAI `/v1/chat/completions` 再把响应转回 Anthropic Messages 格式.
+maxapi 现已自带原生 Anthropic `/v1/messages` 端点 (`_handle_messages`), **Claude Code 可直连 8080, 无需 cc-switch 15721 proxy 做协议转换**. 旧结论 "不要加 /v1/messages, proxy 会转" 已作废 — 直连链路更短、更可控、已全绿.
 
-实测证据 (本会话):
-- POST `/v1/messages` 到 **maxapi 8080 直连** → 404 (maxapi 只实现 /v1/chat/completions, 符合预期, 无需自己实现 /v1/messages).
-- POST `/v1/messages` 到 **15721 proxy** → 200, 响应为合法 Anthropic Messages 形式:
+### 根因修复 (本轮 P0)
+1. **流式 SSE 缺顶层 `type` 字段**: Anthropic SDK 路由靠 `JSON.parse(sse.data).type` (不是 SSE `event:` 行名), 之前每个事件 data 只写内层结构 (`{"message":{...}}` / `{"index":0,"delta":{...}}`), 顶层 `type` 全是 undefined, SDK 第一帧即抛 `Unexpected event order, got undefined before "message_start"`. 修: `sse()` 自动注入 `{"type": ev, ...data}`. 修后流式 7/7 全过.
+2. **`content_block` 内多了 `index` 字段 (工具调用失败+长输出中断的真因)**: `open_block()` 之前把 `index` 同时塞进了 SSE 事件顶层和 `content_block` 对象内部 (`{"type":"tool_use","index":N,...}`). Anthropic 规范里 `index` 只在事件顶层, `content_block` 内只该有 `type`+类型字段. Claude Code desktop 客户端遇到 block 内的 index 会把 `tool_use` 块解析退化成纯文本, 导致「工具调用失败」+ 后续流式状态机错乱长输出中断. 修: `open_block()` 的 `start` 去掉 `"index": idx`, 仅保留 `{"type": btype, ...}`. 修后单/多工具 agentic + PowerShell/Bash/Read 全闭环.
+3. **`claude -p` 的 settings.json env 优先级**: `~/.claude/settings.json` 的 `env` 块 (`ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`) 优先级**高于 shell inline env**. 单靠 `ANTHROPIC_BASE_URL=... claude -p` 不生效, claude 仍连主 settings 钉的 15721, 对 `Claude Sonnet 5` + sk-test 返回 `403 openai_error`. 解法: 用 `--settings <file>` 注入临时 settings 覆盖 env (见下), 不动主 config.
+
+### cc-switch 接入 (推荐生产链路)
+cc-switch 跑 15721 做 provider 路由, maxapi:8080 作为一个 **claude app_type 的 provider** 加进 switch (DB id `62dca522...`), env 关键项:
+- `ANTHROPIC_BASE_URL`: **`http://127.0.0.1:8080`** (用 127.0.0.1, 不要用 localhost — Windows 上 localhost 可能解析到 `[::1]` 命中 wslrelay:8080 而非 docker 容器)
+- `ANTHROPIC_AUTH_TOKEN`: 任意占位 (maxapi 不验 token)
+- `ANTHROPIC_DEFAULT_*_MODEL[_NAME]`: 指向 maxapi `/v1/models` 里的 id (如 `Claude Opus 4.8` / `Claude Sonnet 5`)
+- 在 cc-switch 里把该 provider 切到 current, Claude Code (desktop+CLI) 即经 switch 走 8080, 走原生 Anthropic `/v1/messages`, 无需协议转换.
+
+### 复现步骤 (claude -p 直连 maxapi 8080)
+```bash
+# 1. 临时 settings (不动 ~/.claude/settings.json)
+cat > /tmp/maxapi_settings.json <<'EOF'
+{"env":{"ANTHROPIC_API_KEY":"sk-test","ANTHROPIC_BASE_URL":"http://127.0.0.1:8080"},"model":"Claude Sonnet 5"}
+EOF
+
+# 2. 单轮问答
+claude -p "用一句话回答你是什么模型。" \
+  --model "Claude Sonnet 5" \
+  --settings /tmp/maxapi_settings.json
+
+# 3. agentic 工具往返 (Read 多轮 — 验证 tool_use/tool_result 闭环)
+echo "SECRET-12345" > target.txt
+claude -p "读取当前目录 target.txt 并原样输出内容, 只用 Read 工具." \
+  --model "Claude Sonnet 5" \
+  --settings /tmp/maxapi_settings.json \
+  --allow-dangerously-skip-permissions
 ```
-{"id":"chatcmpl-...","type":"message","role":"assistant","content":[{"type":"thinking","thinking":"..."},{"type":"text","text":"2"}],"model":"Claude Opus 4.8","stop_...}
-```
-→ 这证明 **proxy 负责了协议转换**, maxapi 8080 + 15721 proxy 整条链对 `.claude settings current` (model=claude-opus-4-8) 是通的, 能正常出 thinking + text.
 
-### 结论: "Claude Code 用不了" 的根因 不在 maxapi
-maxapi 8080 (OpenAI /v1/chat/completions) 与 cc-switch 15721 proxy (Anthropic /v1/messages 转换) 已实测可出完整响应. 真正卡点在 Claude Code 客户端层 或 proxy 在 Claude Code 真实调用模式下的差异.
+### 实测证据 (2026-08-03, claude-cli 2.1.220)
+- `docker logs maxapi`: `POST /v1/messages?beta=true ua=claude-cli/2.1.220 (external, sdk-cli) key=sk-test` 命中容器, 单轮返回正确中文回复.
+- agentic `Read target.txt` 多轮: claude 经 maxapi 完成 tool_use → tool_result → 第二轮 text, 正确取出 `SECRET-12345`. 证明 `/v1/messages` 对完整 agentic 闭环 (tool 往返 + 多轮 + stop_reason=tool_use 再调用) 成立.
+- Anthropic SDK in-container 7 维度 (非流/流/thinking/tool 往返/stream tool_use input_json_delta 累积/长上下文): 7/7 PASS.
 
-### 新会话第一步直接做 (不要再翻 cc-switch/claude config — 用户已确认配好, 翻三遍很烦)
-直接 `spawn claude -p` 非交互跑一个简单 prompt, 抓 stdout+stderr+exitcode 看真实错误:
-```
-# claude.ps1 在 PATH; 正常 spawn 即可, 它自己读 ~/.claude/settings.json 的 env 块
-claude -p "回答1+1等于几, 只回数字" --output-format text --dangerously-skip-permissions 2>&1
-```
-重点查 (依据报错选其一):
-1. 报 "stream error" / 连接 reset → proxy 或 maxapi SSE 在 Claude Code 真实流式下断; 抓 15721 收到的请求 + maxapi docker logs.
-2. 报 auth/token → `ANTHROPIC_AUTH_TOKEN=PROXY_MANAGED` 占位 + proxy 在某些路径要真 token; 查 15721 proxy 是否要 X-API-Key.
-3. 报 model 不存在 / not found → maxapi `/v1/models` 返回的 id 里没有 `claude-opus-4-8` (有 "Claude Opus 4.8" 和 "claude-opus-4-6", 无 "claude-opus-4-8"); Claude Code 请求 `model="claude-opus-4-8"` 经 proxy 转到 maxapi 时, maxapi `resolve_model` 没匹配项 → 兜底 DEFAULT_MODEL=deepseek-v4-flash. 这会让 Claude Code 收到 “不是 opus 4.8” 的奇怪回答 但不一定报错. 可考虑把 `claude-opus-4-8` 加进 MODEL_ALIASES → 映射到 "Claude Sonnet 5" (上游实际组) 让它真的走 claude 组.
-4. 工具调用 (Claude Code 内置 Read/Bash/Grep 等): proxy 把 Anthropic tool 转成 OpenAI tools 转发, maxapi 已实测 OpenAI tools 全闭环 OK; 但 Anthropic tool 结构转成 maxapi tools 是否保形, 需抓 15721 转发后的请求 body 确认.
-
-### maxapi 这边需要补的 (可选, 按新会话实测错误再定)
-- 对 `claude-opus-4-8` model id 加别名 (RAW_MODELS 里 "Claude Sonnet 5" 上游实际就是 claude-opus-4-8, 已有别名映射吗?) — 检查 MODEL_ALIASES, 缺则补 "claude-opus-4-8":"Claude Sonnet 5".
-- 不要加 /v1/messages 端点到 maxapi: 15721 proxy 已经做了 Anthropic↔OpenAI 转换, 重复实现是造轮子.
+### P1 限流重试对齐 (本轮)
+- 本地限流闸 429 + 上游 overloaded 529 均补 `Retry-After: 5` header (Anthropic SDK 见 429/529 + Retry-After 会自动退避重试). `_send()` 扩展 `extra` 参数支持自定义 header.
+- 上游 429/繁忙的 IP 轮换重试逻辑 (`upstream()` 的 `volatile` + `max_retry=5`) 由 OpenAI / Anthropic 路径**共享**, 无需重复实现.
+- 流式 error 事件 (`sse("error",...)`) 保持 `api_error` type; SSE 事件无 HTTP header 概念, Retry-After 仅作用于非流式响应.
