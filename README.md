@@ -159,6 +159,36 @@ se.zzmax 上游为**每组模型注入了自己的工具 system prompt**（实�
 ### 流式 sources chunk 兼容性修复（2026-08-01，AI_TypeValidationError）
 
 开启 search 时、上游返回 sources 字段，代理会发一个单独的 sources chunk。之前该 chunk 形态为 `{id,object,created,model,sources}` **缺 choices 数组**，OpenAI chunk schema 是 discriminated union（需 choices(array) 或 error(object)），Cherry Studio Zod 校验报 `AI_TypeValidationError: expected array at path choices`（原 chunk 如 `{"model":"claude-opus-4-6","sources":[]}` 无 choices）。**已修**: sources chunk 加 `choices: []`，满足 array 分支、sources 扩展字段仍可被客户端读取。实证(monkeypatch 假 upstream 强制 yield sources): sources chunk keys=[choices,created,id,model,object,sources]，has_choices_array=True → Zod union 命中。
+## 工具调用升级：DSML 协议移植 (代码落地 + 单测全绿 + agentic 长跑验收, 2026-08-06)
+
+当前 ToolCallParser 用 bytes 级标签扫描 + 5 种别名容错, body 是内联 JSON。该方案在 se.zzmax 上游注入了自己的工具 system prompt（cpa_final_answer / multi_tool_use / file/python/web）环境下不稳定。
+
+移植来源: ds2api (internal/toolcall + internal/toolstream) 的 DSML 标记方案, prompt 注入式 tool calling, 固定注意力结构标签 + CDATA 值容器。
+
+### DSML 格式（教模型输出的协议）
+
+用包裹标签 tool_calls + invoke name=TOOL_NAME + parameter name=ARG 用 CDATA 值容器。12 条规则 + 正/负例 + 参数形态表 + 真实 tool 名例。
+- 字符串值用 CDATA (含代码/路径/查询, 自动编码右方括号大于号); 数值/布尔/null 纯文本; 对象用嵌套 XML; 数组用重复 item 子节点。
+- prompt 含 IMPORTANT 禁令压制上游注入的 cpa_final_answer / multi_tool_use / file/python/browser/search 工具。
+
+### 解析器（移植 ds2api 流式 sieve）
+
+- 非流式完整解析: stripFencedCodeBlocks -> 标准化前缀 -> XML block 提取 -> CDATA 解包 -> JSON 修复（反斜杠/未引号键/缺数组括号）。
+- 流式 sieve: State(pending/capture/capturing) 状态机, 检测部分标签尾部 hold 不切（跨 SSE chunk 安全）, 代码围栏内不误判, flush 释残量文本。
+- 保留接口契约: feed(str)->(content,str)|(tool_call,id+name+arguments), flush()->同, _make_tools_prompt->str|None, _build_messages_with_tools->(msgs,enabled)。
+
+接口不变（upstream() / 三端点不改）, 纯内部替换。sanity 7/7 仍需 PASS。
+
+进度(代码层已落地 / 单测全绿): DSML 全套移植完成 — `_make_tools_prompt` / `_build_messages_with_tools` / `class ToolCallParser` 及全部 helper (`_dsml_extract_calls` / `_strip_fences` / `_normalize_dsml` / `_parse_invoke` / `_try_legacy_json` / `_consume_capture`)。`maxapi_server.py` 自备份点 53632→70677 字节、约 1069→1467 行, `import re` 已加 (在既有 `import http.server, json, ...` 行追加 `re` 于 L40)。
+接口契约 (feed / flush / _make_tools_prompt / _build_messages_with_tools) 不变, `upstream()` 与三端点 `/v1/chat/completions`、`/v1/messages`、`/v1/responses` 未改 — `git diff -w` 内容变更仅落 L40 import 与 L256~L1040 DSML 区(`# ---- DSML toolcall` 至 `def upstream()` 之前)。备份 `maxapi_server.py.bak-pre-dsml` 在位。
+单元测试: 初期 scratch 套件(39 例) 仅作开发期验证, 已并入下方仓库内 `tests/test_dsml.py`(69 例); clone 可直接 `python tests/test_dsml.py` 复现 69/69。末修: `_strip_fences` 原把围栏内整段内容一并丢弃致 fence-stripped 用例 FAIL, 改为只剥围栏分隔行、保留内文, 全绿。
+活链路验证(已跑): 重建容器, `docker exec` 实证容器内 `_DSML`/`_dsml_extract_calls`/`_RE_FN_INVOKE`/`_parse_fn_invoke` 在位、`maxapi_server.py` 70677 B 与本机一致, `/healthz` ok。
+sanity 7/7 PASS(实跑): healthz/models_list(n=12)/nonstream_text(end_turn)/stream_text_tail/stream_tooluse_tail/tool_roundtrip(r1=tool_use r2=end_turn input={'city':'北京'})/long_context(PURPLE-DRAGON-7841)。
+单测已入仓库 tests/test_dsml.py (相对路径, clone 可跑), 69/69 ALL PASSED — 覆盖 DSML + 上游 <function=NAME> 格式 / raw-content 含<>保留 / multi-invoke 闭合标签不泄 / 围栏包裹 / 跨 SSE chunk / 逐字符。
+`claude -p` agentic 长跑验收(run5): 经 maxapi 接 Claude Sonnet 5, 15 turns, 11 tool_use/11 tool_result, unittest 跑→Edit 修→重跑, 独立复核 `python -m unittest discover -s tests` 16/16 OK, CLI 输出合法 JSON, 闭合标签泄漏=0, is_error=False terminal=completed。对比修复前 run1 num_turns=1(工具调用全漏成文本)、run3 7 turns 仍有 </|DSML|invoke> 闭合标签泄为 content —— 三个 bug 经长跑暴露并修复:
+  1) `_strip_fences` 把围栏内整段丢弃 → 只剥围栏分隔行、保留内文;
+  2) 上游 `<function=NAME>...<parameter=KEY>` 注入格式不被 DSML 解析 → 加 FN 兼容层(_RE_FN_INVOKE/_RE_FN_PARAM/_parse_fn_invoke/_dsml_extract_calls 兜底/_consume_capture bare-handler/_find_seg+_find_partial 含 `<function`);
+  3) DSML 流式 prefix/suffix 用 captured(原始)坐标但取自 normalized(逐 |DSML| 越缩越偏)坐标 → multi-invoke 时闭合标签泄为 content → 改在 norm 坐标切片。另: raw-text 参数含 <> 被 XML 误解 → `_parse_param` 非CDATA 分支加 `_STRING_PRESERVE` 守护; `_find_partial` 尾长于前缀时漏判 → 加 `low.startswith(prefix)`。
 ## 限制
 
 - 访客档每日每 IP 2 次额度 → 伪造 XFF 循环 IP 绕过；遇 `额度/2次/登录/频繁`（per-IP）自动换 IP 重试；遇 `繁忙/稍后`（后端忙）直接透传真实错误不重试。

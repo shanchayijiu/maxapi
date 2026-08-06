@@ -286,3 +286,31 @@ curl -s "https://se.zzmax.cn/api/payment/status?orderId=<真实UUID>"
 
 已知边界: 上游 se.zzmax.cn 的 Opus 4.8 偶发不可用时, claude 客户端 classifier 因无 opus 判工具安全性 → 工具被卡/长输出中断 (表现 "输出一会儿就断"), **非 maxapi bug**, 重跑 2-3 次可区分.
 详见 README 「Claude Code 直连 maxapi」节; 自查方法论见 cc_sanity_project/sanity_check.py (7 维度).
+
+
+## §十六 DSML toolcall 移植 (代码落地 + 单测全绿 + agentic 长跑验收, 2026-08-06)
+
+上一轮 §十五 完成原生 /v1/messages 闭环后, 本轮启动工具调用解析层升级。
+
+现状与动机: 当前 ToolCallParser 是 bytes 级标签扫描 + 5 种别名容错, body 内联 JSON。se.zzmax 上游为每组模型注入了自己的工具 system prompt (实证: GPT 组答 cpa_final_answer + multi_tool_use, Claude 组答 file/python/web, Grok 组答 search/memory/time), 与我们的标签冲突, 模型会混淆标签名/格式漂移。
+
+移植来源: ds2api 的 internal/toolcall (prompt + 非流式解析) 与 internal/toolstream (流式 sieve), Go 实现忠实移植为 Python。
+
+DSML 方案要点:
+1. prompt: DSML 前缀结构标签 tool_calls/invoke/parameter + CDATA 值容器, 12 条规则 + 正/负例 + 参数形态表。
+2. 非流式解析: stripFencedCodeBlocks -> 标准化前缀 (DSML 别名 -> 标准 tool_calls) -> XML block 提取 -> CDATA 解包 -> JSON 修复 (反斜杠/未引号键/缺数组括号)。
+3. 流式 sieve: State(pending/capture/capturing) 状态机, 跨 SSE chunk 安全, 代码围栏内不误判, flush 释残量文本绝不吞。
+
+接口不变: feed/flush/_make_tools_prompt/_build_messages_with_tools 契约保持, upstream() 及三端点不改。已备份 maxapi_server.py.bak-pre-dsml。
+
+进度(代码层已落地 / 单测全绿): DSML 全套 (`_make_tools_prompt`/`_build_messages_with_tools`/`ToolCallParser` 及 helper `_dsml_extract_calls`/`_strip_fences`/`_normalize_dsml`/`_parse_invoke`/`_try_legacy_json`/`_consume_capture` 外加 FN 兼容层 `_RE_FN_INVOKE`/`_RE_FN_PARAM`/`_parse_fn_invoke`) 移植完成, 编译通过, `maxapi_server.py` 53632→70677 B、约 1069→1467 行, `import re` 已加 (在既有 `import http.server, json, ...` 行追加于 L40)。
+接口契约 feed/flush/_make_tools_prompt/_build_messages_with_tools 不变; `git diff -w` 内容变更仅 L40 import 与 L256~L1040 DSML 区(`# ---- DSML toolcall` 至 `def upstream()` 之前), `upstream()` 及三端点未改; 备份 `maxapi_server.py.bak-pre-dsml` 在位 (本轮另把三文件从误翻转的 CRLF 复原回 LF 以净 diff)。
+单测: 初期 scratch 套件(39 例) 为开发期验证, 已并入仓库 `tests/test_dsml.py`(69 例), clone 可直接 `python tests/test_dsml.py` 复现 69/69 (覆盖非流式提取/CDATA 路径/围栏包裹/多调用/legacy JSON/prompt 构建/流式跨 chunk 合并); 末修 `_strip_fences` 围栏内吞内容 bug。
+活链路验证(已跑): 重建容器, `docker exec` 实证容器内 `_DSML`/`_dsml_extract_calls`/`_RE_FN_INVOKE`/`_parse_fn_invoke` 在位、文件 70677 B 与本机一致(确认非旧镜像), `/healthz` ok。
+sanity 7/7 PASS(实跑): healthz/models_list(n=12)/nonstream_text(end_turn)/stream_text_tail/stream_tooluse_tail/tool_roundtrip(r1=tool_use r2=end_turn input={'city':'北京'})/long_context(PURPLE-DRAGON-7841)。tool_roundtrip 证明 DSML 端到端: prompt 注入→模型发 DSML→解析→回喂→end_turn。
+单测已入仓库 tests/test_dsml.py (相对路径, clone 可跑), 69/69 ALL PASSED — 含上游 <function=NAME> 格式 / raw-content 含<>保留 / multi-invoke 闭合标签不泄 / 围栏 / 跨chunk / 逐字符。
+`claude -p` agentic 长跑验收(run5): 经 maxapi 接 Claude Sonnet 5, 15 turns, 11 tool_use/11 tool_result, unittest 跑→Edit 修→重跑, 独立复核 `python -m unittest discover -s tests` 16/16 OK, CLI 合法 JSON, 闭合标签泄漏=0, is_error=False terminal=completed。长跑暴露并修复三 bug:
+  1) `_strip_fences` 丢围栏内文 → 改只剥分隔行;
+  2) 上游 `<function=NAME>...<parameter=KEY>` 不被 DSML 解析(修复前 run1 num_turns=1 工具调用全漏成文本) → 加 FN 兼容层(_RE_FN_INVOKE/_RE_FN_PARAM/_parse_fn_invoke/_dsml_extract_calls 兜底/_consume_capture bare-handler/_find_seg+_find_partial 含 `<function`);
+  3) DSML 流式 prefix/suffix 用 captured 原始坐标但取自 normalized(逐 |DSML| 越缩越偏)坐标 → multi-invoke 闭合标签泄为 content(run3 7 turns 复现) → 改 norm 坐标切片。附: raw-text 参数含<>被 XML 误解 → `_parse_param` 非CDATA 分支加 `_STRING_PRESERVE`; `_find_partial` 尾长于前缀漏判 → 加 `low.startswith(prefix)`。
+注(诚实): se.zzmax 上游访客档偶发返回退化短响应(单字符/提前 end_turn), 属上游内容行为非代理缺陷; 已实证代理层多轮工具调用循环不中断。

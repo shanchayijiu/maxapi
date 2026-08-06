@@ -22,3 +22,6 @@ Thumbs.db
 
 # Local container scratch
 scratch/
+
+# Local source backup before DSML port
+maxapi_server.py.bak-pre-dsml
