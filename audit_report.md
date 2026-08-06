@@ -331,3 +331,20 @@ sanity 7/7 PASS(实跑): healthz/models_list(n=12)/nonstream_text(end_turn)/stre
 - 管线层: 多轮 tool 循环不中断, 0 标签泄漏, 工具往返闭环正常 —— 已验证 (约 60 turn)。
 - 上游内容层: se.zzmax 访客档偶发退化短响应, 单次 wall clock 受限 (典型 3-8 min); 非 maxapi 缺陷, `claude -p --resume <session>` 续做即恢复 (同 session 累积 wall 可延长, 本轮已同 session ea55a4a3 续做 2 段累计约 11 min)。
 - 结论: 走 maxapi 跑 Claude Code vibe coding 的关键链路 (工具不泄漏/多轮不中断) 可正常使用, 单次时长受上游访客档退化上限, 需 `--resume` 续做延长。
+
+## §十八 修 502 upstream_error: assistant content 为 OpenAI list-of-parts 时崩溃 (P0, 2026-08-06)
+
+现象用户实撞: claude -p 经 maxapi 多轮 vibe coding 偶发 502 {error:{message:"","type":"upstream_error"}} 表面像上游错误。
+
+根因 (docker logs 实抓): `TypeError: can only concatenate list (not str) to list` @ `_build_messages_with_tools`。OpenAI `/v1/chat/completions` 路径不经过 `_flatten_anthropic_messages` (Anthropic 路径专用), messages 直进 `_build_messages_with_tools`, assistant+tool_calls 分支取 `txt = content or ""` 没处理 content 为 OpenAI list-of-parts 格式。Claude Code 经此路径发多轮 tool 往返, assistant 消息 content=[thinking,text] parts 数组且 tool_calls 顶层, txt 变 list 后 `txt + nl + nl + nl.join(lines)` 崩 -> do_POST 走 502 (空 message)。
+
+修复: 新增 `_content_to_text(content)` helper, 把 str/list-of-parts/None 规范化纯 str (text parts 拼接, 其它块丢弃 text-only chat); _build_messages_with_tools assistant+tcs 分支改调它。仅解析路径, upstream 与三端点不动。
+
+验证 (本轮实跑):
+- tests/test_repro_502_list_content.py 复现: 修前 exit 1 (TypeError), 修后 exit 0 (建 7 消息 assistant content=str len=173 含 DSML block)。
+- tests/test_dsml.py 69/69 仍全绿。
+- 重建容器, `_content_to_text`@L662/调用@L720 在位, 70904->72092 B, /healthz ok。
+- sanity 7/7 PASS。
+- 端到端: 直接发该崩溃形态请求 (assistant content=[thinking,text]+tool_calls+tool 结果多轮) 到容器 -> 200 流式正常返回 + finish_reason=stop + DONE, 502 消失。
+
+影响面: 仅 OpenAI `/v1/chat/completions` 路径何种含 list content 的 assistant+tool_calls 多轮历史时触发 (Claude Code 经此路径发多轮 tool 往返会撞)。原生 `/v1/messages` 路径因 `_flatten_anthropic_messages` 已处理 list content 未受影响。回归测试已入仓库 `tests/test_repro_502_list_content.py`。

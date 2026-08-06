@@ -377,3 +377,26 @@ echo "<任务文本>" | claude -p --model "Claude Sonnet 5" \
   --output-format stream-json --verbose
 # 末行 JSON: <tool_name>/<function=/<function_calls> 计数为 0 → 加固生效; num_turns>1 且 terminal_reason=completed → 多轮闭环不中断
 ```
+
+## 修 502 upstream_error: assistant content 为 OpenAI list-of-parts 时崩溃（P0, 2026-08-06）
+
+现象用户实撞: `claude -p` 经 maxapi 跑多轮 vibe coding 时偶发 `✻ 502 {error:{message:"","type":"upstream_error"}}` 表面像上游错误。
+
+根因: OpenAI `/v1/chat/completions` 路径不经过 `_flatten_anthropic_messages` (那是 Anthropic 路径专用), messages 直接进 `_build_messages_with_tools`。其 assistant+tool_calls 分支取 `txt = content or ""`, 没处理 content 为 OpenAI list-of-parts 格式。Claude Code 经 `/v1/chat/completions` 发多轮 tool 往返时, assistant 消息 content 是 `[thinking, text]` parts 数组且 `tool_calls` 在顶层, `txt` 变 list 后 `txt + nl + nl + nl.join(lines)` 报 `TypeError: can only concatenate list (not str) to list` → `do_POST` 捕获后走 502 (空 message)。
+
+修复 (`_content_to_text` helper, `_build_messages_with_tools` assistant+tcs 分支调用):
+```python
+def _content_to_text(content):
+    # str|list-of-parts|None -> str; text parts 拼接, thinking/tool_use/tool_result/image 块丢弃
+    ...
+    # _build_messages_with_tools: txt = _content_to_text(content)  (原为: txt = content or "")
+```
+
+验证:
+- `tests/test_repro_502_list_content.py` 复现: 修前 exit 1 (TypeError), 修后 exit 0 (建 7 消息, assistant content=str len=173 含 DSML block)。
+- `tests/test_dsml.py` 69/69 仍全绿。
+- 重建容器, 容器内 `_content_to_text`@L662 与调用@L720 在位, 70904→72092 B, `/healthz` ok。
+- sanity 7/7 PASS。
+- 端到端: 直接发该崩溃形态请求 (assistant content=[thinking,text]+tool_calls+tool 结果多轮) 到容器 → 200 流式正常返回 + `finish_reason=stop` + `[DONE]`, 502 消失。
+
+影响面: 仅 OpenAI `/v1/chat/completions` 路径有何含 list content 的 assistant+tool_calls 多轮历史时触发 (Claude Code 经此路径发多轮 tool 往返会撞)。原生 `/v1/messages` 路径因 `_flatten_anthropic_messages` 已处理 list content 未受影响。回归测试已入仓库 `tests/test_repro_502_list_content.py`。
