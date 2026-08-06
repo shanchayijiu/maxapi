@@ -659,6 +659,33 @@ def _dsml_render_value(v):
     return _dsml_wrap_cdata(str(v))
 
 
+def _content_to_text(content):
+    """Normalize a message content (str | list-of-parts | None) into a plain
+    string. OpenAI /v1/chat/completions assistant messages can carry content as
+    a list of typed parts (e.g. thinking + text) alongside top-level tool_calls;
+    _build_messages_with_tools must render that as a string before DSML joining."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for blk in content:
+            if isinstance(blk, dict):
+                if blk.get("type") == "text":
+                    t = blk.get("text", "")
+                    if isinstance(t, str) and t:
+                        parts.append(t)
+                elif "text" in blk:
+                    if isinstance(blk["text"], str) and blk["text"]:
+                        parts.append(blk["text"])
+                # thinking/tool_use/tool_result/image blocks: dropped (text-only chat)
+            elif isinstance(blk, str) and blk:
+                parts.append(blk)
+        return chr(10).join(p for p in parts if p)
+    return json.dumps(content, ensure_ascii=False)
+
+
 def _build_messages_with_tools(tools, tool_choice, messages):
     """Flatten messages: prepend DSML tools system message, render prior assistant tool_calls as DSML blocks, render tool results as user observations. Returns (msgs, enabled)."""
     prompt = _make_tools_prompt(tools, tool_choice)
@@ -690,7 +717,7 @@ def _build_messages_with_tools(tools, tool_choice, messages):
         if tcs is None and content is None:
             continue
         if role == "assistant" and tcs:
-            txt = content or ""
+            txt = _content_to_text(content)
             lines = [tco]
             for ca in tcs:
                 fn = ca.get("function") or {}
