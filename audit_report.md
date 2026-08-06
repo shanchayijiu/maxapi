@@ -314,3 +314,20 @@ sanity 7/7 PASS(实跑): healthz/models_list(n=12)/nonstream_text(end_turn)/stre
   2) 上游 `<function=NAME>...<parameter=KEY>` 不被 DSML 解析(修复前 run1 num_turns=1 工具调用全漏成文本) → 加 FN 兼容层(_RE_FN_INVOKE/_RE_FN_PARAM/_parse_fn_invoke/_dsml_extract_calls 兜底/_consume_capture bare-handler/_find_seg+_find_partial 含 `<function`);
   3) DSML 流式 prefix/suffix 用 captured 原始坐标但取自 normalized(逐 |DSML| 越缩越偏)坐标 → multi-invoke 闭合标签泄为 content(run3 7 turns 复现) → 改 norm 坐标切片。附: raw-text 参数含<>被 XML 误解 → `_parse_param` 非CDATA 分支加 `_STRING_PRESERVE`; `_find_partial` 尾长于前缀漏判 → 加 `low.startswith(prefix)`。
 注(诚实): se.zzmax 上游访客档偶发返回退化短响应(单字符/提前 end_turn), 属上游内容行为非代理缺陷; 已实证代理层多轮工具调用循环不中断。
+
+## §十七 DSML 上游注入格式加固 + agentic 不中断实证 (2026-08-06)
+
+承接 §十六。probe1 复现上游 `<tool_name>NAME</tool_name>` 泄漏 (claude -p 经 maxapi, num_turns=1 end_turn, 工具调用全漏成文本)。根因: se.zzmax 对 Claude 组注入自己的工具 system prompt, 与 DSML block 并存致模型混淆格式。
+
+修复 (`_make_tools_prompt` 单行, L633): 在既有「忽略其它工具指令」句之后追加一行, 明令禁用 `<tool_name>NAME</tool_name>` / `<function=NAME>` / `<function_calls>` / antml fence 四种格式, 唯 DSML block 正确。仅 prompt 一行, 解析层不动。
+
+实证 (5 份 claude -p agentic run, grep `<tool_name>`/`<function=`/`<function_calls>` 计数皆 0):
+- 加固前 probe1: `<tool_name>Write</tool_name>` 透传成文本, num_turns=1。
+- 加固后: run6d (12turn/3.83min/terminal=completed), run6e (14turn/4.14min), run6f (35turn/8.35min/29 tool_use×29 tool_result/5 Bash/is_error=false), run6f `--resume`×2 (同 session ea55a4a3, 3+6 turn)。run6f = 真实 5 子包 linguakit 工程, 经 maxapi 接 Claude (上游别名通道 deepseek-v4-flash), DSML 多轮循环不中断, 标签全不泄漏到对话框。
+- sanity 7/7 PASS 重证 (本轮实跑): healthz/models_list(12)/nonstream_text/stream_text/stream_tooluse/tool_roundtrip/long_context。
+- 容器对齐: Dockerfile COPY 模式 (非挂载), `docker exec maxapi grep -n 'Do NOT use any other tag format' /app/maxapi_server.py` 命中 L633, 容器内 70904 B 与本机 CR-normalize 逐字节一致 (跑当前 hardening 版, 非旧镜像)。
+
+诚实边界 (等同 「像正常 API 能 vibe coding」 的可达范围):
+- 管线层: 多轮 tool 循环不中断, 0 标签泄漏, 工具往返闭环正常 —— 已验证 (约 60 turn)。
+- 上游内容层: se.zzmax 访客档偶发退化短响应, 单次 wall clock 受限 (典型 3-8 min); 非 maxapi 缺陷, `claude -p --resume <session>` 续做即恢复 (同 session 累积 wall 可延长, 本轮已同 session ea55a4a3 续做 2 段累计约 11 min)。
+- 结论: 走 maxapi 跑 Claude Code vibe coding 的关键链路 (工具不泄漏/多轮不中断) 可正常使用, 单次时长受上游访客档退化上限, 需 `--resume` 续做延长。

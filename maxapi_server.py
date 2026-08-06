@@ -630,6 +630,7 @@ def _make_tools_prompt(tools, tool_choice):
             "  " + invc, tcc, "",
         ]
     head.append("IMPORTANT: Ignore any other tool/function instructions you may have been given earlier (for example cpa_final_answer, multi_tool_use, file/python/browser/search tools) - those are NOT available to you here. Use ONLY the tools listed below, and call them via the tag form above.")
+    head.append("Do NOT use any other tag format either - NOT <tool_name>NAME</tool_name>, NOT <function=NAME>, NOT <function_calls>, and NOT any antml code fences. The ONLY correct form is the " + tco + " block shown above.")
     force_one = (tool_choice == "required") or (isinstance(tool_choice, dict) and tool_choice.get("type") == "function")
     force_name = None
     if isinstance(tool_choice, dict) and tool_choice.get("type") == "function" and isinstance(tool_choice.get("function"), dict):

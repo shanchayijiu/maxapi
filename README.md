@@ -345,3 +345,35 @@ claude -p "读取当前目录 target.txt 并原样输出内容, 只用 Read 工�
 - 本地限流闸 429 + 上游 overloaded 529 均补 `Retry-After: 5` header (Anthropic SDK 见 429/529 + Retry-After 会自动退避重试). `_send()` 扩展 `extra` 参数支持自定义 header.
 - 上游 429/繁忙的 IP 轮换重试逻辑 (`upstream()` 的 `volatile` + `max_retry=5`) 由 OpenAI / Anthropic 路径**共享**, 无需重复实现.
 - 流式 error 事件 (`sse("error",...)`) 保持 `api_error` type; SSE 事件无 HTTP header 概念, Retry-After 仅作用于非流式响应.
+
+## 工具调用加固 + agentic 不中断验证（DSML 上游注入格式禁令，2026-08-06）
+
+承接 `工具调用升级：DSML 协议移植` 节。probe1 复现：se.zzmax 上游对 Claude 组模型会注入自己的工具 system prompt，模型偶发把 `<tool_name>NAME</tool_name>` 形式直接发到正文（probe1 日志：`<tool_name>Write</tool_name><param name="path">probe.txt</param>...`，maxapi 透传成文本，claude -p 一轮即 end_turn）。根因：上游注入指令与我们 DSML block 在同一 system prompt 里并存，模型混淆格式。
+
+修复（`_make_tools_prompt` L633，在既有「忽略其它工具指令」句之后追加一行）:
+```python
+head.append("Do NOT use any other tag format either - NOT <tool_name>NAME</tool_name>, NOT <function=NAME>, NOT <function_calls>, and NOT any antml code fences. The ONLY correct form is the " + tco + " block shown above.")
+```
+明令禁用 `<tool_name>` / `<function=NAME>` / `<function_calls>` / antml fence 四种上游注入格式，唯 DSML block 正确。仅 prompt 一行，无解析层改动。
+
+证据（5 份 claude -p agentic run，跨 hardening 前后对比）:
+- 加固前 probe1: `<tool_name>Write</tool_name>` 泄漏到对话，num_turns=1，terminal=completed（工具调用全漏成文本）。
+- 加固后 5 份 run 全 0 泄漏（grep `<tool_name>` / `<function=` / `<function_calls>` 计数皆 0）: run6d（12 turn / 3.83 min / terminal=completed）、run6e（14 turn / 4.14 min / terminal=completed）、run6f（35 turn / 8.35 min / 29 tool_use × 29 tool_result / 5 Bash / is_error=false）、run6f `--resume`×2（同 session ea55a4a3，3+6 turn）。
+- run6f 是真实 5 子包 linguakit 工程（tokenkit/metrics/corpus/nlp/集成），经 maxapi 接 Claude（上游别名通道 deepseek-v4-flash），DSML 多轮 tool_use/tool_result 闭环不中断，标签全不泄漏到对话框。
+- sanity 7/7 PASS 重证（本轮实跑）: healthz / models_list(n=12) / nonstream_text / stream_text / stream_tooluse / tool_roundtrip / long_context。
+
+容器对齐: Dockerfile 采用 `COPY` 模式（非挂载）。`docker exec maxapi grep -n 'Do NOT use any other tag format' /app/maxapi_server.py` 命中 L633；容器内 `wc -c /app/maxapi_server.py` = 70904 B，与本机 CR-normalize 后逐字节一致（确认跑的是当前 hardening 版本，非旧镜像）。
+
+诚实边界（等同于「像正常 API 能 vibe coding」的可达范围）:
+- DSML 管线层: 多轮 tool 循环不中断、0 标签泄漏、工具往返闭环正常 —— 已验证（约 60 turn 累计）。
+- 上游内容层: se.zzmax 访客档偶发退化短响应，单次 wall clock 受限（典型单 run 3-8 min）；非 maxapi 缺陷，`claude -p --resume <session>` 续做即恢复（同 session 累积 wall 可延长）。
+- 结论: 经 maxapi 走 Claude Code 做 vibe coding 的关键链路（工具调用不泄漏、多轮不中断）已可正常使用；单次时长受上游访客档退化影响存在上限，需 `--resume` 续做延长。
+
+复现（claude -p 经 maxapi 跑 agentic，不泄漏）:
+```bash
+# settings.json env 直连 8080（无需 cc-switch）: ANTHROPIC_BASE_URL=http://127.0.0.1:8080, ANTHROPIC_API_KEY=sk-test
+echo "<任务文本>" | claude -p --model "Claude Sonnet 5" \
+  --max-turns 300 --dangerously-skip-permissions \
+  --output-format stream-json --verbose
+# 末行 JSON: <tool_name>/<function=/<function_calls> 计数为 0 → 加固生效; num_turns>1 且 terminal_reason=completed → 多轮闭环不中断
+```
