@@ -348,3 +348,24 @@ sanity 7/7 PASS(实跑): healthz/models_list(n=12)/nonstream_text(end_turn)/stre
 - 端到端: 直接发该崩溃形态请求 (assistant content=[thinking,text]+tool_calls+tool 结果多轮) 到容器 -> 200 流式正常返回 + finish_reason=stop + DONE, 502 消失。
 
 影响面: 仅 OpenAI `/v1/chat/completions` 路径何种含 list content 的 assistant+tool_calls 多轮历史时触发 (Claude Code 经此路径发多轮 tool 往返会撞)。原生 `/v1/messages` 路径因 `_flatten_anthropic_messages` 已处理 list content 未受影响。回归测试已入仓库 `tests/test_repro_502_list_content.py`。
+
+## §十九 缓解"做一下停一下": tool prompt 加 rule13 EXECUTE-DO-NOT-NARRATE (2026-08-07)
+
+现象用户实撞: Claude Code 经 maxapi 跑 vibe coding 时"做一下停一下"——做几步就停在叙述 (描述将要做啥但不发 tool_call 然后停)，需催才继续。
+
+根因 (chatdbg 实抓诊断): 不是 sieve 解析 bug——停顿那几轮 assistant content 里无 |DSML| / <tool_calls> 块，是模型自己选择用嘴说动作而非发 tool_call。属上游内容侧退化倾向 (GPT 组受 cpa_final_answer/multi_tool_use 注入冲突最严重时只叙述不发 tool_call 然后停)。
+
+修复 (仅 prompt 强化，解析层不动):
+- _make_tools_prompt 规则区 L613 追加 rule13: "EXECUTE, DO NOT NARRATE: 若你意图执行动作 (写/编辑/跑/读文件、跑命令、查询等)，本回合就发 tool_call 块调用工具，勿用散文描述动作然后停；叙述绝不替代 tool 调用，工作未完且下一步是动作时必须现在就调用工具。"
+- _build_messages_with_tools 末尾 reminder 同步强化为同一 EXECUTE-DO-NOT-NARRATE 措辞。
+
+实证 (强化后两轮 claude -p agentic，同一 4-checker pylintx 工程，--max-turns 250，stream-json 核数):
+- run6h2 (GPT-5.5): 16 turn / 15 tool_call / 15 tool_result / 0 <tool_name>/<function>/<function_calls> 泄漏 / terminal=success，但末轮助理 content 是纯叙述"当前回合无法继续执行文件写入和测试命令"+停，pylintx 工程未真正交付——GPT-5.5 仍撞上游叙述化停止。
+- run6h3 (Claude Sonnet 5): 43 turn / 41 tool_call / 41 tool_result / 0 标签泄漏 / 425 s / terminal=completed / pylintx 真做完 (34 单测全过、4 CLI 子命令输出合法、verify_all.py exit 0 打 ALL_GREEN_OK x21)——真闭环。
+- 容器对齐: docker exec maxapi grep -c 'EXECUTE, DO NOT NARRATE' /app/maxapi_server.py = 1，跑 rule13 版。
+- 单测全绿: tests/test_dsml.py 69/69, tests/test_prompt_exec_discipline.py PASS, tests/test_repro_502_list_content.py PASS。
+
+诚实边界:
+- Claude Sonnet 5 经 maxapi vibe coding 关键链路 (工具不泄漏 / 多轮不中断 / 单次可做完一个真工程) 已稳，推荐 vibe coding 用 Claude Sonnet 5。
+- GPT-5.5 大上下文多轮 tool 往返下仍偶发"叙述化停顿" (只说不动然后停)，属上游内容侧行为，非 maxapi 侧可完全消除；prompt 强化已缓解但未根除。
+- 单次 wall clock 受上游访客档退化上限 (典型几分钟)，需时可 claude -p --resume <session> 续做延长。
