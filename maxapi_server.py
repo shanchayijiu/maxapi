@@ -77,7 +77,7 @@ BROWSER_GET_HEADERS = {
 # Each tuple: (display_id, group, actualModelId, tier)
 # display_id is what /v1/models returns and what clients send in "model".
 RAW_MODELS = [
-    ("Claude Sonnet 5",        "claude",   "claude-opus-4-8",       "premium"),
+    ("Claude Sonnet 5",        "claude",   "claude-sonnet-5",       "premium"),
     ("Claude Opus 4.8",        "claude",   "claude-opus-4.8",       "premium"),
     ("claude-opus-4-6",        "claude",   "claude-opus-4-6",       "normal"),
     ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-luna",          "normal"),
@@ -1116,7 +1116,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     if obj.get("error"):
                         err = obj["error"]
                         etxt = str(err)
-                        if any(k in etxt for k in ("额度", "2次", "登录", "游客", "套餐", "频繁", "繁忙")):
+                        if any(k in etxt for k in ("额度", "2次", "登录", "游客", "套餐", "频繁", "繁忙", "服务提供商", "provider", "暂无可用")):
                             volatile = True
                             break
                         if any(k in etxt for k in ("稍后",)):

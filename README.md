@@ -421,3 +421,23 @@ def _content_to_text(content):
 - Claude Sonnet 5 经 maxapi vibe coding 的关键链路（工具不泄漏 / 多轮不中断 / 单次可做完一个真工程）已稳，推荐 vibe coding 用 Claude Sonnet 5。
 - GPT-5.5 在大上下文多轮 tool 往返下仍偶发"叙述化停顿"（只说不动然后停），属上游内容侧行为，非 maxapi 侧可完全消除；prompt 强化已缓解但未根除。
 - 单次 wall clock 受上游访客档退化上限（典型几分钟），需时可 `claude -p --resume <session>` 续做延长。
+
+
+## 修 Claude Sonnet 5 整体 502/error：上游 subModel 映射错指到已失效的 provider（2026-08-07）
+
+现象用户实撞: 手动在 se.zzmax 网页用 Claude Sonnet 5 对话成功，但 `claude -p` / 任何客户端经 maxapi 打 Claude Sonnet 5 全部 502 / `upstream model repeatedly busy after 5 retries`，最小 `say hi` 也打不通。
+
+根因 (绕 maxapi 直连上游枚举证实): 模型映射表 `RAW_MODELS` 把 display "Claude Sonnet 5" 指到上游 `subModel=claude-opus-4-8`。本轮直连 se.zzmax `/api/chat/stream` 枚举: `claude-opus-4-8` 和 `claude-opus-4.8` 全返回 `当前模型暂无可用的服务提供商` / `模型服务繁忙`；而 `claude-sonnet-5` 5/5 OK-stream、`claude-opus-4-6` 3/3 OK-stream。网页同名成功 vs 枚举反证 → 网页发的就是 `claude-sonnet-5`，maxapi 错指的 `claude-opus-4-8` 上游 provider 已被撤。
+
+修复（两处）:
+- `RAW_MODELS` L80: `("Claude Sonnet 5", "claude", "claude-opus-4-8", "premium")` → `("Claude Sonnet 5", "claude", "claude-sonnet-5", "premium")`，与网页实际发送对齐。
+- `upstream()` SSE error volatile 关键词 L1119: 在 额度/2次/登录/游客/套餐/频繁/繁忙 后补 服务提供商/provider/暂无可用，使上游 provider 临时被撤也走换 IP 重试而非直接报错。
+
+实证 (重建容器后，本轮实跑):
+- 容器 L80 已 claude-sonnet-5，/healthz 200。
+- 经 maxapi 直接 POST Claude Sonnet 5 最小请 → 之前 502，现在 HTTP 200 + `"content":"Hi there friend!"` + `finish_reason=stop`。
+- 单测全绿：`tests/test_dsml.py` 69/69、`tests/test_repro_502_list_content.py`、`tests/test_prompt_exec_discipline.py`。
+
+诚实边界:
+- Claude Opus 4.8 上游 claude-opus-4.8 本轮枚举 5/5 繁忙，网页也显示繁忙——属上游侧限流非 maxapi 缺陷，等上游恢复即恢复。
+- claude-opus-4-8 上游 provider 已被撤，别名 claude-opus-4-8 / claude/claude-opus-4-8 仍指 display Claude Sonnet 5 (现↦上游 claude-sonnet-5)，即显式发 model=claude-opus-4-8 会降级路由 sonnet；原意 opus 建议换 claude-opus-4-6 (上游 OK)。
