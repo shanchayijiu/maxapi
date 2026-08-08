@@ -150,6 +150,27 @@ _GROUP_META = {
 }
 MODEL_META = {m[0]: _GROUP_META.get(m[1], (200000, 8192, True)) for m in RAW_MODELS}
 
+# display_id -> Anthropic standard model ID (used in /v1/messages responses so
+# Claude Code can look up context_length from its internal model registry).
+_ANTHROPIC_MODEL_IDS = {
+    "Claude Sonnet 5":        "claude-sonnet-4-20250514",
+    "Claude Opus 4.8":        "claude-opus-4-20250514",
+    "claude-opus-4-6":        "claude-opus-4-20250514",
+    "gpt-5.6-sol":            "claude-sonnet-4-20250514",
+    "gpt-5.6-terra":          "claude-sonnet-4-20250514",
+    "GPT-5.5":                "claude-sonnet-4-20250514",
+    "deepseek-v4-pro":        "claude-sonnet-4-20250514",
+    "deepseek-v4-flash":      "claude-sonnet-4-20250514",
+    "qwen3.6-plus":           "claude-sonnet-4-20250514",
+    "MiMo-V2.5-Pro":          "claude-sonnet-4-20250514",
+    "gemini-3.5-flash":       "claude-sonnet-4-20250514",
+    "gemini-3.1-pro-preview": "claude-sonnet-4-20250514",
+}
+
+def _anthropic_model_id(display_id):
+    """Map display_id to a standard Anthropic model ID for CC compatibility."""
+    return _ANTHROPIC_MODEL_IDS.get(display_id, "claude-sonnet-4-20250514")
+
 # Per-display max input tokens for preflight. Reserve a 4k headroom for output/system.
 def _context_limit(display_id):
     ctx, _out, _tu = MODEL_META.get(display_id, (200000, 8192, True))
@@ -1137,10 +1158,17 @@ class ToolCallParser:
 
 
 def _estimate_tokens(text):
-    """Rough token estimate: ~3.5 chars per token for English/code, ~1.5 for CJK-heavy."""
+    """Token estimate: ~1 token per word for English, ~1.5 per CJK char, +2 overhead."""
     if not text:
         return 0
-    return max(1, int(len(text) / 3.5))
+    # Count CJK characters (each ~1.5 tokens)
+    cjk = 0
+    for ch in text:
+        if '一' <= ch <= '鿿' or '　' <= ch <= '〿' or '＀' <= ch <= '￯':
+            cjk += 1
+    ascii_len = len(text) - cjk
+    # English: ~4 chars per token (word-based is better but this is a fast heuristic)
+    return max(1, int(ascii_len / 4) + int(cjk * 1.5) + 2)
 
 
 def _estimate_messages_tokens(messages):
@@ -2006,9 +2034,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not content:
                 content.append({"type": "text", "text": ""})
             input_toks = _estimate_messages_tokens(msgs_up)
-            output_toks = _estimate_tokens("".join(answer) + "".join(reason))
+            output_toks = _estimate_tokens("".join(answer))
             out = {
-                "id": msg_id, "type": "message", "role": "assistant", "model": disp,
+                "id": msg_id, "type": "message", "role": "assistant", "model": _anthropic_model_id(disp),
                 "content": content, "stop_reason": stop_reason, "stop_sequence": None,
                 "usage": {"input_tokens": input_toks, "output_tokens": output_toks},
             }
@@ -2083,7 +2111,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         output_acc = {"n": 0}
         input_toks = _estimate_messages_tokens(msgs_up)
         try:
-            sse("message_start", {"message": {"id": msg_id, "type": "message", "role": "assistant", "model": disp, "content": [], "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": input_toks, "output_tokens": 0}}})
+            sse("message_start", {"message": {"id": msg_id, "type": "message", "role": "assistant", "model": _anthropic_model_id(disp), "content": [], "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": input_toks, "output_tokens": 0}}})
             started_evt.set()  # allow heartbeat now that message_start is the first event
             tool_count = 0
             stream_failed = False
@@ -2093,7 +2121,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         open_block("thinking")
                     sse("content_block_delta", {"index": blocks["thinking"]["index"], "delta": {"type": "thinking_delta", "thinking": data}})
                     thinking_acc["s"] += data
-                    output_acc["n"] += len(data)
                     emitted_any["v"] = True
                 elif kind == "content":
                     if "thinking" in blocks:
@@ -2138,7 +2165,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if "text" not in blocks:
                     open_block("text", {"text": ""})
                     close_block("text")
-            sse("message_delta", {"delta": {"stop_reason": stop_reason["r"], "stop_sequence": None}, "usage": {"output_tokens": max(1, int(output_acc["n"] / 3.5))}})
+            sse("message_delta", {"delta": {"stop_reason": stop_reason["r"], "stop_sequence": None}, "usage": {"output_tokens": max(1, output_acc["n"] // 4 + 2)}})
             sse("message_stop", {})
         except Exception as e:
             try:
