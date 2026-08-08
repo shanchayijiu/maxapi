@@ -135,6 +135,26 @@ DEFAULT_MODEL = "deepseek-v4-flash"
 COMPANION_PROB = 0.08
 RATE = None
 
+# Per-model capability metadata returned by /v1/models. context_length is the
+# advertised input window; max_output_tokens the advertised completion cap;
+# supports_tool_use marks DSML-routed tool endpoints. Values are advisory so
+# clients (Claude Code / Codex) display context length instead of blank.
+# group -> (context_length, max_output_tokens, supports_tool_use)
+_GROUP_META = {
+    "claude":   (200000, 8192,  True),
+    "chatgpt":  (400000, 16384, True),
+    "deepseek": (128000, 8192,  True),
+    "qwen":     (131072, 8192,  True),
+    "mimo":     (131072, 8192,  True),
+    "gemini":   (1000000, 8192, True),
+}
+MODEL_META = {m[0]: _GROUP_META.get(m[1], (200000, 8192, True)) for m in RAW_MODELS}
+
+# Per-display max input tokens for preflight. Reserve a 4k headroom for output/system.
+def _context_limit(display_id):
+    ctx, _out, _tu = MODEL_META.get(display_id, (200000, 8192, True))
+    return max(4096, ctx - 4096)
+
 def resolve_model(name):
     """Map a client-supplied model id to (group, actualModelId, display_id)."""
     if not name:
@@ -1266,6 +1286,148 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 pass
 
 
+def classify_error(err, default=502):
+    """Classify an upstream error string into (http_code, error_type) for both
+    OpenAI and Anthropic error envelopes."""
+    etxt = str(err)
+    low = etxt.lower()
+    if any(k in low for k in ("too long", "context length", "token limit",
+                              "maximum context", "input too long", "exceeds the max")):
+        return 400, "invalid_request_error"
+    if any(k in low for k in ("rate limit", "rate_limit", "too many request",
+                              "quota", "429")):
+        return 429, "rate_limit_error"
+    if any(k in low for k in ("overloaded", "busy", "529", "service unavailable",
+                              "503", "service provider", "provider", "no available")):
+        return 529, "overloaded_error"
+    if any(k in low for k in ("bad request", "invalid_request", "400", "bad json")):
+        return 400, "invalid_request_error"
+    if any(k in low for k in ("not found", "404", "model not")):
+        return 404, "not_found_error"
+    if any(k in low for k in ("unauthorized", "auth", "401", "forbidden", "403")):
+        return default, "api_error"
+    return default, "api_error"
+
+
+def _tool_schemas_map(tools, anthropic=False):
+    """Build name -> parameters-schema dict from an OpenAI or Anthropic tool list."""
+    schemas = {}
+    if not isinstance(tools, list):
+        return schemas
+    for t in tools:
+        if not isinstance(t, dict):
+            continue
+        if anthropic:
+            name = t.get("name")
+            schema = t.get("input_schema") or {}
+        else:
+            fn = t.get("function") or {}
+            name = fn.get("name")
+            schema = fn.get("parameters") or {}
+        if name:
+            schemas[name] = schema if isinstance(schema, dict) else {}
+    return schemas
+
+
+def _coerce_value(val, typ):
+    """Coerce a parsed value toward the expected JSON-schema type."""
+    if val is None or typ is None:
+        return val
+    if typ == "string":
+        return val if isinstance(val, str) else json.dumps(val, ensure_ascii=False)
+    if typ == "boolean":
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, str):
+            s = val.strip().lower()
+            if s in ("true", "yes", "1"):
+                return True
+            if s in ("false", "no", "0", ""):
+                return False
+        return bool(val)
+    if typ == "integer":
+        if isinstance(val, bool):
+            return int(val)
+        if isinstance(val, int):
+            return val
+        if isinstance(val, float):
+            return int(val)
+        if isinstance(val, str):
+            try:
+                return int(val.strip())
+            except ValueError:
+                try:
+                    return int(float(val.strip()))
+                except ValueError:
+                    return val
+        return val
+    if typ == "number":
+        if isinstance(val, bool):
+            return float(val)
+        if isinstance(val, (int, float)):
+            return val
+        if isinstance(val, str):
+            try:
+                return float(val.strip())
+            except ValueError:
+                return val
+        return val
+    if typ == "array":
+        if isinstance(val, list):
+            return val
+        if isinstance(val, str):
+            s = val.strip()
+            if s.startswith("["):
+                v, ok = _try_json(s)
+                if ok and isinstance(v, list):
+                    return v
+            if "," in s:
+                return [x.strip() for x in s.split(",") if x.strip()]
+            return [s] if s else []
+        return val if isinstance(val, list) else [val]
+    if typ == "object":
+        if isinstance(val, dict):
+            return val
+        if isinstance(val, str):
+            s = val.strip()
+            if s.startswith("{"):
+                v, ok = _try_json(s)
+                if ok and isinstance(v, dict):
+                    return v
+            return val
+        return val
+    return val
+
+
+def _coerce_tool_params(args, schema):
+    """Coerce args dict values toward the schema's property types."""
+    if not isinstance(args, dict) or not isinstance(schema, dict):
+        return args
+    props = schema.get("properties") or {}
+    for key, val in list(args.items()):
+        ps = props.get(key)
+        if not isinstance(ps, dict):
+            continue
+        typ = ps.get("type")
+        if isinstance(typ, list):
+            typ = next((t for t in typ if t != "null"), None)
+        if typ:
+            args[key] = _coerce_value(val, typ)
+    return args
+
+
+def _validate_and_coerce_tool_calls(tcs_out, tools, anthropic=False):
+    """Coerce tool call arguments to match tool schemas (schema-aware type
+    conversion).  Prevents 'true'/'123'/container strings from reaching the
+    client as wrong-typed values."""
+    schemas = _tool_schemas_map(tools, anthropic=anthropic)
+    for tc in tcs_out:
+        name = tc.get("name") or tc.get("function", {}).get("name")
+        schema = schemas.get(name)
+        if schema:
+            tc["arguments"] = _coerce_tool_params(tc.get("arguments") or {}, schema)
+    return tcs_out
+
 class Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     def log_message(self, *a):
@@ -1331,6 +1493,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             tool_choice = "auto"
         openai_msgs = _flatten_anthropic_messages(anth_messages, sysc)
         msgs_up, tools_enabled = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs)
+        _pf = _context_limit(disp)
+        _inp_toks = _estimate_messages_tokens(msgs_up)
+        if _inp_toks > _pf:
+            return self._send(400, {"type": "error", "error": {"type": "invalid_request_error",
+                "message": "input too long: estimated %d tokens exceeds context_length %d for %s" % (_inp_toks, _pf, disp)}})
         stream = bool(req.get("stream"))
         # thinking: anthropic 'thinking' param; we pass medium by default unless
         # client sent a budget — keep reasoning on for claude (upstream always thinks).
@@ -1361,7 +1528,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "tool_call":
                     tcs_out.append(data)
             if err:
-                return self._send(529, {"type": "error", "error": {"type": "overloaded_error", "message": str(err)}}, extra={"Retry-After": "5"})
+                _code, _type = classify_error(err, default=529)
+                _extra = {"Retry-After": "5"} if _code in (429, 529) else None
+                return self._send(_code, {"type": "error", "error": {"type": _type, "message": str(err)}}, extra=_extra)
+            if tcs_out:
+                tcs_out = _validate_and_coerce_tool_calls(tcs_out, anth_tools, anthropic=True)
             content = []
             if include_reasoning and "".join(reason):
                 content.append({"type": "thinking", "thinking": "".join(reason), "signature": _thinking_signature("".join(reason))})
@@ -1479,6 +1650,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     if "tool_use" in blocks:
                         close_block("tool_use")
                         del blocks["tool_use"]
+                    if anth_tools:
+                        data = _validate_and_coerce_tool_calls([data], anth_tools, anthropic=True)[0]
                     idx = open_block("tool_use", {"id": data["id"], "name": data["name"], "input": {}})
                     argstr = json.dumps(data["arguments"], ensure_ascii=False)
                     for off in range(0, len(argstr), 20):
@@ -1520,7 +1693,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path.startswith("/healthz"):
             return self._send(200, {"status": "ok", "service": "maxapi", "models": len(MODEL_DISPLAY_IDS)})
         if self.path.startswith("/v1/models"):
-            data = [{"id": m, "object": "model", "owned_by": "se.zzmax.cn-guest"} for m in MODEL_DISPLAY_IDS]
+            data = [{"id": m, "object": "model", "owned_by": "se.zzmax.cn-guest",
+                      "context_length": MODEL_META.get(m, (200000, 8192, True))[0],
+                      "max_output_tokens": MODEL_META.get(m, (200000, 8192, True))[1],
+                      "supports_tool_use": MODEL_META.get(m, (200000, 8192, True))[2]}
+                    for m in MODEL_DISPLAY_IDS]
             return self._send(200, {"object": "list", "data": data})
         return self._send(404, {"error": {"message": "not found"}})
     def do_POST(self):
@@ -1568,6 +1745,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if tool_choice is None and tools:
             tool_choice = "auto"
         msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
+        _pf = _context_limit(disp)
+        _inp_toks = _estimate_messages_tokens(msgs_up)
+        if _inp_toks > _pf:
+            return self._send(400, {"error": {"type": "invalid_request_error",
+                "message": "input too long: estimated %d tokens exceeds context_length %d for %s" % (_inp_toks, _pf, disp)}})
         if not stream:
             answer, reason, tcs_out, err, sources = [], [], [], None, []
             for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
@@ -1583,7 +1765,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "sources":
                     sources = data or []
             if err:
-                return self._send(502, {"error": {"message": err}})
+                _code, _type = classify_error(err)
+                return self._send(_code, {"error": {"type": _type, "message": err}})
+            if tools_enabled and tcs_out:
+                tcs_out = _validate_and_coerce_tool_calls(tcs_out, tools)
             content = "".join(answer)
             if tools_enabled and tcs_out:
                 msg = {"role": "assistant", "content": content if content else None,
@@ -1649,6 +1834,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "tool_call":
                     tci = tool_call_count
                     tool_call_count += 1
+                    if tools_enabled:
+                        data = _validate_and_coerce_tool_calls([data], tools)[0]
                     argstr = json.dumps(data["arguments"], ensure_ascii=False)
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tci, "id": data["id"], "type": "function", "function": {"name": data["name"], "arguments": ""}}]}, "finish_reason": None}]})
