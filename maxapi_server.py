@@ -204,13 +204,56 @@ class RateLimiter:
         return False
 
 
+class CookieJar:
+    """Global cookie jar: capture Set-Cookie from companion responses,
+    replay them in upstream requests to look like a real browser session."""
+    def __init__(self):
+        self.jar = {}
+        self.lock = threading.Lock()
+    def update_from_response(self, resp):
+        try:
+            for hdr in resp.getheaders():
+                if hdr[0].lower() == 'set-cookie':
+                    part = hdr[1].split(';')[0].strip()
+                    if '=' in part:
+                        k, v = part.split('=', 1)
+                        self.jar[k.strip()] = v.strip()
+        except Exception:
+            pass
+    def get_header(self):
+        with self.lock:
+            if not self.jar:
+                return None
+            return '; '.join(k + '=' + v for k, v in self.jar.items())
+
+COOKIE_JAR = CookieJar()
+
+_COMPANION_ENDPOINTS = [
+    ("/api/chat/nav-categories", BROWSER_GET_HEADERS),
+    ("/favicon.ico", None),  # uses BROWSER_GET_HEADERS with Referer tweak
+]
+
 def companion_touch():
-    """Async GET /api/chat/nav-categories (guest 200) to mimic a visitor landing on the site."""
+    """Simulate a visitor landing on the site.  Captures cookies for session
+    realism and optionally hits a second endpoint (favicon) for behavioral variety."""
     try:
         conn = http.client.HTTPSConnection(BASE, timeout=8, context=ssl.create_default_context())
         conn.request("GET", "/api/chat/nav-categories", headers=BROWSER_GET_HEADERS)
-        conn.getresponse().read(1024)
+        resp = conn.getresponse()
+        COOKIE_JAR.update_from_response(resp)
+        resp.read(1024)
         conn.close()
+        # 30% probability: hit a second endpoint for behavioral variety
+        if random.random() < 0.3:
+            time.sleep(random.uniform(0.1, 0.5))
+            conn2 = http.client.HTTPSConnection(BASE, timeout=8, context=ssl.create_default_context())
+            h2 = dict(BROWSER_GET_HEADERS)
+            h2["Referer"] = "https://se.zzmax.cn/"
+            conn2.request("GET", "/favicon.ico", headers=h2)
+            resp2 = conn2.getresponse()
+            COOKIE_JAR.update_from_response(resp2)
+            resp2.read()
+            conn2.close()
     except Exception:
         pass
 
@@ -1251,6 +1294,16 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         h = dict(BROWSER_STREAM_HEADERS)
         h["X-Forwarded-For"] = xff
         h["X-Real-IP"] = xff
+        # 注入 Cookie：模拟已访问过网站的浏览器会话
+        _cookie = COOKIE_JAR.get_header()
+        if _cookie:
+            h["Cookie"] = _cookie
+        # 10%概率在请求前"逛一下"网站，获取/刷新 cookie
+        if random.random() < 0.1:
+            companion_touch()
+            _cookie = COOKIE_JAR.get_header()
+            if _cookie:
+                h["Cookie"] = _cookie
         conn = http.client.HTTPSConnection(BASE, timeout=180, context=ssl.create_default_context())
         volatile = False
         try:
@@ -1259,16 +1312,38 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             status = resp.status
             if status == 429:
                 volatile = True
+            elif status in (502, 503, 504):
+                volatile = True
+                sys.stderr.write("[volatile %d/%d] upstream %d\n" % (attempt, max_retry, status)); sys.stderr.flush()
             elif status not in (200, 201):
                 err = resp.read(2048).decode("utf-8", "ignore")[:300]
                 yield ("error", {"status": status, "error": err})
                 return
+            # 设置流式读取超时：检测上游卡死
+            _STALL_TIMEOUT = 15  # 秒，超过此时间无数据视为卡死
+            try:
+                resp.fp.settimeout(_STALL_TIMEOUT)
+            except Exception:
+                pass
             buf = b""
             got_done = False
+            last_data_time = time.monotonic()
             while True:
-                chunk = resp.read1(8192)
+                try:
+                    chunk = resp.read1(8192)
+                except Exception as _re:
+                    _etxt = str(_re).lower()
+                    if 'timed out' in _etxt or 'etimedout' in _etxt:
+                        elapsed = time.monotonic() - last_data_time
+                        if elapsed > _STALL_TIMEOUT:
+                            sys.stderr.write("[stall %d/%d] no data for %.0fs, abort\n" % (attempt, max_retry, elapsed)); sys.stderr.flush()
+                            volatile = True
+                            break
+                        continue
+                    raise
                 if not chunk:
                     break
+                last_data_time = time.monotonic()
                 buf += chunk
                 while b"\n" in buf:
                     line, buf = buf.split(b"\n", 1)
@@ -1325,12 +1400,14 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             if not got_done and not volatile:
                 # stream cut without done — likely connection error, retry
                 if attempt < max_retry:
-                    sys.stderr.write("[nodone %d/%d] stream cut, retry\n" % (attempt, max_retry))
-                    time.sleep(1.0 * attempt)
+                    _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
+                    sys.stderr.write("[nodone %d/%d] stream cut, retry in %.1fs\n" % (attempt, max_retry, _sleep)); sys.stderr.flush()
+                    time.sleep(_sleep)
                     continue
             if volatile and not got_done and attempt < max_retry:
-                sys.stderr.write("[volatile %d/%d] retry new IP\n" % (attempt, max_retry))
-                time.sleep(1.0 * attempt)
+                _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
+                sys.stderr.write("[volatile %d/%d] retry in %.1fs\n" % (attempt, max_retry, _sleep)); sys.stderr.flush()
+                time.sleep(_sleep)
                 continue
             if volatile and attempt >= max_retry:
                 yield ("error", {"error": "upstream model repeatedly busy after %d retries; retry shortly" % max_retry})
