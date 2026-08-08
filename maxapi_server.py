@@ -1756,11 +1756,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "usage": {"input_tokens": p_toks, "output_tokens": o_toks, "total_tokens": p_toks + o_toks},
             })
 
-        # P4: prefetch first upstream event before opening SSE stream
-        _first, _upstream_remainder, _pf_err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
-        if _pf_err:
-            _code, _type = classify_error(_pf_err)
-            return self._send(_code, {"error": {"type": _type, "message": _pf_err}})
+        # Open SSE immediately, then stream upstream directly so the client
+        # sees a live connection while maxapi waits for upstream's first
+        # byte. Upstream errors arrive as SSE error events (not HTTP), so
+        # the client never blocks on a pre-header silence window.
+        _upstream_remainder = upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -1781,7 +1781,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             text_index = None
             out_index = 0
             tool_index = 0
-            for kind, data in _upstream_iter(_first, _upstream_remainder):
+            for kind, data in _upstream_iter(None, _upstream_remainder):
                 if kind == "content":
                     if msg_item is None:
                         msg_item = {"id": "msg_%d" % int(time.time() * 1000), "type": "message", "status": "in_progress", "role": "assistant", "content": []}
@@ -1915,12 +1915,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "usage": {"input_tokens": input_toks, "output_tokens": output_toks},
             }
             return self._send(200, out, extra={"anthropic-version": "2023-06-01", "request-id": msg_id})
-        # P4: prefetch first upstream event before opening SSE stream
-        _first, _upstream_remainder, _pf_err = _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled)
-        if _pf_err:
-            _code, _type = classify_error(_pf_err, default=529)
-            _extra = {"Retry-After": "5"} if _code in (429, 529) else None
-            return self._send(_code, {"type": "error", "error": {"type": _type, "message": str(_pf_err)}}, extra=_extra)
+        # Open SSE immediately, then stream upstream directly so the client
+        # sees a live connection while maxapi waits for upstream's first
+        # byte. Upstream errors arrive as SSE error events (not HTTP), so
+        # the client never blocks on a pre-header silence window.
+        _upstream_remainder = upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled)
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -1990,7 +1989,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.set()  # allow heartbeat now that message_start is the first event
             tool_count = 0
             stream_failed = False
-            for kind, data in _upstream_iter(_first, _upstream_remainder):
+            for kind, data in _upstream_iter(None, _upstream_remainder):
                 if kind == "reasoning":
                     if "thinking" not in blocks:
                         open_block("thinking")
@@ -2153,11 +2152,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if sources:
                 out["sources"] = sources
             return self._send(200, out)
-        # P4: prefetch first upstream event before opening SSE stream
-        _first, _upstream_remainder, _pf_err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
-        if _pf_err:
-            _code, _type = classify_error(_pf_err)
-            return self._send(_code, {"error": {"type": _type, "message": _pf_err}})
+        # Open SSE immediately, then stream upstream directly so the client
+        # sees a live connection while maxapi waits for upstream's first
+        # byte. Upstream errors arrive as SSE error events (not HTTP), so
+        # the client never blocks on a pre-header silence window.
+        _upstream_remainder = upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -2190,7 +2189,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.set()
             tool_call_count = 0
             stream_failed = False
-            for kind, data in _upstream_iter(_first, _upstream_remainder):
+            for kind, data in _upstream_iter(None, _upstream_remainder):
                 if kind == "content":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"content": data}, "finish_reason": None}]})
