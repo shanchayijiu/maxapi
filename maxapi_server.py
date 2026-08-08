@@ -127,7 +127,7 @@ MODEL_ALIASES = {
     "gemini-3.5-flash": "gemini-3.5-flash",
     "gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
     # ambiguous plain actuals -> canonical display (preferred group)
-    "claude-opus-4-8": "Claude Sonnet 5",
+    "claude-opus-4-8": "Claude Opus 4.8",
     "qwen3.6-plus": "qwen3.6-plus",
 }
 
@@ -1400,7 +1400,8 @@ def _coerce_value(val, typ):
 
 
 def _coerce_tool_params(args, schema):
-    """Coerce args dict values toward the schema's property types."""
+    """Coerce args dict values toward the schema's property types, including
+    array item types and nested object properties."""
     if not isinstance(args, dict) or not isinstance(schema, dict):
         return args
     props = schema.get("properties") or {}
@@ -1413,20 +1414,127 @@ def _coerce_tool_params(args, schema):
             typ = next((t for t in typ if t != "null"), None)
         if typ:
             args[key] = _coerce_value(val, typ)
+        # coerce array items recursively
+        if typ == "array" and isinstance(args[key], list):
+            items_schema = ps.get("items") or {}
+            item_type = items_schema.get("type")
+            if item_type:
+                args[key] = [_coerce_value(v, item_type) for v in args[key]]
+        # coerce nested object properties
+        if typ == "object" and isinstance(args[key], dict):
+            args[key] = _coerce_tool_params(args[key], ps)
     return args
 
 
+def _validate_schema(val, schema, path="", errors=None):
+    """Lightweight JSON Schema subset validator (no external deps).
+    Supports: type, required, properties, items, enum, additionalProperties,
+    nested objects and arrays. Returns list of error strings."""
+    if errors is None:
+        errors = []
+    if not isinstance(schema, dict):
+        return errors
+    typ = schema.get("type")
+    if isinstance(typ, list):
+        typ = next((t for t in typ if t != "null"), None)
+    if typ:
+        if val is None and (typ == "null" or "null" in schema.get("type", [])):
+            return errors
+        if typ == "string" and not isinstance(val, str):
+            errors.append("expected string at %s, got %s" % (path or "(root)", type(val).__name__))
+        elif typ == "integer" and not isinstance(val, (int,)) or (isinstance(val, bool)):
+            if typ == "integer" and (isinstance(val, bool) or not isinstance(val, int)):
+                errors.append("expected integer at %s, got %s" % (path or "(root)", type(val).__name__))
+        elif typ == "number" and not isinstance(val, (int, float)) or (isinstance(val, bool)):
+            if typ == "number" and (isinstance(val, bool) or not isinstance(val, (int, float))):
+                errors.append("expected number at %s, got %s" % (path or "(root)", type(val).__name__))
+        elif typ == "boolean" and not isinstance(val, bool):
+            errors.append("expected boolean at %s, got %s" % (path or "(root)", type(val).__name__))
+        elif typ == "array" and not isinstance(val, list):
+            errors.append("expected array at %s, got %s" % (path or "(root)", type(val).__name__))
+        elif typ == "object" and not isinstance(val, dict):
+            errors.append("expected object at %s, got %s" % (path or "(root)", type(val).__name__))
+    enum = schema.get("enum")
+    if enum is not None and isinstance(enum, list) and val not in enum:
+        errors.append("value %r at %s not in enum %r" % (val, path or "(root)", enum))
+    if typ == "object" and isinstance(val, dict):
+        props = schema.get("properties") or {}
+        req = schema.get("required") or []
+        for r in req:
+            if r not in val:
+                if r in props and "default" in props.get(r, {}):
+                    val[r] = props[r]["default"]
+                else:
+                    errors.append("missing required field: %s.%s" % (path, r) if path else r)
+        ap = schema.get("additionalProperties")
+        if ap is False:
+            for k in val:
+                if k not in props:
+                    errors.append("unexpected property %s%s.%s" % (path, "." if path else "", k))
+        for k, sub in val.items():
+            if k in props:
+                _validate_schema(sub, props[k], "%s.%s" % (path, k) if path else k, errors)
+    if typ == "array" and isinstance(val, list):
+        items = schema.get("items")
+        if isinstance(items, dict):
+            for i, item in enumerate(val):
+                _validate_schema(item, items, "%s[%d]" % (path, i), errors)
+    return errors
+
+
 def _validate_and_coerce_tool_calls(tcs_out, tools, anthropic=False):
-    """Coerce tool call arguments to match tool schemas (schema-aware type
-    conversion).  Prevents 'true'/'123'/container strings from reaching the
-    client as wrong-typed values."""
+    """Coerce then validate tool call arguments against the tool JSON schema.
+    Prevents 'true'/'123'/container strings from reaching the client as
+    wrong-typed values.  Logs validation errors to stderr."""
     schemas = _tool_schemas_map(tools, anthropic=anthropic)
     for tc in tcs_out:
         name = tc.get("name") or tc.get("function", {}).get("name")
         schema = schemas.get(name)
-        if schema:
-            tc["arguments"] = _coerce_tool_params(tc.get("arguments") or {}, schema)
+        if not schema:
+            continue
+        args = tc.get("arguments") or {}
+        # step 1: coerce types (incl. array items + nested objects)
+        args = _coerce_tool_params(args, schema)
+        # step 1b: fill defaults for optional fields that have a default
+        props = schema.get("properties") or {}
+        for k, ps in props.items():
+            if k not in args and isinstance(ps, dict) and "default" in ps:
+                args[k] = ps["default"]
+        # step 2: validate (required/enum/items/nested)
+        errors = _validate_schema(args, schema)
+        if errors:
+            sys.stderr.write("[tool-validate] name=%s error=%s\n" % (name, "; ".join(errors))); sys.stderr.flush()
+        # step 3: ensure arguments is a dict (Anthropic input must be object)
+        if not isinstance(args, dict):
+            args = {} if anthropic else {"_raw": args}
+        tc["arguments"] = args
     return tcs_out
+
+
+def _upstream_iter(first, remainder_iter):
+    """Yield caching the first event, then continue from the same upstream generator."""
+    if first is not None:
+        yield first
+    if remainder_iter is not None:
+        yield from remainder_iter
+
+
+def _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5):
+    """Prefetch the first event from upstream. Returns (first_event, iter, error).
+    If the first event is an error, error is set and iter is None.
+    Otherwise first_event is the cached first event and iter is a chained generator
+    that yields the first event from cache then continues the SAME upstream generator."""
+    it = upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=max_retry)
+    try:
+        first = next(it, None)
+    except Exception as e:
+        return None, None, str(e)
+    if first is None:
+        return None, None, None  # upstream returned nothing
+    kind, data = first
+    if kind == "error":
+        return None, None, data.get("error") if isinstance(data, dict) else str(data)
+    return first, it, None  # it still has remaining events; first is cached
 
 class Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
@@ -1448,19 +1556,227 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b)
     def _handle_responses(self):
-        """Minimal OpenAI Responses API bridge: converts a Responses request into
-        the internal chat/completions upstream and yields Responses-format SSE.
-        Codex++ normally converts chat<->responses itself, so this endpoint is a
-        fallback for direct codex connections. Currently minimal: log + 501."""
+        """OpenAI Responses API bridge for coding clients.
+
+        Convert Responses input/tools into the same internal chat+DSML path used
+        by /v1/chat/completions, then render a Responses-compatible response.
+        This keeps Codex/Claude-Code-style clients from failing on 501."""
+        if RATE and not RATE.acquire(timeout=0):
+            return self._send(429, {"error": {"type": "rate_limit_error", "message": "rate limit: too many requests, try again shortly"}}, extra={"Retry-After": "5"})
+        if COMPANION_PROB and random.random() < COMPANION_PROB:
+            threading.Thread(target=companion_touch, daemon=True).start()
         length = int(self.headers.get("Content-Length", "0") or 0)
         try:
             raw = self.rfile.read(length) if length else b"{}"
             req = json.loads(raw.decode("utf-8", "ignore"))
         except Exception as e:
             return self._send(400, {"error": {"message": "bad json: %s" % e}})
-        sys.stderr.write("[responses] stream=%s model=%s ninput=%s\n" % (
-            req.get("stream"), req.get("model"), len(req.get("input") or []) if isinstance(req.get("input"), list) else "?")); sys.stderr.flush()
-        return self._send(501, {"error": {"type": "not_implemented", "message": "/v1/responses not yet implemented; Codex++ should convert to chat/completions"}})
+
+        model = req.get("model") or DEFAULT_MODEL
+        grp, sub, disp = resolve_model(model)
+        stream = bool(req.get("stream"))
+        resp_id = "resp_%d" % int(time.time() * 1000)
+        created = int(time.time())
+
+        def _resp_part_text(parts):
+            if isinstance(parts, str):
+                return parts
+            if isinstance(parts, list):
+                out = []
+                for p in parts:
+                    if isinstance(p, str):
+                        out.append(p)
+                    elif isinstance(p, dict):
+                        t = p.get("text") or p.get("input_text") or p.get("output_text")
+                        if isinstance(t, str):
+                            out.append(t)
+                return "\n".join(x for x in out if x)
+            if parts is None:
+                return ""
+            return json.dumps(parts, ensure_ascii=False)
+
+        def _resp_input_to_messages(inp, instructions):
+            msgs = []
+            if instructions:
+                msgs.append({"role": "system", "content": _resp_part_text(instructions)})
+            if isinstance(inp, str):
+                msgs.append({"role": "user", "content": inp})
+                return msgs
+            if not isinstance(inp, list):
+                msgs.append({"role": "user", "content": _resp_part_text(inp)})
+                return msgs
+            for item in inp:
+                if not isinstance(item, dict):
+                    msgs.append({"role": "user", "content": _resp_part_text(item)})
+                    continue
+                typ = item.get("type")
+                role = item.get("role")
+                if typ == "message" or role in ("system", "user", "assistant", "developer"):
+                    r = role or "user"
+                    if r == "developer":
+                        r = "system"
+                    content = _resp_part_text(item.get("content"))
+                    if content or r != "assistant":
+                        msgs.append({"role": r, "content": content})
+                elif typ == "function_call":
+                    name = item.get("name") or "tool"
+                    args = item.get("arguments") or "{}"
+                    cid = item.get("call_id") or item.get("id") or _make_tool_id()
+                    msgs.append({"role": "assistant", "content": None, "tool_calls": [{
+                        "id": cid, "type": "function",
+                        "function": {"name": name, "arguments": args if isinstance(args, str) else json.dumps(args, ensure_ascii=False)}
+                    }]})
+                elif typ == "function_call_output":
+                    msgs.append({"role": "tool", "tool_call_id": item.get("call_id") or item.get("id") or "", "content": _resp_part_text(item.get("output"))})
+                else:
+                    # unknown item type: log and skip (don't crash)
+                    sys.stderr.write("[responses] skipping unknown input item type=%r\n" % typ); sys.stderr.flush()
+                    txt = _resp_part_text(item.get("content") if "content" in item else item)
+                    if txt:
+                        msgs.append({"role": "user", "content": txt})
+            return msgs
+
+        def _resp_tools_to_openai(tools):
+            out = []
+            if not isinstance(tools, list):
+                return out
+            for t in tools:
+                if not isinstance(t, dict):
+                    continue
+                if t.get("type") == "function":
+                    if isinstance(t.get("function"), dict):
+                        f = t["function"]
+                        name = f.get("name")
+                        params = f.get("parameters", {}) or {}
+                        desc = f.get("description", "")
+                    else:
+                        name = t.get("name")
+                        params = t.get("parameters", {}) or {}
+                        desc = t.get("description", "")
+                    if name:
+                        out.append({"type": "function", "function": {"name": name, "description": desc, "parameters": params}})
+            return out
+
+        msgs = _resp_input_to_messages(req.get("input"), req.get("instructions"))
+        tools = _resp_tools_to_openai(req.get("tools") or [])
+        tool_choice = req.get("tool_choice")
+        if isinstance(tool_choice, dict) and tool_choice.get("type") == "function" and not tool_choice.get("function"):
+            tool_choice = {"type": "function", "function": {"name": tool_choice.get("name", "")}}
+        if tool_choice is None and tools:
+            tool_choice = "auto"
+        msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
+        include_reasoning = not (req.get("reasoning") is False or req.get("strip_reasoning"))
+        effort = req.get("reasoning_effort") or req.get("reasoningEffort") or "max"
+        if isinstance(req.get("reasoning"), dict) and req["reasoning"].get("effort"):
+            effort = req["reasoning"].get("effort")
+        if str(effort).lower() not in ("off", "low", "medium", "high", "max"):
+            effort = "max"
+        search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
+        # preflight: reject oversized input before opening stream
+        _pf = _context_limit(disp)
+        _inp_toks = _estimate_messages_tokens(msgs_up)
+        if _inp_toks > _pf:
+            return self._send(400, {"error": {"type": "invalid_request_error",
+                "message": "input too long: estimated %d tokens exceeds context_length %d for %s" % (_inp_toks, _pf, disp)}})
+        sys.stderr.write("[responses] stream=%s model=%s ninput=%s ntools=%s tool_choice=%s\n" % (
+            stream, model, len(req.get("input") or []) if isinstance(req.get("input"), list) else 1, len(tools), tool_choice)); sys.stderr.flush()
+
+        if not stream:
+            answer, reason, tcs_out, err = [], [], [], None
+            for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
+                if kind == "error":
+                    err = data.get("error") if isinstance(data, dict) else str(data)
+                    break
+                if kind == "content":
+                    answer.append(data)
+                elif kind == "reasoning":
+                    reason.append(data)
+                elif kind == "tool_call":
+                    tcs_out.append(data)
+            if err:
+                _code, _type = classify_error(err)
+                return self._send(_code, {"error": {"type": _type, "message": err}})
+            if tools_enabled and tcs_out:
+                tcs_out = _validate_and_coerce_tool_calls(tcs_out, tools)
+            output = []
+            content_text = "".join(answer)
+            if content_text:
+                output.append({"id": "msg_%d" % int(time.time() * 1000), "type": "message", "status": "completed", "role": "assistant",
+                               "content": [{"type": "output_text", "text": content_text, "annotations": []}]})
+            for c in tcs_out:
+                output.append({"id": c["id"], "type": "function_call", "status": "completed", "call_id": c["id"], "name": c["name"],
+                               "arguments": json.dumps(c["arguments"], ensure_ascii=False)})
+            p_toks = _estimate_messages_tokens(msgs_up)
+            o_toks = _estimate_tokens(content_text + "".join(reason))
+            return self._send(200, {
+                "id": resp_id, "object": "response", "created_at": created, "status": "completed", "model": disp,
+                "output": output, "parallel_tool_calls": True, "error": None,
+                "usage": {"input_tokens": p_toks, "output_tokens": o_toks, "total_tokens": p_toks + o_toks},
+            })
+
+        # P4: prefetch first upstream event before opening SSE stream
+        _first, _upstream_remainder, _pf_err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
+        if _pf_err:
+            _code, _type = classify_error(_pf_err)
+            return self._send(_code, {"error": {"type": _type, "message": _pf_err}})
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.close_connection = True
+        self._cors()
+        self.end_headers()
+        lock = threading.Lock()
+        def emit_event(ev, data):
+            if isinstance(data, dict) and data.get("type") is None:
+                data = {"type": ev, **data}
+            with lock:
+                self.wfile.write(("event: %s\ndata: %s\n\n" % (ev, json.dumps(data, ensure_ascii=False))).encode("utf-8"))
+                self.wfile.flush()
+        try:
+            emit_event("response.created", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "in_progress", "model": disp, "output": []}})
+            msg_item = None
+            text_index = None
+            out_index = 0
+            tool_index = 0
+            for kind, data in _upstream_iter(_first, _upstream_remainder):
+                if kind == "content":
+                    if msg_item is None:
+                        msg_item = {"id": "msg_%d" % int(time.time() * 1000), "type": "message", "status": "in_progress", "role": "assistant", "content": []}
+                        emit_event("response.output_item.added", {"output_index": out_index, "item": msg_item})
+                        text_index = 0
+                        emit_event("response.content_part.added", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "part": {"type": "output_text", "text": "", "annotations": []}})
+                    emit_event("response.output_text.delta", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "delta": data})
+                elif kind == "tool_call":
+                    if tools_enabled:
+                        data = _validate_and_coerce_tool_calls([data], tools)[0]
+                    if msg_item is not None:
+                        emit_event("response.output_text.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "text": ""})
+                        emit_event("response.content_part.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "part": {"type": "output_text", "text": "", "annotations": []}})
+                        msg_item["status"] = "completed"
+                        emit_event("response.output_item.done", {"output_index": out_index, "item": msg_item})
+                        out_index += 1
+                        msg_item = None
+                    item = {"id": data["id"], "type": "function_call", "status": "completed", "call_id": data["id"], "name": data["name"],
+                            "arguments": json.dumps(data["arguments"], ensure_ascii=False)}
+                    emit_event("response.output_item.added", {"output_index": out_index + tool_index, "item": item})
+                    emit_event("response.function_call_arguments.done", {"item_id": data["id"], "output_index": out_index + tool_index, "arguments": item["arguments"]})
+                    emit_event("response.output_item.done", {"output_index": out_index + tool_index, "item": item})
+                    tool_index += 1
+                elif kind == "error":
+                    emit_event("response.failed", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "failed", "model": disp, "error": {"type": "api_error", "message": data.get("error") if isinstance(data, dict) else str(data)}}})
+                    return
+            if msg_item is not None:
+                emit_event("response.output_text.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "text": ""})
+                emit_event("response.content_part.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "part": {"type": "output_text", "text": "", "annotations": []}})
+                msg_item["status"] = "completed"
+                emit_event("response.output_item.done", {"output_index": out_index, "item": msg_item})
+            emit_event("response.completed", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "completed", "model": disp, "output": []}})
+        except Exception as e:
+            try:
+                emit_event("response.failed", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "failed", "model": disp, "error": {"type": "api_error", "message": "server: %s" % e}}})
+            except Exception:
+                pass
     def _handle_messages(self):
         """Native Anthropic /v1/messages endpoint: Claude Code / Codex connect
         directly, no external converter needed. Anthropic request -> private
@@ -1557,6 +1873,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "usage": {"input_tokens": input_toks, "output_tokens": output_toks},
             }
             return self._send(200, out, extra={"anthropic-version": "2023-06-01", "request-id": msg_id})
+        # P4: prefetch first upstream event before opening SSE stream
+        _first, _upstream_remainder, _pf_err = _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled)
+        if _pf_err:
+            _code, _type = classify_error(_pf_err, default=529)
+            _extra = {"Retry-After": "5"} if _code in (429, 529) else None
+            return self._send(_code, {"type": "error", "error": {"type": _type, "message": str(_pf_err)}}, extra=_extra)
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -1626,7 +1948,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.set()  # allow heartbeat now that message_start is the first event
             tool_count = 0
             stream_failed = False
-            for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5):
+            for kind, data in _upstream_iter(_first, _upstream_remainder):
                 if kind == "reasoning":
                     if "thinking" not in blocks:
                         open_block("thinking")
@@ -1693,7 +2015,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path.startswith("/healthz"):
             return self._send(200, {"status": "ok", "service": "maxapi", "models": len(MODEL_DISPLAY_IDS)})
         if self.path.startswith("/v1/models"):
-            data = [{"id": m, "object": "model", "owned_by": "se.zzmax.cn-guest",
+            data = [{"id": m, "object": "model", "owned_by": "se.zzmax.cn-guest", "created": 1700000000, "permission": [], "root": m, "parent": None,
                       "context_length": MODEL_META.get(m, (200000, 8192, True))[0],
                       "max_output_tokens": MODEL_META.get(m, (200000, 8192, True))[1],
                       "supports_tool_use": MODEL_META.get(m, (200000, 8192, True))[2]}
@@ -1789,6 +2111,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if sources:
                 out["sources"] = sources
             return self._send(200, out)
+        # P4: prefetch first upstream event before opening SSE stream
+        _first, _upstream_remainder, _pf_err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
+        if _pf_err:
+            _code, _type = classify_error(_pf_err)
+            return self._send(_code, {"error": {"type": _type, "message": _pf_err}})
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -1821,7 +2148,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.set()
             tool_call_count = 0
             stream_failed = False
-            for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
+            for kind, data in _upstream_iter(_first, _upstream_remainder):
                 if kind == "content":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"content": data}, "finish_reason": None}]})
@@ -1845,8 +2172,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                              "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tci, "function": {"arguments": piece}}]}, "finish_reason": None}]})
                 elif kind == "error":
-                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                         "choices": [], "error": {"message": data.get("error") if isinstance(data, dict) else str(data)}})
+                    sse({"error": {"message": data.get("error") if isinstance(data, dict) else str(data), "type": "api_error", "code": None}})
                     stream_failed = True
             if not stream_failed:
                 sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
@@ -1854,8 +2180,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             emit(b"data: [DONE]\n\n")
         except Exception as e:
             try:
-                sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                     "choices": [], "error": {"message": "server: %s" % e}})
+                sse({"error": {"message": "server: %s" % e, "type": "api_error", "code": None}})
             except Exception:
                 pass
         finally:
