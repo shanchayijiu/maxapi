@@ -333,6 +333,7 @@ _RE_INVOKE_SQ = re.compile(r"<invoke\b[^>]*\bname\s*=\s*'([^']*)'[^>]*>(.*?)</in
 _RE_INVOKE_ANY = re.compile(r'<invoke\b[^>]*>(.*?)</invoke>', re.DOTALL | re.IGNORECASE)
 _RE_PARAM = re.compile(r'<parameter\b[^>]*\bname\s*=\s*"([^"]*)"[^>]*>(.*?)</parameter>', re.DOTALL | re.IGNORECASE)
 _RE_PARAM_SQ = re.compile(r"<parameter\b[^>]*\bname\s*=\s*'([^']*)'[^>]*>(.*?)</parameter>", re.DOTALL | re.IGNORECASE)
+_RE_PARAM_ATTR = re.compile(r'<parameter\b[^>]*\bname\s*=\s*["\x27]([^"\x27]*)["\x27]\s+[^>]*?(?:string_value|string_value|value|val|string)\s*=\s*["\x27]([^"\x27]*)["\x27]', re.IGNORECASE)
 _RE_ITEM = re.compile(r'<item\b[^>]*>(.*?)</item>', re.DOTALL | re.IGNORECASE)
 _RE_CHILD = re.compile(r'<([a-zA-Z_][a-zA-Z0-9_\-]*)\b[^>]*>(.*?)</\1>', re.DOTALL | re.IGNORECASE)
 _RE_LEGACY = re.compile(r'<(?:tool_call|call|tool_use|function_call|tool)\b[^>]*>(.*?)</(?:tool_call|call|tool_use|function_call|tool)>', re.DOTALL | re.IGNORECASE)
@@ -540,8 +541,11 @@ def _parse_invoke(name, body):
             payload = json.loads(bs)
             if isinstance(payload, dict):
                 inp = payload.get("input") or payload.get("arguments") or payload.get("parameters") or {}
-                if isinstance(inp, dict):
+                if isinstance(inp, dict) and inp:
                     return {"id": _make_tool_id(), "name": name, "arguments": inp}
+                # bare JSON: treat the whole payload as the arguments/input
+                if payload and not any(k in payload for k in ("input","arguments","parameters","name","type")):
+                    return {"id": _make_tool_id(), "name": name, "arguments": payload}
         except Exception:
             pass
     input = {}
@@ -553,6 +557,12 @@ def _parse_invoke(name, body):
         pn = m.group(1).strip()
         if pn and pn not in input:
             input[pn] = _parse_param(pn, m.group(2))
+    # fallback: attribute-style value (string_value=... or value=...)
+    if not input:
+        for m in _RE_PARAM_ATTR.finditer(body):
+            pn = m.group(1).strip()
+            if pn:
+                input[pn] = m.group(2).strip()
     return {"id": _make_tool_id(), "name": name, "arguments": input}
 
 def _parse_fn_invoke(name, body):
@@ -639,6 +649,33 @@ def _dsml_extract_calls(text):
         legacy = _try_legacy_json(normalized)
         if legacy:
             return legacy
+    # fallback: bare OpenAI-style JSON {"tool_calls": [{"name": ..., "arguments": ...}]}
+    if not calls:
+        s2 = stripped.strip()
+        if s2.startswith("{"):
+            for js_str in [s2, _repair_loose_json(s2), _repair_backslash(s2)]:
+                try:
+                    jo = json.loads(js_str)
+                    if isinstance(jo, dict) and isinstance(jo.get("tool_calls"), list):
+                        out = []
+                        for tc in jo["tool_calls"]:
+                            if not isinstance(tc, dict):
+                                continue
+                            fn = tc.get("function") or {}
+                            nm = fn.get("name") or tc.get("name")
+                            if not nm:
+                                continue
+                            a = fn.get("arguments") or tc.get("arguments") or {}
+                            if isinstance(a, str):
+                                try: a = json.loads(a)
+                                except: pass
+                            if not isinstance(a, dict):
+                                a = {}
+                            out.append({"id": tc.get("id") or _make_tool_id(), "name": nm, "arguments": a})
+                        if out:
+                            return out
+                except Exception:
+                    continue
     return [c for c in calls if c and c.get("name")]
 
 
