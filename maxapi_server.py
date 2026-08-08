@@ -744,10 +744,15 @@ def _make_tools_prompt(tools, tool_choice):
     if isinstance(tool_choice, dict) and tool_choice.get("type") == "function" and isinstance(tool_choice.get("function"), dict):
         force_name = tool_choice["function"].get("name")
     prompt = nl.join(head)
+    # Prepend the forced-tool directive in FRONT of the full DSML template
+    # (do not replace it): the model still needs the format rules + examples.
+    force_dir = None
     if force_one and force_name:
-        prompt = "You MUST call the tool named " + chr(34) + force_name + chr(34) + " now. Emit one " + tco + " block with a single " + '<' + d + 'invoke name="' + force_name + '"> inside it.'
+        force_dir = 'You MUST call the tool named "' + force_name + '" by emitting one ' + tco + ' block with a single <' + d + 'invoke name="' + force_name + '"> inside it, in THIS turn. Do not call any other tool and do not answer in prose.'
     elif force_one:
-        prompt = "You MUST call at least one tool. Emit a " + tco + " block with one or more " + invo + " entries inside."
+        force_dir = 'You MUST call at least one tool by emitting a ' + tco + ' block with one or more ' + invo + ' entries inside it, in THIS turn. Do not end the turn with only prose.'
+    if force_dir:
+        prompt = force_dir + nl + nl + prompt
     return prompt + nl + nl + "Available tools (JSON-schema):" + nl + json.dumps(funcs, ensure_ascii=False)
 
 
