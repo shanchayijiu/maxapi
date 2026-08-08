@@ -101,6 +101,8 @@ MODEL_BY_DISPLAY = {m[0]: (m[1], m[2]) for m in RAW_MODELS}
 # group-qualified forms. Ambiguous actuals (shared by over 1 group) point to
 # their canonical display so behavior stays well-defined.
 MODEL_ALIASES = {
+    "claude-sonnet-5": "Claude Sonnet 5",
+    "claude/claude-sonnet-5": "Claude Sonnet 5",
     "claude/claude-opus-4-8": "Claude Sonnet 5",
     "qwen/qwen3.6-plus": "qwen3.6-plus",
     "mimo/qwen3.6-plus": "MiMo-V2.5-Pro",
@@ -153,14 +155,25 @@ def rand_ip():
 
 class RateLimiter:
     """Token-bucket: max 'rpm' chat requests per minute, smoothed across time."""
-    def __init__(self, rpm=12):
+    def __init__(self, rpm=60):
         self.capacity = max(1, rpm)
         self.tokens = float(rpm)
         self.rate = max(0.01, rpm) / 60.0
         self.last = time.monotonic()
         self.lock = threading.Lock()
-    def acquire(self, timeout=120):
-        while timeout > 0:
+    def acquire(self, timeout=0):
+        with self.lock:
+            now = time.monotonic()
+            self.tokens = min(self.capacity, self.tokens + (now - self.last) * self.rate)
+            self.last = now
+            if self.tokens >= 1.0:
+                self.tokens -= 1.0
+                return True
+        if timeout <= 0:
+            return False
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            time.sleep(0.1)
             with self.lock:
                 now = time.monotonic()
                 self.tokens = min(self.capacity, self.tokens + (now - self.last) * self.rate)
@@ -168,11 +181,6 @@ class RateLimiter:
                 if self.tokens >= 1.0:
                     self.tokens -= 1.0
                     return True
-                need = 1.0 - self.tokens
-                wait = need / self.rate
-            step = min(wait, timeout, 2.0)
-            time.sleep(step)
-            timeout -= step
         return False
 
 
@@ -188,46 +196,70 @@ def companion_touch():
 
 
 class ReasoningFilter:
-    """Peel the upstream thinking block from content; forward as
-    reasoning_content deltas. seek: only wait for more bytes if the buffer is a
-    prefix of OPEN_TAG; otherwise answer at once (fixes short answers dropped)."""
+    """Peel the upstream <think>...</think> block from content; forward as
+    reasoning_content deltas. Operates on strings (not bytes) to avoid splitting
+    multi-byte UTF-8 characters at chunk boundaries."""
+    _OPENS = ["<think>", "<thinking>"]
+    _CLOSES = ["</think>", "</thinking>"]
+    _MAX_OPEN = 10  # len("<thinking>")
+    _MAX_CLOSE = 12  # len("</thinking>")
     def __init__(self, include_reasoning=False):
         self.include = include_reasoning
-        self.buf = b""
+        self.buf = ""
         self.mode = None
         self.answer_trimmed = False
+    def _match_open(self):
+        low = self.buf.lower()
+        for tag in self._OPENS:
+            if low[:len(tag)] == tag:
+                return len(tag)
+        return 0
+    def _partial_open(self):
+        low = self.buf.lower()
+        for tag in self._OPENS:
+            if len(low) < len(tag) and tag.startswith(low):
+                return True
+        return False
+    def _find_close(self):
+        low = self.buf.lower()
+        for tag in self._CLOSES:
+            idx = low.find(tag)
+            if idx >= 0:
+                return idx, len(tag)
+        return -1, 0
     def feed(self, text):
-        self.buf += text.encode("utf-8")
+        self.buf += text
         out = []
         while True:
             if self.mode is None:
-                if self.buf[:len(OPEN_TAG)] == OPEN_TAG:
-                    self.buf = self.buf[len(OPEN_TAG):]
+                n = self._match_open()
+                if n:
+                    self.buf = self.buf[n:]
                     self.mode = "think"
                     continue
-                if len(self.buf) < len(OPEN_TAG) and OPEN_TAG.startswith(self.buf):
+                if self._partial_open():
                     return out
                 self.mode = "answer"
                 continue
             if self.mode == "think":
-                idx = self.buf.find(CLOSE_TAG)
+                idx, clen = self._find_close()
                 if idx == -1:
-                    keep = len(CLOSE_TAG)
+                    keep = self._MAX_CLOSE
                     if len(self.buf) > keep:
                         piece = self.buf[:-keep]
                         self.buf = self.buf[-keep:]
                         if self.include:
-                            out.append(("reasoning", piece.decode("utf-8", "ignore")))
+                            out.append(("reasoning", piece))
                     return out
                 piece = self.buf[:idx]
-                self.buf = self.buf[idx + len(CLOSE_TAG):]
+                self.buf = self.buf[idx + clen:]
                 if self.include and piece:
-                    out.append(("reasoning", piece.decode("utf-8", "ignore")))
+                    out.append(("reasoning", piece))
                 self.mode = "answer"
                 continue
             if self.mode == "answer":
                 if not self.answer_trimmed:
-                    stripped = self.buf.lstrip(b"\r\n\t ")
+                    stripped = self.buf.lstrip("\r\n\t ")
                     if len(stripped) == len(self.buf) and stripped:
                         self.answer_trimmed = True
                         self.buf = stripped
@@ -240,17 +272,35 @@ class ReasoningFilter:
                 if not self.buf:
                     return out
                 piece = self.buf
-                self.buf = b""
-                out.append(("content", piece.decode("utf-8", "ignore")))
+                self.buf = ""
+                out.append(("content", piece))
                 return out
+    def flush(self):
+        out = []
+        if self.buf:
+            if self.mode == "think" and self.include:
+                out.append(("reasoning", self.buf))
+            elif self.mode == "answer":
+                if not self.answer_trimmed:
+                    self.buf = self.buf.lstrip("\r\n\t ")
+                if self.buf:
+                    out.append(("content", self.buf))
+            self.buf = ""
+        return out
 
 
 TOOL_ID_SEQ = [0]
 
 
 def _make_tool_id():
-    TOOL_ID_SEQ[0] += 1
-    return "call_%d" % TOOL_ID_SEQ[0]
+    import random, string
+    chars = string.ascii_letters + string.digits
+    return "toolu_01" + "".join(random.choices(chars, k=22))
+
+def _make_msg_id():
+    import random, string
+    chars = string.ascii_letters + string.digits
+    return "msg_01" + "".join(random.choices(chars, k=24))
 
 
 # ---- DSML toolcall (ported from ds2api, replaces bytes-tag parser) ----
@@ -954,7 +1004,35 @@ class ToolCallParser:
         return out
 
 
-ANTHROPIC_VERSION = "2023-06-01"
+def _estimate_tokens(text):
+    """Rough token estimate: ~3.5 chars per token for English/code, ~1.5 for CJK-heavy."""
+    if not text:
+        return 0
+    return max(1, int(len(text) / 3.5))
+
+
+def _estimate_messages_tokens(messages):
+    """Estimate total input tokens from a message list."""
+    total = 0
+    for m in messages:
+        if isinstance(m, dict):
+            c = m.get("content")
+            if isinstance(c, str):
+                total += _estimate_tokens(c)
+            elif isinstance(c, list):
+                for blk in c:
+                    if isinstance(blk, dict):
+                        total += _estimate_tokens(blk.get("text", ""))
+            tcs = m.get("tool_calls")
+            if isinstance(tcs, list):
+                for tc in tcs:
+                    fn = tc.get("function") or {}
+                    total += _estimate_tokens(fn.get("arguments", ""))
+                    total += _estimate_tokens(fn.get("name", ""))
+    return max(1, total)
+
+
+
 
 import hashlib
 
@@ -1139,10 +1217,34 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                         sources_sent = True
                         yield ("sources", obj.get("sources"))
                     if obj.get("done"):
+                        for kind, piece in filt.flush():
+                            if kind == "reasoning" and include_reasoning:
+                                yield ("reasoning", piece)
+                            elif kind == "content":
+                                if tparser is not None:
+                                    for tk, tp in tparser.feed(piece):
+                                        yield (tk, tp)
+                                else:
+                                    yield ("content", piece)
                         if tparser is not None:
                             for tk, tp in tparser.flush():
                                 yield (tk, tp)
                         return
+            # stream ended without explicit done — flush remaining buffers
+            if not volatile:
+                for kind, piece in filt.flush():
+                    if kind == "reasoning" and include_reasoning:
+                        yield ("reasoning", piece)
+                    elif kind == "content":
+                        if tparser is not None:
+                            for tk, tp in tparser.feed(piece):
+                                yield (tk, tp)
+                        else:
+                            yield ("content", piece)
+                if tparser is not None:
+                    for tk, tp in tparser.flush():
+                        yield (tk, tp)
+                return
             if volatile and attempt < max_retry:
                 sys.stderr.write("[volatile %d/%d] retry new IP\n" % (attempt, max_retry))
                 time.sleep(1.0 * attempt)
@@ -1194,15 +1296,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             req = json.loads(raw.decode("utf-8", "ignore"))
         except Exception as e:
             return self._send(400, {"error": {"message": "bad json: %s" % e}})
-        sys.stderr.write("[responses] stream=%s model=%s ninput=%s body_head=%s\n" % (
-            req.get("stream"), req.get("model"), len(req.get("input") or []) if isinstance(req.get("input"), list) else "?",
-            raw[:400].decode("utf-8","ignore").replace(chr(10)," "))); sys.stderr.flush()
+        sys.stderr.write("[responses] stream=%s model=%s ninput=%s\n" % (
+            req.get("stream"), req.get("model"), len(req.get("input") or []) if isinstance(req.get("input"), list) else "?")); sys.stderr.flush()
         return self._send(501, {"error": {"type": "not_implemented", "message": "/v1/responses not yet implemented; Codex++ should convert to chat/completions"}})
     def _handle_messages(self):
         """Native Anthropic /v1/messages endpoint: Claude Code / Codex connect
         directly, no external converter needed. Anthropic request -> private
         upstream -> Anthropic Messages streaming / non-streaming response."""
-        if RATE and not RATE.acquire(timeout=8):
+        if RATE and not RATE.acquire(timeout=0):
             return self._send(429, {"type": "error", "error": {"type": "rate_limit_error", "message": "rate limit: too many requests, try again shortly"}}, extra={"Retry-After": "5"})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
             threading.Thread(target=companion_touch, daemon=True).start()
@@ -1214,7 +1315,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(400, {"type": "error", "error": {"type": "invalid_request_error", "message": "bad json: %s" % e}})
         model = req.get("model") or DEFAULT_MODEL
         grp, sub, disp = resolve_model(model)
-        msg_id = "msg_%d" % int(time.time() * 1000000)
+        msg_id = _make_msg_id()
         # messages & system
         anth_messages = req.get("messages") or []
         sysc = req.get("system")
@@ -1235,7 +1336,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # client sent a budget — keep reasoning on for claude (upstream always thinks).
         thinking_cfg = req.get("thinking")
         include_reasoning = True
-        effort = "medium"
+        effort = "max"
         if isinstance(thinking_cfg, dict):
             if thinking_cfg.get("type") == "disabled":
                 include_reasoning = False
@@ -1277,28 +1378,28 @@ class Handler(http.server.BaseHTTPRequestHandler):
             content = [b for b in content if not (b.get("type") == "text" and not b.get("text"))]
             if not content:
                 content.append({"type": "text", "text": ""})
+            input_toks = _estimate_messages_tokens(msgs_up)
+            output_toks = _estimate_tokens("".join(answer) + "".join(reason))
             out = {
                 "id": msg_id, "type": "message", "role": "assistant", "model": disp,
                 "content": content, "stop_reason": stop_reason, "stop_sequence": None,
-                "usage": {"input_tokens": 1, "output_tokens": 1},
+                "usage": {"input_tokens": input_toks, "output_tokens": output_toks},
             }
-            return self._send(200, out)
-        # STREAMING
+            return self._send(200, out, extra={"anthropic-version": "2023-06-01", "request-id": msg_id})
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "close")
+        self.send_header("anthropic-version", "2023-06-01")
+        self.send_header("request-id", msg_id)
         self.close_connection = True
         self._cors()
         self.end_headers()
         lock = threading.Lock()
         stop = {"v": False}
         started_evt = threading.Event()  # barrier: heartbeat must not fire before message_start
-        _dbg = open("/tmp/sse_%d.log" % int(time.time()*1000), "a", encoding="utf-8")
         def emit(b):
             with lock:
-                try: _dbg.write(b.decode("utf-8","ignore")); _dbg.flush()
-                except Exception: pass
                 self.wfile.write(b)
                 self.wfile.flush()
         def sse(ev, data):
@@ -1313,10 +1414,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.wait()
             while not stop["v"]:
                 try:
-                    emit(b"event: ping\ndata: {}\n\n")
+                    emit(b"event: ping\ndata: {\"type\":\"ping\"}\n\n")
                 except Exception:
                     return
-                time.sleep(15.0)
+                time.sleep(1.0)
         hb = threading.Thread(target=heartbeat, daemon=True)
         hb.start()
         # block index management for streaming content blocks (thinking>text>tool_use interleaved)
@@ -1347,17 +1448,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     sse("content_block_delta", {"index": idx, "delta": {"type": "signature_delta", "signature": sig}})
                 sse("content_block_stop", {"index": idx})
         emitted_any = {"v": False}
+        output_acc = {"n": 0}
+        input_toks = _estimate_messages_tokens(msgs_up)
         try:
-            sse("message_start", {"message": {"id": msg_id, "type": "message", "role": "assistant", "model": disp, "content": [], "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": 1, "output_tokens": 1}}})
+            sse("message_start", {"message": {"id": msg_id, "type": "message", "role": "assistant", "model": disp, "content": [], "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": input_toks, "output_tokens": 0}}})
             started_evt.set()  # allow heartbeat now that message_start is the first event
             tool_count = 0
             stream_failed = False
             for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5):
                 if kind == "reasoning":
                     if "thinking" not in blocks:
-                        open_block("thinking", {"thinking": "", "signature": ""})
+                        open_block("thinking")
                     sse("content_block_delta", {"index": blocks["thinking"]["index"], "delta": {"type": "thinking_delta", "thinking": data}})
                     thinking_acc["s"] += data
+                    output_acc["n"] += len(data)
                     emitted_any["v"] = True
                 elif kind == "content":
                     if "thinking" in blocks:
@@ -1366,11 +1470,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     if "text" not in blocks:
                         open_block("text", {"text": ""})
                     sse("content_block_delta", {"index": blocks["text"]["index"], "delta": {"type": "text_delta", "text": data}})
+                    output_acc["n"] += len(data)
                     emitted_any["v"] = True
                 elif kind == "tool_call":
                     if "text" in blocks:
                         close_block("text")
                         del blocks["text"]
+                    if "tool_use" in blocks:
+                        close_block("tool_use")
+                        del blocks["tool_use"]
                     idx = open_block("tool_use", {"id": data["id"], "name": data["name"], "input": {}})
                     argstr = json.dumps(data["arguments"], ensure_ascii=False)
                     for off in range(0, len(argstr), 20):
@@ -1393,7 +1501,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if "text" not in blocks:
                     open_block("text", {"text": ""})
                     close_block("text")
-            sse("message_delta", {"delta": {"stop_reason": stop_reason["r"], "stop_sequence": None}, "usage": {"output_tokens": 1}})
+            sse("message_delta", {"delta": {"stop_reason": stop_reason["r"], "stop_sequence": None}, "usage": {"output_tokens": max(1, int(output_acc["n"] / 3.5))}})
             sse("message_stop", {})
         except Exception as e:
             try:
@@ -1416,14 +1524,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(200, {"object": "list", "data": data})
         return self._send(404, {"error": {"message": "not found"}})
     def do_POST(self):
-        sys.stderr.write("POST %s ua=%s key=%s\n" % (self.path, self.headers.get("user-agent", "")[:50], self.headers.get("x-api-key", self.headers.get("authorization", ""))[:20])); sys.stderr.flush()
+        sys.stderr.write("POST %s model=%s\n" % (self.path, "(pending)")); sys.stderr.flush()
         if self.path.startswith("/v1/messages"):
             return self._handle_messages()
         if self.path.startswith("/v1/responses"):
             return self._handle_responses()
         if not self.path.startswith("/v1/chat/completions"):
             return self._send(404, {"error": {"message": "not found"}})
-        if RATE and not RATE.acquire(timeout=8):
+        if RATE and not RATE.acquire(timeout=0):
             return self._send(429, {"error": {"message": "rate limit: too many requests, try again shortly"}})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
             threading.Thread(target=companion_touch, daemon=True).start()
@@ -1440,8 +1548,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             _roles = [m.get("role") for m in _msgs] if isinstance(_msgs, list) else "?"
             _tc = any(isinstance(m, dict) and m.get("tool_calls") for m in _msgs) if isinstance(_msgs, list) else False
             _toolroles = any(m.get("role") == "tool" for m in _msgs) if isinstance(_msgs, list) else False
-            sys.stderr.write("  [chatreq] stream=%s model=%s nmsgs=%d roles=%s ntools=%d has_toolcalls=%s has_toolrole=%s tool_choice=%s body_head=%s\n" % (
-                req.get("stream"), req.get("model"), len(_msgs) if isinstance(_msgs,list) else -1, _roles, len(_tools) if isinstance(_tools,list) else -1, _tc, _toolroles, req.get("tool_choice"), raw[:400].decode("utf-8","ignore").replace(chr(10)," "))); sys.stderr.flush()
+            sys.stderr.write("  [chatreq] stream=%s model=%s nmsgs=%d ntools=%d has_tc=%s tool_choice=%s\n" % (
+                req.get("stream"), req.get("model"), len(_msgs) if isinstance(_msgs,list) else -1, len(_tools) if isinstance(_tools,list) else -1, _tc, req.get("tool_choice"))); sys.stderr.flush()
         except Exception as _e:
             sys.stderr.write("  [chatreq diag err] %s\n" % _e); sys.stderr.flush()
         model = req.get("model") or DEFAULT_MODEL
@@ -1449,9 +1557,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         messages = req.get("messages") or []
         stream = bool(req.get("stream"))
         include_reasoning = not (req.get("reasoning") is False or req.get("strip_reasoning"))
-        effort = req.get("reasoning_effort") or req.get("reasoningEffort") or "medium"
+        effort = req.get("reasoning_effort") or req.get("reasoningEffort") or "max"
         if str(effort).lower() not in ("off", "low", "medium", "high", "max"):
-            effort = "medium"
+            effort = "max"
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         turn_id = "chatcmpl-%d" % int(time.time() * 1000)
         created = int(time.time())
@@ -1487,10 +1595,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 msg = {"role": "assistant", "content": content}
             if include_reasoning:
                 msg["reasoning_content"] = "".join(reason)
+            p_toks = _estimate_messages_tokens(msgs_up)
+            c_toks = _estimate_tokens("".join(answer) + "".join(reason))
             out = {
                 "id": turn_id, "object": "chat.completion", "created": created, "model": disp,
                 "choices": [{"index": 0, "message": msg, "finish_reason": "tool_calls" if (tools_enabled and tcs_out) else "stop"}],
-                "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1}}
+                "usage": {"prompt_tokens": p_toks, "completion_tokens": c_toks, "total_tokens": p_toks + c_toks}}
             if sources:
                 out["sources"] = sources
             return self._send(200, out)
@@ -1503,6 +1613,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         lock = threading.Lock()
         stop = {"v": False}
+        started_evt = threading.Event()
         def emit(b):
             with lock:
                 self.wfile.write(b)
@@ -1510,6 +1621,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         def sse(o):
             emit(("data: " + json.dumps(o, ensure_ascii=False) + "\n\n").encode("utf-8"))
         def heartbeat():
+            started_evt.wait()
             while not stop["v"]:
                 try:
                     emit(b": keepalive\n\n")
@@ -1521,15 +1633,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                  "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}]})
+            started_evt.set()
             tool_call_count = 0
-            _cdbg = open("/tmp/chatdbg_%d.log" % int(time.time()*1000), "a", encoding="utf-8")
             stream_failed = False
             for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
                 if kind == "content":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"content": data}, "finish_reason": None}]})
-                    try: _cdbg.write("content: %r\n" % data[:200]); _cdbg.flush()
-                    except Exception: pass
                 elif kind == "reasoning":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"reasoning_content": data}, "finish_reason": None}]})
@@ -1540,8 +1650,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     tci = tool_call_count
                     tool_call_count += 1
                     argstr = json.dumps(data["arguments"], ensure_ascii=False)
-                    try: _cdbg.write("tool_call: name=%s id=%s args=%r\n" % (data["name"], data["id"], argstr)); _cdbg.flush()
-                    except Exception: pass
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tci, "id": data["id"], "type": "function", "function": {"name": data["name"], "arguments": ""}}]}, "finish_reason": None}]})
                     step = 20
@@ -1556,11 +1664,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not stream_failed:
                 sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                      "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
-                try: _cdbg.write("FINISH: tool_call_count=%d finish=%s\n" % (tool_call_count, "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop")); _cdbg.flush()
-                except Exception: pass
-            if stream_failed:
-                try: _cdbg.write("FINISH: stream_failed\n"); _cdbg.flush()
-                except Exception: pass
             emit(b"data: [DONE]\n\n")
         except Exception as e:
             try:
@@ -1578,7 +1681,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--port", type=int, default=8080)
-    ap.add_argument("--rpm", type=int, default=12, help="max chat requests per minute (token bucket, 0=unlimited)")
+    ap.add_argument("--rpm", type=int, default=60, help="max chat requests per minute (token bucket, 0=unlimited)")
     ap.add_argument("--no-companion", action="store_true", help="disable companion nav-categories calls")
     args = ap.parse_args()
     if args.no_companion:
