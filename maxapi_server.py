@@ -1965,6 +1965,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         model = req.get("model") or DEFAULT_MODEL
         grp, sub, disp = resolve_model(model)
         msg_id = _make_msg_id()
+        _t0 = time.monotonic()
+        _msgs_count = len(req.get("messages") or [])
+        _tools_count = len(req.get("tools") or [])
+        _stream = bool(req.get("stream"))
+        sys.stderr.write(f"[REQ] {self.path} model={disp} msgs={_msgs_count} tools={_tools_count} stream={_stream}\n"); sys.stderr.flush()
         # messages & system
         anth_messages = req.get("messages") or []
         sysc = req.get("system")
@@ -2043,7 +2048,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "content": content, "stop_reason": stop_reason, "stop_sequence": None,
                 "usage": {"input_tokens": input_toks, "output_tokens": output_toks, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
             }
-            return self._send(200, out, extra={"anthropic-version": "2023-06-01", "request-id": msg_id})
+            self._send(200, out, extra={"anthropic-version": "2023-06-01", "request-id": msg_id})
+            sys.stderr.write(f"[RES] {self.path} 200 model={disp} input={input_toks} output={output_toks} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+            return
         # Open SSE immediately, then stream upstream directly so the client
         # sees a live connection while maxapi waits for upstream's first
         # byte. Upstream errors arrive as SSE error events (not HTTP), so
@@ -2170,9 +2177,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     close_block("text")
             sse("message_delta", {"delta": {"stop_reason": stop_reason["r"], "stop_sequence": None}, "usage": {"output_tokens": max(1, output_acc["n"] // 4 + 2)}})
             sse("message_stop", {})
+            sys.stderr.write(f"[RES] {self.path} 200 stream model={disp} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
         except Exception as e:
             try:
                 sse("error", {"type": "error", "error": {"type": "api_error", "message": "server: %s" % e}})
+                sys.stderr.write(f"[ERR] {self.path} 500 model={disp} error={e} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
             except Exception:
                 pass
         finally:
@@ -2183,25 +2192,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._cors()
         self.end_headers()
     def do_GET(self):
-        sys.stderr.write("GET %s ua=%s\n" % (self.path, self.headers.get("user-agent", "")[:50]));
+        _t0 = time.monotonic()
         if self.path.startswith("/healthz"):
-            return self._send(200, {"status": "ok", "service": "maxapi", "models": len(MODEL_DISPLAY_IDS)})
+            self._send(200, {"status": "ok", "service": "maxapi", "models": len(MODEL_DISPLAY_IDS)})
+            sys.stderr.write(f"[RES] {self.path} 200 models={len(MODEL_DISPLAY_IDS)} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+            return
         if self.path.startswith("/v1/models"):
             data = [{"id": m, "object": "model", "owned_by": "se.zzmax.cn-guest", "created": 1700000000, "permission": [], "root": m, "parent": None,
                       "context_length": MODEL_META.get(m, (200000, 8192, True))[0],
                       "max_output_tokens": MODEL_META.get(m, (200000, 8192, True))[1],
                       "supports_tool_use": MODEL_META.get(m, (200000, 8192, True))[2]}
                     for m in MODEL_DISPLAY_IDS]
-            return self._send(200, {"object": "list", "data": data})
-        return self._send(404, {"error": {"message": "not found"}})
+            self._send(200, {"object": "list", "data": data})
+            sys.stderr.write(f"[RES] {self.path} 200 models={len(data)} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+            return
+        self._send(404, {"error": {"message": "not found"}})
     def do_POST(self):
-        sys.stderr.write("POST %s model=%s\n" % (self.path, "(pending)"));
+        _t0 = time.monotonic()
         if self.path.startswith("/v1/messages"):
             return self._handle_messages()
         if self.path.startswith("/v1/responses"):
             return self._handle_responses()
         if not self.path.startswith("/v1/chat/completions"):
-            return self._send(404, {"error": {"message": "not found"}})
+            self._send(404, {"error": {"message": "not found"}})
+            return
         if RATE and not RATE.acquire(timeout=0):
             return self._send(429, {"error": {"message": "rate limit: too many requests, try again shortly"}})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
@@ -2227,6 +2241,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         grp, sub, disp = resolve_model(model)
         messages = req.get("messages") or []
         stream = bool(req.get("stream"))
+        _msgs_count = len(messages) if isinstance(messages, list) else 0
+        _tools_count = len(req.get("tools") or [])
+        sys.stderr.write(f"[REQ] {self.path} model={disp} msgs={_msgs_count} tools={_tools_count} stream={stream}\n"); sys.stderr.flush()
         include_reasoning = not (req.get("reasoning") is False or req.get("strip_reasoning"))
         effort = req.get("reasoning_effort") or req.get("reasoningEffort") or "max"
         if str(effort).lower() not in ("off", "low", "medium", "high", "max"):
@@ -2282,7 +2299,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "usage": {"prompt_tokens": p_toks, "completion_tokens": c_toks, "total_tokens": p_toks + c_toks}}
             if sources:
                 out["sources"] = sources
-            return self._send(200, out)
+            self._send(200, out)
+            sys.stderr.write(f"[RES] {self.path} 200 model={disp} input={p_toks} output={c_toks} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+            return
         # Open SSE immediately, then stream upstream directly so the client
         # sees a live connection while maxapi waits for upstream's first
         # byte. Upstream errors arrive as SSE error events (not HTTP), so
@@ -2350,9 +2369,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                      "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
             emit(b"data: [DONE]\n\n")
+            sys.stderr.write(f"[RES] {self.path} 200 stream model={disp} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
         except Exception as e:
             try:
                 sse({"error": {"message": "server: %s" % e, "type": "api_error", "code": None}})
+                sys.stderr.write(f"[ERR] {self.path} 500 model={disp} error={e} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
             except Exception:
                 pass
         finally:
