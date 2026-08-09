@@ -78,6 +78,7 @@ BROWSER_GET_HEADERS = {
 # display_id is what /v1/models returns and what clients send in "model".
 RAW_MODELS = [
     ("Claude Sonnet 5",        "claude",   "claude-sonnet-5",       "premium"),
+    ("Claude Opus 5",          "claude",   "claude-opus-5",         "premium"),
     ("Claude Opus 4.8",        "claude",   "claude-opus-4.8",       "premium"),
     ("claude-opus-4-6",        "claude",   "claude-opus-4-6",       "normal"),
     ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-luna",          "normal"),
@@ -122,6 +123,7 @@ MODEL_ALIASES = {
     "gpt-5.5": "GPT-5.5",
     "claude-opus-4.8": "Claude Opus 4.8",
     "claude-opus-4-6": "claude-opus-4-6",
+    "claude-opus-5": "Claude Opus 5",
     "deepseek-v4-pro": "deepseek-v4-pro",
     "deepseek-v4-flash": "deepseek-v4-flash",
     "gemini-3.5-flash": "gemini-3.5-flash",
@@ -155,6 +157,7 @@ MODEL_META = {m[0]: _GROUP_META.get(m[1], (200000, 8192, True)) for m in RAW_MOD
 _ANTHROPIC_MODEL_IDS = {
     "Claude Sonnet 5":        "claude-sonnet-4-20250514",
     "Claude Opus 4.8":        "claude-opus-4-20250514",
+    "Claude Opus 5":          "claude-opus-5",
     "claude-opus-4-6":        "claude-opus-4-20250514",
     "gpt-5.6-sol":            "claude-sonnet-4-20250514",
     "gpt-5.6-terra":          "claude-sonnet-4-20250514",
@@ -1150,7 +1153,7 @@ class ToolCallParser:
                     # has text before the incomplete tag — keep that prefix
                     out.append(("content", content[:_seg]))
                 # else: entire content is the incomplete DSML fragment → discard
-                sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete DSML\n" % len(content)); sys.stderr.flush()
+                sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete DSML\n" % len(content));
         if self.pending:
             out.append(("content", self.pending))
             self.pending = ""
@@ -1342,7 +1345,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 volatile = True
             elif status in (502, 503, 504):
                 volatile = True
-                sys.stderr.write("[volatile %d/%d] upstream %d\n" % (attempt, max_retry, status)); sys.stderr.flush()
+                sys.stderr.write("[volatile %d/%d] upstream %d\n" % (attempt, max_retry, status));
             elif status not in (200, 201):
                 err = resp.read(2048).decode("utf-8", "ignore")[:300]
                 yield ("error", {"status": status, "error": err})
@@ -1364,7 +1367,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     if 'timed out' in _etxt or 'etimedout' in _etxt:
                         elapsed = time.monotonic() - last_data_time
                         if elapsed > _STALL_TIMEOUT:
-                            sys.stderr.write("[stall %d/%d] no data for %.0fs, abort\n" % (attempt, max_retry, elapsed)); sys.stderr.flush()
+                            sys.stderr.write("[stall %d/%d] no data for %.0fs, abort\n" % (attempt, max_retry, elapsed));
                             volatile = True
                             break
                         continue
@@ -1429,12 +1432,12 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 # stream cut without done — likely connection error, retry
                 if attempt < max_retry:
                     _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
-                    sys.stderr.write("[nodone %d/%d] stream cut, retry in %.1fs\n" % (attempt, max_retry, _sleep)); sys.stderr.flush()
+                    sys.stderr.write("[nodone %d/%d] stream cut, retry in %.1fs\n" % (attempt, max_retry, _sleep));
                     time.sleep(_sleep)
                     continue
             if volatile and not got_done and attempt < max_retry:
                 _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
-                sys.stderr.write("[volatile %d/%d] retry in %.1fs\n" % (attempt, max_retry, _sleep)); sys.stderr.flush()
+                sys.stderr.write("[volatile %d/%d] retry in %.1fs\n" % (attempt, max_retry, _sleep));
                 time.sleep(_sleep)
                 continue
             if volatile and attempt >= max_retry:
@@ -1671,7 +1674,7 @@ def _validate_and_coerce_tool_calls(tcs_out, tools, anthropic=False):
         # step 2: validate (required/enum/items/nested)
         errors = _validate_schema(args, schema)
         if errors:
-            sys.stderr.write("[tool-validate] name=%s error=%s\n" % (name, "; ".join(errors))); sys.stderr.flush()
+            sys.stderr.write("[tool-validate] name=%s error=%s\n" % (name, "; ".join(errors)));
         # step 3: ensure arguments is a dict (Anthropic input must be object)
         if not isinstance(args, dict):
             args = {} if anthropic else {"_raw": args}
@@ -1798,7 +1801,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     msgs.append({"role": "tool", "tool_call_id": item.get("call_id") or item.get("id") or "", "content": _resp_part_text(item.get("output"))})
                 else:
                     # unknown item type: log and skip (don't crash)
-                    sys.stderr.write("[responses] skipping unknown input item type=%r\n" % typ); sys.stderr.flush()
+                    sys.stderr.write("[responses] skipping unknown input item type=%r\n" % typ);
                     txt = _resp_part_text(item.get("content") if "content" in item else item)
                     if txt:
                         msgs.append({"role": "user", "content": txt})
@@ -1847,7 +1850,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(400, {"error": {"type": "invalid_request_error",
                 "message": "input too long: estimated %d tokens exceeds context_length %d for %s" % (_inp_toks, _pf, disp)}})
         sys.stderr.write("[responses] stream=%s model=%s ninput=%s ntools=%s tool_choice=%s\n" % (
-            stream, model, len(req.get("input") or []) if isinstance(req.get("input"), list) else 1, len(tools), tool_choice)); sys.stderr.flush()
+            stream, model, len(req.get("input") or []) if isinstance(req.get("input"), list) else 1, len(tools), tool_choice));
 
         if not stream:
             answer, reason, tcs_out, err = [], [], [], None
@@ -2038,7 +2041,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             out = {
                 "id": msg_id, "type": "message", "role": "assistant", "model": _anthropic_model_id(disp),
                 "content": content, "stop_reason": stop_reason, "stop_sequence": None,
-                "usage": {"input_tokens": input_toks, "output_tokens": output_toks},
+                "usage": {"input_tokens": input_toks, "output_tokens": output_toks, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
             }
             return self._send(200, out, extra={"anthropic-version": "2023-06-01", "request-id": msg_id})
         # Open SSE immediately, then stream upstream directly so the client
@@ -2111,7 +2114,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         output_acc = {"n": 0}
         input_toks = _estimate_messages_tokens(msgs_up)
         try:
-            sse("message_start", {"message": {"id": msg_id, "type": "message", "role": "assistant", "model": _anthropic_model_id(disp), "content": [], "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": input_toks, "output_tokens": 0}}})
+            sse("message_start", {"message": {"id": msg_id, "type": "message", "role": "assistant", "model": _anthropic_model_id(disp), "content": [], "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": input_toks, "output_tokens": 0, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}}})
             started_evt.set()  # allow heartbeat now that message_start is the first event
             tool_count = 0
             stream_failed = False
@@ -2180,7 +2183,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._cors()
         self.end_headers()
     def do_GET(self):
-        sys.stderr.write("GET %s ua=%s\n" % (self.path, self.headers.get("user-agent", "")[:50])); sys.stderr.flush()
+        sys.stderr.write("GET %s ua=%s\n" % (self.path, self.headers.get("user-agent", "")[:50]));
         if self.path.startswith("/healthz"):
             return self._send(200, {"status": "ok", "service": "maxapi", "models": len(MODEL_DISPLAY_IDS)})
         if self.path.startswith("/v1/models"):
@@ -2192,7 +2195,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(200, {"object": "list", "data": data})
         return self._send(404, {"error": {"message": "not found"}})
     def do_POST(self):
-        sys.stderr.write("POST %s model=%s\n" % (self.path, "(pending)")); sys.stderr.flush()
+        sys.stderr.write("POST %s model=%s\n" % (self.path, "(pending)"));
         if self.path.startswith("/v1/messages"):
             return self._handle_messages()
         if self.path.startswith("/v1/responses"):
@@ -2217,9 +2220,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             _tc = any(isinstance(m, dict) and m.get("tool_calls") for m in _msgs) if isinstance(_msgs, list) else False
             _toolroles = any(m.get("role") == "tool" for m in _msgs) if isinstance(_msgs, list) else False
             sys.stderr.write("  [chatreq] stream=%s model=%s nmsgs=%d ntools=%d has_tc=%s tool_choice=%s\n" % (
-                req.get("stream"), req.get("model"), len(_msgs) if isinstance(_msgs,list) else -1, len(_tools) if isinstance(_tools,list) else -1, _tc, req.get("tool_choice"))); sys.stderr.flush()
+                req.get("stream"), req.get("model"), len(_msgs) if isinstance(_msgs,list) else -1, len(_tools) if isinstance(_tools,list) else -1, _tc, req.get("tool_choice")));
         except Exception as _e:
-            sys.stderr.write("  [chatreq diag err] %s\n" % _e); sys.stderr.flush()
+            sys.stderr.write("  [chatreq diag err] %s\n" % _e);
         model = req.get("model") or DEFAULT_MODEL
         grp, sub, disp = resolve_model(model)
         messages = req.get("messages") or []
