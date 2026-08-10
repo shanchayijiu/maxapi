@@ -1528,8 +1528,13 @@ def _validate_compacted_messages(messages):
     # Allow some slack: orphan tool_results (from already-dropped tool_uses) are ok
     # but orphan tool_uses (tool_use without tool_result) are NOT ok
     orphans = tool_use_ids - tool_result_ids
+    orphan_results = tool_result_ids - tool_use_ids
+    if orphans:
+        LOG.info("compact validator: %d orphan tool_use ids (tolerated ≤3): %s", len(orphans), list(orphans)[:5])
+    if orphan_results:
+        LOG.info("compact validator: %d orphan tool_result ids (expected from dropped segments): %s", len(orphan_results), list(orphan_results)[:5])
     if len(orphans) > 3:  # allow up to 3 orphans (e.g., from truncation of tail)
-        LOG.warning("compact validator: %d orphan tool_use ids: %s", len(orphans), list(orphans)[:5])
+        LOG.warning("compact validator: %d orphan tool_use ids EXCEEDS threshold: %s", len(orphans), list(orphans)[:5])
         return False
     return True
 
