@@ -37,7 +37,7 @@ and "status" fields; sources are forwarded as a top-level "sources" array on the
 final non-stream message and as a final SSE chunk on streams so clients that
 render citations can use them.
 """
-import http.server, json, ssl, http.client, random, argparse, sys, time, threading, re, logging, os, copy, hashlib, uuid as _uuid
+import http.server, json, ssl, http.client, random, string, argparse, sys, time, threading, re, logging, os, copy, hashlib, uuid as _uuid
 
 BASE = "se.zzmax.cn"
 OPEN_TAG = bytes([0x3c]) + b"think" + bytes([0x3e])
@@ -48,6 +48,7 @@ LOG = logging.getLogger("maxapi")
 _COMPACT_ENABLED = os.getenv("MAXAPI_COMPACT", "1") != "0"
 _KEEP_TAIL_SEGMENTS = int(os.getenv("MAXAPI_KEEP_TAIL_SEGMENTS", "6"))
 _TOOL_RESULT_CAP = int(os.getenv("MAXAPI_TOOL_RESULT_CAP", "4000"))
+_MAX_BODY_BYTES = 10 * 1024 * 1024  # 10 MB max request body
 
 def _setup_logging():
     lvl = os.getenv("MAXAPI_LOG_LEVEL", "INFO").upper()
@@ -58,8 +59,6 @@ def _setup_logging():
     LOG.handlers[:] = [h]
     LOG.setLevel(getattr(logging, lvl, logging.INFO))
     LOG.propagate = False
-
-_SENSITIVE_HDRS = {"authorization", "x-api-key", "cookie", "proxy-authorization"}
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 SEC_CH_UA = '"' + 'Google Chrome' + '";v="131", "Chromium";v="131", "Not_A Brand";v="24"'
@@ -257,12 +256,13 @@ class CookieJar:
         self.lock = threading.Lock()
     def update_from_response(self, resp):
         try:
-            for hdr in resp.getheaders():
-                if hdr[0].lower() == 'set-cookie':
-                    part = hdr[1].split(';')[0].strip()
-                    if '=' in part:
-                        k, v = part.split('=', 1)
-                        self.jar[k.strip()] = v.strip()
+            with self.lock:
+                for hdr in resp.getheaders():
+                    if hdr[0].lower() == 'set-cookie':
+                        part = hdr[1].split(';')[0].strip()
+                        if '=' in part:
+                            k, v = part.split('=', 1)
+                            self.jar[k.strip()] = v.strip()
         except Exception:
             pass
     def get_header(self):
@@ -397,16 +397,11 @@ class ReasoningFilter:
         return out
 
 
-TOOL_ID_SEQ = [0]
-
-
 def _make_tool_id():
-    import random, string
     chars = string.ascii_letters + string.digits
     return "toolu_01" + "".join(random.choices(chars, k=22))
 
 def _make_msg_id():
-    import random, string
     chars = string.ascii_letters + string.digits
     return "msg_01" + "".join(random.choices(chars, k=24))
 
@@ -1406,20 +1401,20 @@ def _append_system_note(body, note):
         body["system"] = [note_block]
 
 
-def compact_request(body, budget):
+def compact_request(body, budget, model=None):
     """4-stage compaction to fit request within token budget.
-    Returns (compacted_body, report_string). Never touches the last 2 messages or system."""
+    Returns (compacted_body, report_string, meta_dict). Never touches the last 2 messages or system."""
     body_original = body  # keep reference for validation fallback
     body = copy.deepcopy(body)
     msgs = body.get("messages") or []
     notes = []
-    before = _estimate_request_tokens(body)
+    before = _estimate_request_tokens(body, model=model)
 
     # Stage 1: clamp oversized tool_result payloads (oldest first)
     # Handles both Anthropic (content blocks) and OpenAI (role:tool) formats
     trimmed = 0
     for m in msgs:
-        if _estimate_request_tokens(body) <= budget:
+        if _estimate_request_tokens(body, model=model) <= budget:
             break
         # Anthropic format: tool_result blocks in content array
         for b in _msg_blocks(m):
@@ -1446,7 +1441,7 @@ def compact_request(body, budget):
     # Stage 2: drop middle segments, keep first turn + tail
     segs = _segments(msgs)
     dropped = 0
-    while _estimate_request_tokens(body) > budget and len(segs) > _KEEP_TAIL_SEGMENTS + 1:
+    while _estimate_request_tokens(body, model=model) > budget and len(segs) > _KEEP_TAIL_SEGMENTS + 1:
         segs.pop(1)  # index 0 = original task framing, keep it
         dropped += 1
         body["messages"] = [m for s in segs for m in s]
@@ -1457,7 +1452,7 @@ def compact_request(body, budget):
     truncated = 0
     target_msgs = body.get("messages") or []
     for m in target_msgs[:-2] if len(target_msgs) > 2 else []:
-        if _estimate_request_tokens(body) <= budget:
+        if _estimate_request_tokens(body, model=model) <= budget:
             break
         for b in _msg_blocks(m):
             if b.get("type") == "text" and len(b.get("text", "")) > 2000:
@@ -1468,7 +1463,7 @@ def compact_request(body, budget):
         notes.append(f"text_truncated={truncated}")
 
     # Stage 4: still over? forward anyway (upstream decides)
-    after = _estimate_request_tokens(body)
+    after = _estimate_request_tokens(body, model=model)
 
     meta = {"before": before, "after": after, "budget": budget,
             "dropped_segments": dropped, "tool_results_trimmed": trimmed,
@@ -2066,7 +2061,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(429, {"error": {"type": "rate_limit_error", "message": "rate limit: too many requests, try again shortly"}}, extra={"Retry-After": "5"})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
             threading.Thread(target=companion_touch, daemon=True).start()
-        length = int(self.headers.get("Content-Length", "0") or 0)
+        try:
+            length = int(self.headers.get("Content-Length", "0") or 0)
+        except (ValueError, TypeError):
+            length = 0
+        if length > _MAX_BODY_BYTES:
+            return self._send(413, {"error": {"message": "request body too large (max %d MB)" % (_MAX_BODY_BYTES // 1024 // 1024)}})
         try:
             raw = self.rfile.read(length) if length else b"{}"
             req = json.loads(raw.decode("utf-8", "ignore"))
@@ -2178,13 +2178,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _inp_toks = _estimate_request_tokens(req, model=disp)
         _COMPACT_THRESHOLD = 1.25
         _compact_meta = {}
+        # Inject synthetic "messages" key for Responses format so compact_request can operate on it
+        _is_responses_fmt = "messages" not in req and ("input" in req or "instructions" in req)
+        if _is_responses_fmt:
+            req["messages"] = msgs
         if _inp_toks > _pf:
             LOG.warning("rid=%s [responses] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
         if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
             LOG.warning("rid=%s [responses] compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
-            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95))
+            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95), model=disp)
             LOG.info("rid=%s compacted %s", _rid, _cprep)
-            msgs = _resp_input_to_messages(req.get("input"), req.get("instructions"))
+            # Use compacted messages directly
+            msgs = req.get("messages") or []
             msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
         if _inp_toks <= _pf:
             LOG.info("rid=%s [responses] stream=%s model=%s ninput=%s ntools=%s tool_choice=%s est=%d limit=%d",
@@ -2206,10 +2211,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
                 actual, allowed = _parse_too_long(str(err))
                 LOG.warning("rid=%s [responses] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
-                target = int(_estimate_request_tokens(req) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-                req, _cprep, _ = compact_request(req, target)
+                target = int(_estimate_request_tokens(req, model=disp) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+                req, _cprep, _ = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
-                msgs = _resp_input_to_messages(req.get("input"), req.get("instructions"))
+                msgs = req.get("messages") or []
                 msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
                 answer, reason, tcs_out, err = [], [], [], None
                 for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=3):
@@ -2248,13 +2253,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # Prefetch first event BEFORE writing SSE header to client.
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
         # Retry with compaction on "too long" upstream error
-        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)) and _compact_meta:
+        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
             actual, allowed = _parse_too_long(str(_err))
             LOG.warning("rid=%s [responses] stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
             target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-            req2, _cprep2, _ = compact_request(req, target)
+            req2, _cprep2, _ = compact_request(req, target, model=disp)
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
-            msgs2 = _resp_input_to_messages(req2.get("input"), req2.get("instructions"))
+            msgs2 = req2.get("messages") or []
             msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, msgs2)
             _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, str(effort).lower(), search, tools_enabled2, max_retry=3)
         if _err:
@@ -2328,7 +2333,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(429, {"type": "error", "error": {"type": "rate_limit_error", "message": "rate limit: too many requests, try again shortly"}}, extra={"Retry-After": "5"})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
             threading.Thread(target=companion_touch, daemon=True).start()
-        length = int(self.headers.get("Content-Length", "0") or 0)
+        try:
+            length = int(self.headers.get("Content-Length", "0") or 0)
+        except (ValueError, TypeError):
+            length = 0
+        if length > _MAX_BODY_BYTES:
+            return self._send(413, {"error": {"message": "request body too large (max %d MB)" % (_MAX_BODY_BYTES // 1024 // 1024)}})
         try:
             raw = self.rfile.read(length) if length else b"{}"
             req = json.loads(raw.decode("utf-8", "ignore"))
@@ -2366,7 +2376,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             LOG.warning("rid=%s over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
         if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
             LOG.warning("rid=%s compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
-            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95))
+            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95), model=disp)
             LOG.info("rid=%s compacted %s", _rid, _cprep)
             # rebuild from compacted request
             anth_messages = req.get("messages") or []
@@ -2413,8 +2423,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
                 actual, allowed = _parse_too_long(str(err))
                 LOG.warning("rid=%s upstream rejected actual=%d allowed=%d — retrying with compaction", _rid, actual, allowed)
-                target = int(_estimate_request_tokens(req) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-                req, _cprep, _ = compact_request(req, target)
+                target = int(_estimate_request_tokens(req, model=disp) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+                req, _cprep, _ = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 anth_messages = req.get("messages") or []
                 sysc = req.get("system")
@@ -2475,11 +2485,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # This allows retry with compaction if upstream returns "too long".
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled)
         # Retry with compaction on "too long" upstream error
-        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)) and _compact_meta:
+        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
             actual, allowed = _parse_too_long(str(_err))
             LOG.warning("rid=%s stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
             target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-            req2, _cprep2, _ = compact_request(req, target)
+            req2, _cprep2, _ = compact_request(req, target, model=disp)
             LOG.info("rid=%s stream retry compacted %s", _rid, _cprep2)
             anth_messages2 = req2.get("messages") or []
             sysc2 = req2.get("system")
@@ -2659,7 +2669,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(429, {"error": {"message": "rate limit: too many requests, try again shortly"}})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
             threading.Thread(target=companion_touch, daemon=True).start()
-        length = int(self.headers.get("Content-Length", "0") or 0)
+        try:
+            length = int(self.headers.get("Content-Length", "0") or 0)
+        except (ValueError, TypeError):
+            length = 0
+        if length > _MAX_BODY_BYTES:
+            return self._send(413, {"error": {"message": "request body too large (max %d MB)" % (_MAX_BODY_BYTES // 1024 // 1024)}})
         try:
             raw = self.rfile.read(length) if length else b"{}"
             req = json.loads(raw.decode("utf-8"))
@@ -2703,7 +2718,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             LOG.warning("rid=%s [chat] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
         if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
             LOG.warning("rid=%s [chat] compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
-            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95))
+            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95), model=disp)
             LOG.info("rid=%s compacted %s", _rid, _cprep)
             messages = req.get("messages") or []
             msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
@@ -2727,8 +2742,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
                 actual, allowed = _parse_too_long(str(err))
                 LOG.warning("rid=%s [chat] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
-                target = int(_estimate_request_tokens(req) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-                req, _cprep, _ = compact_request(req, target)
+                target = int(_estimate_request_tokens(req, model=disp) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+                req, _cprep, _ = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 messages = req.get("messages") or []
                 msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
@@ -2777,11 +2792,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # Prefetch first event BEFORE writing SSE header to client.
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
         # Retry with compaction on "too long" upstream error
-        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)) and _compact_meta:
+        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
             actual, allowed = _parse_too_long(str(_err))
             LOG.warning("rid=%s [chat] stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
             target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-            req2, _cprep2, _ = compact_request(req, target)
+            req2, _cprep2, _ = compact_request(req, target, model=disp)
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
             messages2 = req2.get("messages") or []
             msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, messages2)
