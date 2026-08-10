@@ -1262,8 +1262,9 @@ def _stringify_content(c):
     return str(c) if c else ""
 
 
-def _estimate_request_tokens(body):
-    """Estimate total tokens for an Anthropic-format request body (includes system + tools)."""
+def _estimate_request_tokens(body, model=None):
+    """Estimate total tokens for an Anthropic-format request body (includes system + tools).
+    If model is provided, applies EWMA self-calibration ratio."""
     total = 0
     # system prompt
     sys = body.get("system")
@@ -1287,7 +1288,37 @@ def _estimate_request_tokens(body):
             for tc in tcs:
                 fn = tc.get("function") or {}
                 total += _est_text(fn.get("arguments", "")) + _est_text(fn.get("name", "")) + 8
+    # Apply EWMA calibration if available
+    if model:
+        total = int(total * _ewma_get(model))
     return total
+
+
+# ── EWMA self-calibration for token estimation ───────────────────────────────
+_EWMA_ALPHA = 0.15  # smoothing factor (lower = more stable, higher = faster adaptation)
+_ewma_store = {}    # model -> {"ratio": float, "n": int}
+_EWMA_LOCK = threading.Lock()
+
+def _ewma_update(model, actual, estimated):
+    """Update EWMA ratio with a new (actual, estimated) sample. Thread-safe."""
+    if estimated <= 0 or actual <= 0:
+        return
+    ratio = actual / estimated
+    # Clamp to [0.5, 2.0] to prevent single outlier from destabilizing
+    ratio = max(0.5, min(2.0, ratio))
+    with _EWMA_LOCK:
+        if model not in _ewma_store:
+            _ewma_store[model] = {"ratio": ratio, "n": 1}
+        else:
+            s = _ewma_store[model]
+            s["ratio"] = _EWMA_ALPHA * ratio + (1 - _EWMA_ALPHA) * s["ratio"]
+            s["n"] += 1
+
+def _ewma_get(model):
+    """Get the current calibration ratio for a model. Returns 1.0 if no data."""
+    with _EWMA_LOCK:
+        s = _ewma_store.get(model)
+        return s["ratio"] if s else 1.0
 
 
 # ── Compaction: shrink context to fit budget ─────────────────────────────────
@@ -1315,22 +1346,52 @@ def _msg_blocks(msg):
 
 
 def _segments(messages):
-    """Group messages into segments so no segment has an unresolved tool_use.
+    """Group messages into atomic segments where no segment has an unresolved tool_use.
+    Handles both Anthropic (content blocks) and OpenAI (tool_calls + role:tool) formats.
     Returns list of message-list segments."""
     segs, cur, pending = [], [], set()
     for m in messages:
         cur.append(m)
+        role = m.get("role", "")
+        # Anthropic format: tool_use/tool_result in content blocks
         for b in _msg_blocks(m):
             if b.get("type") == "tool_use":
                 pending.add(b.get("id"))
             elif b.get("type") == "tool_result":
                 pending.discard(b.get("tool_use_id"))
+        # OpenAI format: tool_calls on assistant, tool role messages
+        tcs = m.get("tool_calls")
+        if isinstance(tcs, list):
+            for tc in tcs:
+                tid = tc.get("id")
+                if tid:
+                    pending.add(tid)
+        if role == "tool":
+            tid = m.get("tool_call_id")
+            if tid:
+                pending.discard(tid)
         if not pending:
             segs.append(cur)
             cur = []
     if cur:
         segs.append(cur)
     return segs
+
+
+def _compact_headers(meta):
+    """Build response headers from compaction metadata dict. Empty if no compaction."""
+    if not meta:
+        return {}
+    h = {"X-Maxapi-Compacted": "1"}
+    if meta.get("dropped_segments"):
+        h["X-Maxapi-Dropped-Segments"] = str(meta["dropped_segments"])
+    if meta.get("tool_results_trimmed"):
+        h["X-Maxapi-Trimmed-Tool-Results"] = str(meta["tool_results_trimmed"])
+    if meta.get("text_truncated"):
+        h["X-Maxapi-Truncated-Texts"] = str(meta["text_truncated"])
+    if meta.get("before") and meta.get("after"):
+        h["X-Maxapi-Token-Estimate"] = f"{meta['before']}->{meta['after']}"
+    return h
 
 
 def _append_system_note(body, note):
@@ -1355,10 +1416,12 @@ def compact_request(body, budget):
     before = _estimate_request_tokens(body)
 
     # Stage 1: clamp oversized tool_result payloads (oldest first)
+    # Handles both Anthropic (content blocks) and OpenAI (role:tool) formats
     trimmed = 0
     for m in msgs:
         if _estimate_request_tokens(body) <= budget:
             break
+        # Anthropic format: tool_result blocks in content array
         for b in _msg_blocks(m):
             if b.get("type") == "tool_result":
                 txt = _stringify_content(b.get("content"))
@@ -1368,6 +1431,15 @@ def compact_request(body, budget):
                         f"{txt[:half]}\n\n[... {len(txt) - _TOOL_RESULT_CAP} "
                         f"chars elided by proxy ...]\n\n{txt[-half:]}")
                     trimmed += 1
+        # OpenAI format: role="tool" messages
+        if m.get("role") == "tool":
+            txt = str(m.get("content", ""))
+            if len(txt) > _TOOL_RESULT_CAP:
+                half = _TOOL_RESULT_CAP // 2
+                m["content"] = (
+                    f"{txt[:half]}\n\n[... {len(txt) - _TOOL_RESULT_CAP} "
+                    f"chars elided by proxy ...]\n\n{txt[-half:]}")
+                trimmed += 1
     if trimmed:
         notes.append(f"tool_results_trimmed={trimmed}")
 
@@ -1380,9 +1452,6 @@ def compact_request(body, budget):
         body["messages"] = [m for s in segs for m in s]
     if dropped:
         notes.append(f"segments_dropped={dropped}")
-        _append_system_note(body,
-            f"[Proxy note: {dropped} earlier conversation turn(s) were removed "
-            f"to fit the context window. Ask the user if you need that history.]")
 
     # Stage 3: head/tail truncate remaining text blocks (oldest first, skip last 2 msgs)
     truncated = 0
@@ -1401,13 +1470,17 @@ def compact_request(body, budget):
     # Stage 4: still over? forward anyway (upstream decides)
     after = _estimate_request_tokens(body)
 
+    meta = {"before": before, "after": after, "budget": budget,
+            "dropped_segments": dropped, "tool_results_trimmed": trimmed,
+            "text_truncated": truncated}
+
     # Validate: ensure tool_use/tool_result pairing is intact
     if not _validate_compacted_messages(body.get("messages") or []):
         notes.append("VALIDATION_FAILED → reverting to original")
         LOG.warning("compact validation failed, reverting to original request")
-        return copy.deepcopy(body_original), f"est {before} budget={budget} VALIDATION_FAILED"
+        return copy.deepcopy(body_original), f"est {before} budget={budget} VALIDATION_FAILED", {}
 
-    return body, f"est {before}->{after} budget={budget} " + " ".join(notes)
+    return body, f"est {before}->{after} budget={budget} " + " ".join(notes), meta
 
 
 def _validate_compacted_messages(messages):
@@ -2102,13 +2175,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp)
-        _inp_toks = _estimate_request_tokens(req)
-        _COMPACT_THRESHOLD = 1.25  # only compact when est exceeds limit by 25%+ (accounts for ~11% estimator overestimation)
+        _inp_toks = _estimate_request_tokens(req, model=disp)
+        _COMPACT_THRESHOLD = 1.25
+        _compact_meta = {}
         if _inp_toks > _pf:
             LOG.warning("rid=%s [responses] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
         if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
             LOG.warning("rid=%s [responses] compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
-            req, _cprep = compact_request(req, int(_pf * 0.95))
+            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95))
             LOG.info("rid=%s compacted %s", _rid, _cprep)
             msgs = _resp_input_to_messages(req.get("input"), req.get("instructions"))
             msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
@@ -2133,7 +2207,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 actual, allowed = _parse_too_long(str(err))
                 LOG.warning("rid=%s [responses] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
                 target = int(_estimate_request_tokens(req) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-                req, _cprep = compact_request(req, target)
+                req, _cprep, _ = compact_request(req, target)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 msgs = _resp_input_to_messages(req.get("input"), req.get("instructions"))
                 msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
@@ -2163,23 +2237,37 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                "arguments": json.dumps(c["arguments"], ensure_ascii=False)})
             p_toks = _estimate_messages_tokens(msgs_up)
             o_toks = _estimate_tokens(content_text + "".join(reason))
+            _ewma_update(disp, p_toks, _inp_toks)
             return self._send(200, {
                 "id": resp_id, "object": "response", "created_at": created, "status": "completed", "model": disp,
                 "output": output, "parallel_tool_calls": True, "error": None,
                 "usage": {"input_tokens": p_toks, "output_tokens": o_toks, "total_tokens": p_toks + o_toks},
-            })
+            }, extra=_compact_headers(_compact_meta) or None)
 
         # Open SSE immediately, then stream upstream directly so the client
-        # sees a live connection while maxapi waits for upstream's first
-        # byte. Upstream errors arrive as SSE error events (not HTTP), so
-        # the client never blocks on a pre-header silence window.
-        _upstream_remainder = upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
+        # Prefetch first event BEFORE writing SSE header to client.
+        _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
+        # Retry with compaction on "too long" upstream error
+        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)) and _compact_meta:
+            actual, allowed = _parse_too_long(str(_err))
+            LOG.warning("rid=%s [responses] stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
+            target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+            req2, _cprep2, _ = compact_request(req, target)
+            LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
+            msgs2 = _resp_input_to_messages(req2.get("input"), req2.get("instructions"))
+            msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, msgs2)
+            _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, str(effort).lower(), search, tools_enabled2, max_retry=3)
+        if _err:
+            return self._send(classify_error(_err)[0], {"error": {"type": classify_error(_err)[1], "message": str(_err)}})
+        # Now safe to write SSE header
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "close")
         self.close_connection = True
         self._cors()
+        for _hk, _hv in _compact_headers(_compact_meta).items():
+            self.send_header(_hk, _hv)
         self.end_headers()
         lock = threading.Lock()
         def emit_event(ev, data):
@@ -2194,7 +2282,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             text_index = None
             out_index = 0
             tool_index = 0
-            for kind, data in _upstream_iter(None, _upstream_remainder):
+            for kind, data in _upstream_iter(_first, _iter):
                 if kind == "content":
                     if msg_item is None:
                         msg_item = {"id": "msg_%d" % int(time.time() * 1000), "type": "message", "status": "in_progress", "role": "assistant", "content": []}
@@ -2271,13 +2359,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         max_tokens = req.get("max_tokens") or 4096
         _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp, max_tokens)
-        _inp_toks = _estimate_request_tokens(req)
+        _inp_toks = _estimate_request_tokens(req, model=disp)
         _COMPACT_THRESHOLD = 1.25
+        _compact_meta = {}
         if _inp_toks > _pf:
             LOG.warning("rid=%s over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
         if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
             LOG.warning("rid=%s compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
-            req, _cprep = compact_request(req, int(_pf * 0.95))
+            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95))
             LOG.info("rid=%s compacted %s", _rid, _cprep)
             # rebuild from compacted request
             anth_messages = req.get("messages") or []
@@ -2325,7 +2414,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 actual, allowed = _parse_too_long(str(err))
                 LOG.warning("rid=%s upstream rejected actual=%d allowed=%d — retrying with compaction", _rid, actual, allowed)
                 target = int(_estimate_request_tokens(req) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-                req, _cprep = compact_request(req, target)
+                req, _cprep, _ = compact_request(req, target)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 anth_messages = req.get("messages") or []
                 sysc = req.get("system")
@@ -2375,15 +2464,35 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "content": content, "stop_reason": stop_reason, "stop_sequence": None,
                 "usage": {"input_tokens": input_toks, "output_tokens": output_toks, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
             }
-            self._send(200, out, extra={"anthropic-version": "2023-06-01", "request-id": msg_id})
+            _extra = {"anthropic-version": "2023-06-01", "request-id": msg_id}
+            _extra.update(_compact_headers(_compact_meta))
+            self._send(200, out, extra=_extra)
             LOG.info("rid=%s <- 200 model=%s input=%d output=%d time=%dms",
                      _rid, disp, input_toks, output_toks, int((time.monotonic()-_t0)*1000))
+            _ewma_update(disp, input_toks, _inp_toks)
             return
-        # Open SSE immediately, then stream upstream directly so the client
-        # sees a live connection while maxapi waits for upstream's first
-        # byte. Upstream errors arrive as SSE error events (not HTTP), so
-        # the client never blocks on a pre-header silence window.
-        _upstream_remainder = upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled)
+        # Prefetch first event BEFORE writing SSE header to client.
+        # This allows retry with compaction if upstream returns "too long".
+        _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled)
+        # Retry with compaction on "too long" upstream error
+        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)) and _compact_meta:
+            actual, allowed = _parse_too_long(str(_err))
+            LOG.warning("rid=%s stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
+            target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+            req2, _cprep2, _ = compact_request(req, target)
+            LOG.info("rid=%s stream retry compacted %s", _rid, _cprep2)
+            anth_messages2 = req2.get("messages") or []
+            sysc2 = req2.get("system")
+            if isinstance(sysc2, list):
+                sysc2 = " ".join(b.get("text", "") for b in sysc2 if isinstance(b, dict) and b.get("type") == "text")
+            elif sysc2 is None:
+                sysc2 = ""
+            openai_msgs2 = _flatten_anthropic_messages(anth_messages2, sysc2)
+            msgs_up2, tools_enabled2 = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs2)
+            _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, effort, search, tools_enabled2, max_retry=3)
+        if _err:
+            return self._send(classify_error(_err, 529)[0], {"type": "error", "error": {"type": classify_error(_err, 529)[1], "message": str(_err)}})
+        # Now safe to write SSE header — upstream is streaming
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -2392,6 +2501,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("request-id", msg_id)
         self.close_connection = True
         self._cors()
+        for _hk, _hv in _compact_headers(_compact_meta).items():
+            self.send_header(_hk, _hv)
         self.end_headers()
         lock = threading.Lock()
         stop = {"v": False}
@@ -2453,7 +2564,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.set()  # allow heartbeat now that message_start is the first event
             tool_count = 0
             stream_failed = False
-            for kind, data in _upstream_iter(None, _upstream_remainder):
+            for kind, data in _upstream_iter(_first, _iter):
                 if kind == "reasoning":
                     if "thinking" not in blocks:
                         open_block("thinking")
@@ -2585,13 +2696,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
         _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp)
-        _inp_toks = _estimate_request_tokens(req)
+        _inp_toks = _estimate_request_tokens(req, model=disp)
         _COMPACT_THRESHOLD = 1.25
+        _compact_meta = {}
         if _inp_toks > _pf:
             LOG.warning("rid=%s [chat] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
         if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
             LOG.warning("rid=%s [chat] compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
-            req, _cprep = compact_request(req, int(_pf * 0.95))
+            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95))
             LOG.info("rid=%s compacted %s", _rid, _cprep)
             messages = req.get("messages") or []
             msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
@@ -2616,7 +2728,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 actual, allowed = _parse_too_long(str(err))
                 LOG.warning("rid=%s [chat] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
                 target = int(_estimate_request_tokens(req) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-                req, _cprep = compact_request(req, target)
+                req, _cprep, _ = compact_request(req, target)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 messages = req.get("messages") or []
                 msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
@@ -2657,21 +2769,34 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "usage": {"prompt_tokens": p_toks, "completion_tokens": c_toks, "total_tokens": p_toks + c_toks}}
             if sources:
                 out["sources"] = sources
-            self._send(200, out)
+            self._send(200, out, extra=_compact_headers(_compact_meta) or None)
             LOG.info("rid=%s <- 200 [chat] model=%s input=%d output=%d time=%dms",
                      _rid, disp, p_toks, c_toks, int((time.monotonic()-_t0)*1000))
+            _ewma_update(disp, p_toks, _inp_toks)
             return
-        # Open SSE immediately, then stream upstream directly so the client
-        # sees a live connection while maxapi waits for upstream's first
-        # byte. Upstream errors arrive as SSE error events (not HTTP), so
-        # the client never blocks on a pre-header silence window.
-        _upstream_remainder = upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
+        # Prefetch first event BEFORE writing SSE header to client.
+        _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
+        # Retry with compaction on "too long" upstream error
+        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)) and _compact_meta:
+            actual, allowed = _parse_too_long(str(_err))
+            LOG.warning("rid=%s [chat] stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
+            target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+            req2, _cprep2, _ = compact_request(req, target)
+            LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
+            messages2 = req2.get("messages") or []
+            msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, messages2)
+            _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, str(effort).lower(), search, tools_enabled2, max_retry=3)
+        if _err:
+            return self._send(classify_error(_err)[0], {"error": {"type": classify_error(_err)[1], "message": str(_err)}})
+        # Now safe to write SSE header
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "close")
         self.close_connection = True
         self._cors()
+        for _hk, _hv in _compact_headers(_compact_meta).items():
+            self.send_header(_hk, _hv)
         self.end_headers()
         lock = threading.Lock()
         stop = {"v": False}
@@ -2698,7 +2823,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.set()
             tool_call_count = 0
             stream_failed = False
-            for kind, data in _upstream_iter(None, _upstream_remainder):
+            for kind, data in _upstream_iter(_first, _iter):
                 if kind == "content":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"content": data}, "finish_reason": None}]})
