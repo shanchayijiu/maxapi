@@ -1366,23 +1366,33 @@ def _parse_too_long(err_text):
         _TooLong(a,b) – matched, a/allowed may be int or None
     """
     txt = str(err_text) or ""
-    # Truncate to prevent ReDoS on huge upstream error bodies
-    txt = txt[:8192]
+    # Head+tail truncation to prevent ReDoS while keeping numbers visible
+    _HALF = 4096
+    if len(txt) > _HALF * 2:
+        txt = txt[:_HALF] + "…" + txt[-_HALF:]
     for rx in (_RE_EXCEEDS, _RE_GT, _RE_MAXCTX):
         m = rx.search(txt)
         if m:
-            actual, allowed = int(m.group(1).replace(",", "")), int(m.group(2).replace(",", ""))
-            # Invariant: actual should be > allowed (used exceeded limit)
-            if actual is not None and allowed is not None and actual < allowed:
-                return None  # suspicious parse, reject entirely
+            try:
+                actual = int(m.group(1).replace(",", ""))
+                allowed = int(m.group(2).replace(",", ""))
+            except (ValueError, TypeError):
+                continue
+            if actual < allowed:
+                return None  # suspicious parse, reject
             return _TooLong(actual, allowed)
     # _RE_MAXCTX_REV has (allowed, actual) group order — swap
     m = _RE_MAXCTX_REV.search(txt)
     if m:
-        actual, allowed = int(m.group(2).replace(",", "")), int(m.group(1).replace(",", ""))
-        if actual >= allowed:
-            return _TooLong(actual, allowed)
-        return None  # inverted, reject
+        try:
+            actual = int(m.group(2).replace(",", ""))
+            allowed = int(m.group(1).replace(",", ""))
+        except (ValueError, TypeError):
+            pass
+        else:
+            if actual >= allowed:
+                return _TooLong(actual, allowed)
+            return None  # inverted, reject
     # Keyword fallback: only if no regex matched at all
     low = txt.lower()
     if any(h in low for h in _TOO_LONG_HINTS):
@@ -1393,15 +1403,24 @@ def _parse_too_long(err_text):
     return None
 
 
-def _compact_budget(tl, model, est_tokens):
-    """Derive compaction target from a _TooLong result."""
+def _compact_budget(tl, model, est_tokens, max_tokens=8192):
+    """Derive compaction target from a _TooLong result.
+
+    Guarantees: result < est_tokens (monotonic decrease) and accounts for
+    output reservation (max_tokens) so the compacted payload fits.
+    """
+    out_reserve = max_tokens or 8192
     if tl.allowed:
-        return int(tl.allowed * _COMPACT_SAFETY)
-    ctx = (MODEL_META.get(model) or (None,))[0]
-    if ctx:
-        return int(ctx * _COMPACT_SAFETY)
-    base = tl.actual or est_tokens
-    return max(_COMPACT_FLOOR, int(base * _COMPACT_BLIND_RATIO))
+        budget = int(tl.allowed * _COMPACT_SAFETY) - out_reserve
+    else:
+        ctx = (MODEL_META.get(model) or (None,))[0]
+        if ctx:
+            budget = int(ctx * _COMPACT_SAFETY) - out_reserve
+        else:
+            base = tl.actual or est_tokens
+            budget = max(_COMPACT_FLOOR, int(base * _COMPACT_BLIND_RATIO))
+    # Ensure strict decrease from current estimate
+    return max(_COMPACT_FLOOR, min(budget, int(est_tokens * 0.80)))
 
 
 def _msg_blocks(msg):
@@ -2325,9 +2344,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "tool_call":
                     tcs_out.append(data)
             # Retry with compaction on "too long" upstream error
-            if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
-                tl = _parse_too_long(str(err))
-                target = _compact_budget(tl, disp, _inp_toks)
+            if err and _COMPACT_ENABLED and (tl := _parse_too_long(str(err))):
+                target = _compact_budget(tl, disp, _inp_toks, max_tokens)
                 LOG.warning("rid=%s [responses] upstream rejected — retrying compact target=%d", _rid, target)
                 req, _cprep, _compact_meta = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
@@ -2370,9 +2388,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # Prefetch first event BEFORE writing SSE header to client.
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
-        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
-            tl = _parse_too_long(str(_err))
-            target = _compact_budget(tl, disp, _inp_toks)
+        if _err and _COMPACT_ENABLED and (tl := _parse_too_long(str(_err))):
+            target = _compact_budget(tl, disp, _inp_toks, max_tokens)
             LOG.warning("rid=%s [responses] stream upstream rejected — retrying compact target=%d", _rid, target)
             req2, _cprep2, _compact_meta = compact_request(req, target, model=disp)
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
@@ -2539,9 +2556,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "tool_call":
                     tcs_out.append(data)
             # Retry with compaction on "too long" upstream error
-            if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
-                tl = _parse_too_long(str(err))
-                target = _compact_budget(tl, disp, _inp_toks)
+            if err and _COMPACT_ENABLED and (tl := _parse_too_long(str(err))):
+                target = _compact_budget(tl, disp, _inp_toks, max_tokens)
                 LOG.warning("rid=%s upstream rejected — retrying with compaction target=%d", _rid, target)
                 req, _cprep, _compact_meta = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
@@ -2604,9 +2620,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # This allows retry with compaction if upstream returns "too long".
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
-        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
-            tl = _parse_too_long(str(_err))
-            target = _compact_budget(tl, disp, _inp_toks)
+        if _err and _COMPACT_ENABLED and (tl := _parse_too_long(str(_err))):
+            target = _compact_budget(tl, disp, _inp_toks, max_tokens)
             LOG.warning("rid=%s stream upstream rejected — retrying compact target=%d", _rid, target)
             req2, _cprep2, _compact_meta = compact_request(req, target, model=disp)
             LOG.info("rid=%s stream retry compacted %s", _rid, _cprep2)
@@ -2861,9 +2876,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "sources":
                     sources = data or []
             # Retry with compaction on "too long" upstream error
-            if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
-                tl = _parse_too_long(str(err))
-                target = _compact_budget(tl, disp, _inp_toks)
+            if err and _COMPACT_ENABLED and (tl := _parse_too_long(str(err))):
+                target = _compact_budget(tl, disp, _inp_toks, max_tokens)
                 LOG.warning("rid=%s [chat] upstream rejected — retrying compact target=%d", _rid, target)
                 req, _cprep, _compact_meta = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
@@ -2914,9 +2928,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # Prefetch first event BEFORE writing SSE header to client.
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
-        if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
-            tl = _parse_too_long(str(_err))
-            target = _compact_budget(tl, disp, _inp_toks)
+        if _err and _COMPACT_ENABLED and (tl := _parse_too_long(str(_err))):
+            target = _compact_budget(tl, disp, _inp_toks, max_tokens)
             LOG.warning("rid=%s [chat] stream upstream rejected — retrying compact target=%d", _rid, target)
             req2, _cprep2, _compact_meta = compact_request(req, target, model=disp)
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
