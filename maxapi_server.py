@@ -37,11 +37,29 @@ and "status" fields; sources are forwarded as a top-level "sources" array on the
 final non-stream message and as a final SSE chunk on streams so clients that
 render citations can use them.
 """
-import http.server, json, ssl, http.client, random, argparse, sys, time, threading, re
+import http.server, json, ssl, http.client, random, argparse, sys, time, threading, re, logging, os, copy, hashlib, uuid as _uuid
 
 BASE = "se.zzmax.cn"
 OPEN_TAG = bytes([0x3c]) + b"think" + bytes([0x3e])
 CLOSE_TAG = bytes([0x3c, 0x2f]) + b"think" + bytes([0x3e])
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+LOG = logging.getLogger("maxapi")
+_COMPACT_ENABLED = os.getenv("MAXAPI_COMPACT", "1") != "0"
+_KEEP_TAIL_SEGMENTS = int(os.getenv("MAXAPI_KEEP_TAIL_SEGMENTS", "6"))
+_TOOL_RESULT_CAP = int(os.getenv("MAXAPI_TOOL_RESULT_CAP", "4000"))
+
+def _setup_logging():
+    lvl = os.getenv("MAXAPI_LOG_LEVEL", "INFO").upper()
+    h = logging.StreamHandler(sys.stderr)
+    h.setFormatter(logging.Formatter(
+        "%(asctime)s.%(msecs)03d %(levelname)-7s %(message)s",
+        datefmt="%H:%M:%S"))
+    LOG.handlers[:] = [h]
+    LOG.setLevel(getattr(logging, lvl, logging.INFO))
+    LOG.propagate = False
+
+_SENSITIVE_HDRS = {"authorization", "x-api-key", "cookie", "proxy-authorization"}
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 SEC_CH_UA = '"' + 'Google Chrome' + '";v="131", "Chromium";v="131", "Not_A Brand";v="24"'
@@ -174,10 +192,13 @@ def _anthropic_model_id(display_id):
     """Map display_id to a standard Anthropic model ID for CC compatibility."""
     return _ANTHROPIC_MODEL_IDS.get(display_id, "claude-sonnet-4-20250514")
 
-# Per-display max input tokens for preflight. Reserve a 4k headroom for output/system.
-def _context_limit(display_id):
+# Per-display max input tokens. Dynamic: reserves space for requested output + safety margin.
+SAFETY_MARGIN = 512  # blocks/tools/metadata the estimator can't see
+
+def _context_limit(display_id, max_tokens=None):
     ctx, _out, _tu = MODEL_META.get(display_id, (200000, 8192, True))
-    return max(4096, ctx - 4096)
+    reserve = max_tokens if max_tokens else 4096
+    return max(ctx - reserve - SAFETY_MARGIN, 8192)
 
 def resolve_model(name):
     """Map a client-supplied model id to (group, actualModelId, display_id)."""
@@ -1195,9 +1216,190 @@ def _estimate_messages_tokens(messages):
     return max(1, total)
 
 
+# ── Improved token estimation (includes system + tools) ─────────────────────
+def _est_text(s):
+    """Estimate tokens for a plain text string."""
+    if not s:
+        return 0
+    cjk = sum(1 for ch in s if '一' <= ch <= '鿿')
+    return int(cjk * 1.05 + (len(s) - cjk) / 3.6)
 
 
-import hashlib
+def _est_blocks(blocks):
+    """Estimate tokens from a list of content blocks."""
+    total = 0
+    for b in (blocks or []):
+        if not isinstance(b, dict):
+            continue
+        bt = b.get("type", "")
+        if bt == "text":
+            total += _est_text(b.get("text", ""))
+        elif bt == "thinking":
+            total += _est_text(b.get("thinking", ""))
+        elif bt == "tool_use":
+            total += _est_text(json.dumps(b.get("input", {}), ensure_ascii=False)) + 12
+        elif bt == "tool_result":
+            total += _est_text(_stringify_content(b.get("content"))) + 8
+        elif bt == "image":
+            total += 1600
+        elif bt == "document":
+            total += 3000
+    return total
+
+
+def _stringify_content(c):
+    """Convert content block value to plain string for estimation."""
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        parts = []
+        for item in c:
+            if isinstance(item, dict):
+                parts.append(item.get("text", "") or item.get("content", "") or "")
+            elif isinstance(item, str):
+                parts.append(item)
+        return "\n".join(parts)
+    return str(c) if c else ""
+
+
+def _estimate_request_tokens(body):
+    """Estimate total tokens for an Anthropic-format request body (includes system + tools)."""
+    total = 0
+    # system prompt
+    sys = body.get("system")
+    if isinstance(sys, str):
+        total += _est_text(sys)
+    elif isinstance(sys, list):
+        total += sum(_est_text(b.get("text", "")) for b in sys if isinstance(b, dict))
+    # tools
+    for t in (body.get("tools") or []):
+        total += _est_text(json.dumps(t, ensure_ascii=False)) + 8
+    # messages
+    for m in (body.get("messages") or []):
+        total += 4  # role/turn overhead
+        c = m.get("content")
+        if isinstance(c, str):
+            total += _est_text(c)
+        elif isinstance(c, list):
+            total += _est_blocks(c)
+        tcs = m.get("tool_calls")
+        if isinstance(tcs, list):
+            for tc in tcs:
+                fn = tc.get("function") or {}
+                total += _est_text(fn.get("arguments", "")) + _est_text(fn.get("name", "")) + 8
+    return total
+
+
+# ── Compaction: shrink context to fit budget ─────────────────────────────────
+_TOO_LONG_RE = re.compile(
+    r"(?:prompt is too long|input too long|context length)\D*(\d[\d,]*)\s*(?:tokens)?\s*(?:exceeds|[><])\s*(?:context_length\s*)?(\d[\d,]*)",
+    re.I,
+)
+
+def _parse_too_long(err_text):
+    """Parse upstream 'too long' error to extract (actual, allowed) token counts."""
+    m = _TOO_LONG_RE.search(str(err_text) or "")
+    if not m:
+        return None
+    return int(m.group(1).replace(",", "")), int(m.group(2).replace(",", ""))
+
+
+def _msg_blocks(msg):
+    """Extract content blocks from a message."""
+    c = msg.get("content")
+    if isinstance(c, str):
+        return [{"type": "text", "text": c}]
+    if isinstance(c, list):
+        return [b for b in c if isinstance(b, dict)]
+    return []
+
+
+def _segments(messages):
+    """Group messages into segments so no segment has an unresolved tool_use.
+    Returns list of message-list segments."""
+    segs, cur, pending = [], [], set()
+    for m in messages:
+        cur.append(m)
+        for b in _msg_blocks(m):
+            if b.get("type") == "tool_use":
+                pending.add(b.get("id"))
+            elif b.get("type") == "tool_result":
+                pending.discard(b.get("tool_use_id"))
+        if not pending:
+            segs.append(cur)
+            cur = []
+    if cur:
+        segs.append(cur)
+    return segs
+
+
+def _append_system_note(body, note):
+    """Append a note to the system prompt without corrupting message alternation."""
+    sys = body.get("system")
+    note_block = {"type": "text", "text": note}
+    if isinstance(sys, str):
+        body["system"] = [{"type": "text", "text": sys}, note_block]
+    elif isinstance(sys, list):
+        sys.append(note_block)
+    else:
+        body["system"] = [note_block]
+
+
+def compact_request(body, budget):
+    """4-stage compaction to fit request within token budget.
+    Returns (compacted_body, report_string). Never touches the last 2 messages or system."""
+    body = copy.deepcopy(body)
+    msgs = body.get("messages") or []
+    notes = []
+    before = _estimate_request_tokens(body)
+
+    # Stage 1: clamp oversized tool_result payloads (oldest first)
+    trimmed = 0
+    for m in msgs:
+        if _estimate_request_tokens(body) <= budget:
+            break
+        for b in _msg_blocks(m):
+            if b.get("type") == "tool_result":
+                txt = _stringify_content(b.get("content"))
+                if len(txt) > _TOOL_RESULT_CAP:
+                    half = _TOOL_RESULT_CAP // 2
+                    b["content"] = (
+                        f"{txt[:half]}\n\n[... {len(txt) - _TOOL_RESULT_CAP} "
+                        f"chars elided by proxy ...]\n\n{txt[-half:]}")
+                    trimmed += 1
+    if trimmed:
+        notes.append(f"tool_results_trimmed={trimmed}")
+
+    # Stage 2: drop middle segments, keep first turn + tail
+    segs = _segments(msgs)
+    dropped = 0
+    while _estimate_request_tokens(body) > budget and len(segs) > _KEEP_TAIL_SEGMENTS + 1:
+        segs.pop(1)  # index 0 = original task framing, keep it
+        dropped += 1
+        body["messages"] = [m for s in segs for m in s]
+    if dropped:
+        notes.append(f"segments_dropped={dropped}")
+        _append_system_note(body,
+            f"[Proxy note: {dropped} earlier conversation turn(s) were removed "
+            f"to fit the context window. Ask the user if you need that history.]")
+
+    # Stage 3: head/tail truncate remaining text blocks (oldest first, skip last 2 msgs)
+    truncated = 0
+    target_msgs = body.get("messages") or []
+    for m in target_msgs[:-2] if len(target_msgs) > 2 else []:
+        if _estimate_request_tokens(body) <= budget:
+            break
+        for b in _msg_blocks(m):
+            if b.get("type") == "text" and len(b.get("text", "")) > 2000:
+                txt = b["text"]
+                b["text"] = txt[:1000] + f"\n[... {len(txt) - 1800} chars elided ...]\n" + txt[-800:]
+                truncated += 1
+    if truncated:
+        notes.append(f"text_truncated={truncated}")
+
+    # Stage 4: still over? forward anyway (upstream decides)
+    after = _estimate_request_tokens(body)
+    return body, f"est {before}->{after} budget={budget} " + " ".join(notes)
 
 
 def _thinking_signature(text):
@@ -1709,8 +1911,10 @@ def _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, 
 
 class Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
-    def log_message(self, *a):
-        pass
+    def log_message(self, fmt, *args):
+        LOG.debug("http %s %s", self.address_string(), fmt % args)
+    def log_error(self, fmt, *args):
+        LOG.warning("http %s %s", self.address_string(), fmt % args)
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "*")
@@ -1843,14 +2047,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if str(effort).lower() not in ("off", "low", "medium", "high", "max"):
             effort = "max"
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
-        # preflight: reject oversized input before opening stream
+        _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp)
-        _inp_toks = _estimate_messages_tokens(msgs_up)
+        _inp_toks = _estimate_request_tokens(req)
         if _inp_toks > _pf:
-            return self._send(400, {"error": {"type": "invalid_request_error",
-                "message": "input too long: estimated %d tokens exceeds context_length %d for %s" % (_inp_toks, _pf, disp)}})
-        sys.stderr.write("[responses] stream=%s model=%s ninput=%s ntools=%s tool_choice=%s\n" % (
-            stream, model, len(req.get("input") or []) if isinstance(req.get("input"), list) else 1, len(tools), tool_choice));
+            LOG.warning("rid=%s [responses] over budget est=%d limit=%d model=%s — %s",
+                        _rid, _inp_toks, _pf, disp,
+                        "compacting" if _COMPACT_ENABLED else "forwarding as-is")
+            if _COMPACT_ENABLED:
+                req, _cprep = compact_request(req, int(_pf * 0.95))
+                LOG.info("rid=%s compacted %s", _rid, _cprep)
+                msgs = _resp_input_to_messages(req.get("input"), req.get("instructions"))
+                msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
+        else:
+            LOG.info("rid=%s [responses] stream=%s model=%s ninput=%s ntools=%s tool_choice=%s est=%d limit=%d",
+                     _rid, stream, model, len(req.get("input") or []) if isinstance(req.get("input"), list) else 1, len(tools), tool_choice, _inp_toks, _pf)
 
         if not stream:
             answer, reason, tcs_out, err = [], [], [], None
@@ -1864,6 +2075,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     reason.append(data)
                 elif kind == "tool_call":
                     tcs_out.append(data)
+            # Retry with compaction on "too long" upstream error
+            if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
+                actual, allowed = _parse_too_long(str(err))
+                LOG.warning("rid=%s [responses] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
+                target = int(_estimate_request_tokens(req) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+                req, _cprep = compact_request(req, target)
+                LOG.info("rid=%s retry compacted %s", _rid, _cprep)
+                msgs = _resp_input_to_messages(req.get("input"), req.get("instructions"))
+                msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
+                answer, reason, tcs_out, err = [], [], [], None
+                for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=3):
+                    if kind == "error":
+                        err = data.get("error") if isinstance(data, dict) else str(data)
+                        break
+                    if kind == "content":
+                        answer.append(data)
+                    elif kind == "reasoning":
+                        reason.append(data)
+                    elif kind == "tool_call":
+                        tcs_out.append(data)
             if err:
                 _code, _type = classify_error(err)
                 return self._send(_code, {"error": {"type": _type, "message": err}})
@@ -1969,7 +2200,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _msgs_count = len(req.get("messages") or [])
         _tools_count = len(req.get("tools") or [])
         _stream = bool(req.get("stream"))
-        sys.stderr.write(f"[REQ] {self.path} model={disp} msgs={_msgs_count} tools={_tools_count} stream={_stream}\n"); sys.stderr.flush()
         # messages & system
         anth_messages = req.get("messages") or []
         sysc = req.get("system")
@@ -1985,11 +2215,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
             tool_choice = "auto"
         openai_msgs = _flatten_anthropic_messages(anth_messages, sysc)
         msgs_up, tools_enabled = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs)
-        _pf = _context_limit(disp)
-        _inp_toks = _estimate_messages_tokens(msgs_up)
+        max_tokens = req.get("max_tokens") or 4096
+        _rid = _uuid.uuid4().hex[:8]
+        _pf = _context_limit(disp, max_tokens)
+        _inp_toks = _estimate_request_tokens(req)
         if _inp_toks > _pf:
-            return self._send(400, {"type": "error", "error": {"type": "invalid_request_error",
-                "message": "input too long: estimated %d tokens exceeds context_length %d for %s" % (_inp_toks, _pf, disp)}})
+            LOG.warning("rid=%s over budget est=%d limit=%d model=%s — %s",
+                        _rid, _inp_toks, _pf, disp,
+                        "compacting" if _COMPACT_ENABLED else "forwarding as-is")
+            if _COMPACT_ENABLED:
+                req, _cprep = compact_request(req, int(_pf * 0.95))
+                LOG.info("rid=%s compacted %s", _rid, _cprep)
+                # rebuild from compacted request
+                anth_messages = req.get("messages") or []
+                sysc = req.get("system")
+                if isinstance(sysc, list):
+                    sysc = " ".join(b.get("text", "") for b in sysc if isinstance(b, dict) and b.get("type") == "text")
+                elif sysc is None:
+                    sysc = ""
+                openai_msgs = _flatten_anthropic_messages(anth_messages, sysc)
+                msgs_up, tools_enabled = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs)
+        else:
+            LOG.info("rid=%s -> %s %s msgs=%d tools=%d est=%d limit=%d max_tokens=%s stream=%s",
+                     _rid, self.path, disp, _msgs_count, _tools_count, _inp_toks, _pf, max_tokens, _stream)
         stream = bool(req.get("stream"))
         # thinking: anthropic 'thinking' param; we pass medium by default unless
         # client sent a budget — keep reasoning on for claude (upstream always thinks).
@@ -2019,6 +2267,32 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     reason.append(data)
                 elif kind == "tool_call":
                     tcs_out.append(data)
+            # Retry with compaction on "too long" upstream error
+            if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
+                actual, allowed = _parse_too_long(str(err))
+                LOG.warning("rid=%s upstream rejected actual=%d allowed=%d — retrying with compaction", _rid, actual, allowed)
+                target = int(_estimate_request_tokens(req) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+                req, _cprep = compact_request(req, target)
+                LOG.info("rid=%s retry compacted %s", _rid, _cprep)
+                anth_messages = req.get("messages") or []
+                sysc = req.get("system")
+                if isinstance(sysc, list):
+                    sysc = " ".join(b.get("text", "") for b in sysc if isinstance(b, dict) and b.get("type") == "text")
+                elif sysc is None:
+                    sysc = ""
+                openai_msgs = _flatten_anthropic_messages(anth_messages, sysc)
+                msgs_up, tools_enabled = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs)
+                answer, reason, tcs_out, err = [], [], [], None
+                for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=3):
+                    if kind == "error":
+                        err = data.get("error") if isinstance(data, dict) else str(data)
+                        break
+                    if kind == "content":
+                        answer.append(data)
+                    elif kind == "reasoning":
+                        reason.append(data)
+                    elif kind == "tool_call":
+                        tcs_out.append(data)
             if err:
                 _code, _type = classify_error(err, default=529)
                 _extra = {"Retry-After": "5"} if _code in (429, 529) else None
@@ -2049,7 +2323,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "usage": {"input_tokens": input_toks, "output_tokens": output_toks, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
             }
             self._send(200, out, extra={"anthropic-version": "2023-06-01", "request-id": msg_id})
-            sys.stderr.write(f"[RES] {self.path} 200 model={disp} input={input_toks} output={output_toks} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+            LOG.info("rid=%s <- 200 model=%s input=%d output=%d time=%dms",
+                     _rid, disp, input_toks, output_toks, int((time.monotonic()-_t0)*1000))
             return
         # Open SSE immediately, then stream upstream directly so the client
         # sees a live connection while maxapi waits for upstream's first
@@ -2177,11 +2452,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     close_block("text")
             sse("message_delta", {"delta": {"stop_reason": stop_reason["r"], "stop_sequence": None}, "usage": {"output_tokens": max(1, output_acc["n"] // 4 + 2)}})
             sse("message_stop", {})
-            sys.stderr.write(f"[RES] {self.path} 200 stream model={disp} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+            LOG.info("rid=%s <- 200 stream model=%s time=%dms", _rid, disp, int((time.monotonic()-_t0)*1000))
         except Exception as e:
             try:
                 sse("error", {"type": "error", "error": {"type": "api_error", "message": "server: %s" % e}})
-                sys.stderr.write(f"[ERR] {self.path} 500 model={disp} error={e} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+                LOG.error("rid=%s <- 500 model=%s error=%s time=%dms", _rid, disp, e, int((time.monotonic()-_t0)*1000))
             except Exception:
                 pass
         finally:
@@ -2233,17 +2508,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             _roles = [m.get("role") for m in _msgs] if isinstance(_msgs, list) else "?"
             _tc = any(isinstance(m, dict) and m.get("tool_calls") for m in _msgs) if isinstance(_msgs, list) else False
             _toolroles = any(m.get("role") == "tool" for m in _msgs) if isinstance(_msgs, list) else False
-            sys.stderr.write("  [chatreq] stream=%s model=%s nmsgs=%d ntools=%d has_tc=%s tool_choice=%s\n" % (
-                req.get("stream"), req.get("model"), len(_msgs) if isinstance(_msgs,list) else -1, len(_tools) if isinstance(_tools,list) else -1, _tc, req.get("tool_choice")));
+            LOG.debug("[chatreq] stream=%s model=%s nmsgs=%d ntools=%d has_tc=%s tool_choice=%s",
+                req.get("stream"), req.get("model"), len(_msgs) if isinstance(_msgs,list) else -1, len(_tools) if isinstance(_tools,list) else -1, _tc, req.get("tool_choice"))
         except Exception as _e:
-            sys.stderr.write("  [chatreq diag err] %s\n" % _e);
+            LOG.debug("[chatreq diag err] %s", _e)
         model = req.get("model") or DEFAULT_MODEL
         grp, sub, disp = resolve_model(model)
         messages = req.get("messages") or []
         stream = bool(req.get("stream"))
         _msgs_count = len(messages) if isinstance(messages, list) else 0
         _tools_count = len(req.get("tools") or [])
-        sys.stderr.write(f"[REQ] {self.path} model={disp} msgs={_msgs_count} tools={_tools_count} stream={stream}\n"); sys.stderr.flush()
         include_reasoning = not (req.get("reasoning") is False or req.get("strip_reasoning"))
         effort = req.get("reasoning_effort") or req.get("reasoningEffort") or "max"
         if str(effort).lower() not in ("off", "low", "medium", "high", "max"):
@@ -2256,11 +2530,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if tool_choice is None and tools:
             tool_choice = "auto"
         msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
+        _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp)
-        _inp_toks = _estimate_messages_tokens(msgs_up)
+        _inp_toks = _estimate_request_tokens(req)
         if _inp_toks > _pf:
-            return self._send(400, {"error": {"type": "invalid_request_error",
-                "message": "input too long: estimated %d tokens exceeds context_length %d for %s" % (_inp_toks, _pf, disp)}})
+            LOG.warning("rid=%s [chat] over budget est=%d limit=%d model=%s — %s",
+                        _rid, _inp_toks, _pf, disp,
+                        "compacting" if _COMPACT_ENABLED else "forwarding as-is")
+            if _COMPACT_ENABLED:
+                req, _cprep = compact_request(req, int(_pf * 0.95))
+                LOG.info("rid=%s compacted %s", _rid, _cprep)
+                messages = req.get("messages") or []
+                msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
+        else:
+            LOG.info("rid=%s [chat] -> %s model=%s msgs=%d tools=%d est=%d limit=%d stream=%s",
+                     _rid, self.path, disp, _msgs_count, _tools_count, _inp_toks, _pf, stream)
         if not stream:
             answer, reason, tcs_out, err, sources = [], [], [], None, []
             for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
@@ -2275,6 +2559,28 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     tcs_out.append(data)
                 elif kind == "sources":
                     sources = data or []
+            # Retry with compaction on "too long" upstream error
+            if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
+                actual, allowed = _parse_too_long(str(err))
+                LOG.warning("rid=%s [chat] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
+                target = int(_estimate_request_tokens(req) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+                req, _cprep = compact_request(req, target)
+                LOG.info("rid=%s retry compacted %s", _rid, _cprep)
+                messages = req.get("messages") or []
+                msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
+                answer, reason, tcs_out, err, sources = [], [], [], None, []
+                for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=3):
+                    if kind == "error":
+                        err = data.get("error")
+                        break
+                    if kind == "content":
+                        answer.append(data)
+                    elif kind == "reasoning":
+                        reason.append(data)
+                    elif kind == "tool_call":
+                        tcs_out.append(data)
+                    elif kind == "sources":
+                        sources = data or []
             if err:
                 _code, _type = classify_error(err)
                 return self._send(_code, {"error": {"type": _type, "message": err}})
@@ -2300,7 +2606,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if sources:
                 out["sources"] = sources
             self._send(200, out)
-            sys.stderr.write(f"[RES] {self.path} 200 model={disp} input={p_toks} output={c_toks} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+            LOG.info("rid=%s <- 200 [chat] model=%s input=%d output=%d time=%dms",
+                     _rid, disp, p_toks, c_toks, int((time.monotonic()-_t0)*1000))
             return
         # Open SSE immediately, then stream upstream directly so the client
         # sees a live connection while maxapi waits for upstream's first
@@ -2369,7 +2676,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                      "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
             emit(b"data: [DONE]\n\n")
-            sys.stderr.write(f"[RES] {self.path} 200 stream model={disp} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+            LOG.info("rid=%s <- 200 [chat] stream model=%s time=%dms", _rid, disp, int((time.monotonic()-_t0)*1000))
         except Exception as e:
             try:
                 sse({"error": {"message": "server: %s" % e, "type": "api_error", "code": None}})
@@ -2383,6 +2690,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 def main():
     global RATE
+    _setup_logging()
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--port", type=int, default=8080)
