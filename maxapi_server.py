@@ -1373,14 +1373,14 @@ def _parse_too_long(err_text):
         if m:
             actual, allowed = int(m.group(1).replace(",", "")), int(m.group(2).replace(",", ""))
             # Invariant: actual should be > allowed (used exceeded limit)
-            if actual is not None and allowed is not None and actual <= allowed:
+            if actual is not None and allowed is not None and actual < allowed:
                 return None  # suspicious parse, reject entirely
             return _TooLong(actual, allowed)
     # _RE_MAXCTX_REV has (allowed, actual) group order — swap
     m = _RE_MAXCTX_REV.search(txt)
     if m:
         actual, allowed = int(m.group(2).replace(",", "")), int(m.group(1).replace(",", ""))
-        if actual > allowed:
+        if actual >= allowed:
             return _TooLong(actual, allowed)
         return None  # inverted, reject
     # Keyword fallback: only if no regex matched at all
