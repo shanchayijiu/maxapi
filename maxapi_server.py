@@ -1291,7 +1291,7 @@ def _estimate_request_tokens(body, model=None):
 
 # ── EWMA self-calibration for token estimation ───────────────────────────────
 _EWMA_ALPHA = 0.15  # smoothing factor (lower = more stable, higher = faster adaptation)
-_ewma_store = {}    # model -> {"ratio": float, "n": int}
+_ewma_store = {}    # model -> {"ratio": float, "n": int}  # intentional: unbounded but bounded by ~13 known models
 _EWMA_LOCK = threading.Lock()
 
 def _ewma_update(model, actual, estimated):
@@ -1324,8 +1324,13 @@ _TOO_LONG_RE = re.compile(
 
 def _parse_too_long(err_text):
     """Parse upstream 'too long' error to extract (actual, allowed) token counts."""
-    m = _TOO_LONG_RE.search(str(err_text) or "")
+    txt = str(err_text) or ""
+    m = _TOO_LONG_RE.search(txt)
     if not m:
+        # If the error looks like a "too long" variant but regex didn't parse numbers, warn
+        low = txt.lower()
+        if any(k in low for k in ("too long", "context length", "exceeds", "token limit")):
+            LOG.warning("_parse_too_long: matched keyword but failed to extract numbers from: %s", txt[:200])
         return None
     return int(m.group(1).replace(",", "")), int(m.group(2).replace(",", ""))
 
@@ -1403,7 +1408,7 @@ def _append_system_note(body, note):
 
 def compact_request(body, budget, model=None):
     """4-stage compaction to fit request within token budget.
-    Returns (compacted_body, report_string, meta_dict). Never touches the last 2 messages or system."""
+    Returns (compacted_body, report_string, compaction_meta_dict). Never touches the last 2 messages or system."""
     body_original = body  # keep reference for validation fallback
     body = copy.deepcopy(body)
     msgs = body.get("messages") or []
@@ -2563,7 +2568,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 start.update(extra)
             sse("content_block_start", {"index": idx, "content_block": start})
             return idx
-        thinking_acc = {"s": ""}  # accumulate thinking text for one signature at close
+        thinking_acc = {"s": ""}  # accumulate thinking text for one signature at close; intentional: not reset between blocks because upstream never interleaves thinking→text→thinking
         def close_block(btype):
             idx = blocks.get(btype, {}).get("index")
             if idx is not None:
