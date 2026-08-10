@@ -1348,6 +1348,7 @@ def _append_system_note(body, note):
 def compact_request(body, budget):
     """4-stage compaction to fit request within token budget.
     Returns (compacted_body, report_string). Never touches the last 2 messages or system."""
+    body_original = body  # keep reference for validation fallback
     body = copy.deepcopy(body)
     msgs = body.get("messages") or []
     notes = []
@@ -1399,7 +1400,59 @@ def compact_request(body, budget):
 
     # Stage 4: still over? forward anyway (upstream decides)
     after = _estimate_request_tokens(body)
+
+    # Validate: ensure tool_use/tool_result pairing is intact
+    if not _validate_compacted_messages(body.get("messages") or []):
+        notes.append("VALIDATION_FAILED → reverting to original")
+        LOG.warning("compact validation failed, reverting to original request")
+        return copy.deepcopy(body_original), f"est {before} budget={budget} VALIDATION_FAILED"
+
     return body, f"est {before}->{after} budget={budget} " + " ".join(notes)
+
+
+def _validate_compacted_messages(messages):
+    """Post-compaction validator: ensure tool_use/tool_result pairing is intact.
+    Returns True if valid, False if compaction produced broken structure."""
+    if not messages:
+        return False
+    # Collect all tool_use ids from assistant messages
+    tool_use_ids = set()
+    tool_result_ids = set()
+    for m in messages:
+        role = m.get("role", "")
+        content = m.get("content")
+        # Anthropic format: content blocks
+        if isinstance(content, list):
+            for b in content:
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "tool_use":
+                    tid = b.get("id")
+                    if tid:
+                        tool_use_ids.add(tid)
+                elif b.get("type") == "tool_result":
+                    tid = b.get("tool_use_id")
+                    if tid:
+                        tool_result_ids.add(tid)
+        # OpenAI format: tool_calls on assistant, tool role messages
+        tcs = m.get("tool_calls")
+        if isinstance(tcs, list):
+            for tc in tcs:
+                tid = tc.get("id")
+                if tid:
+                    tool_use_ids.add(tid)
+        if role == "tool":
+            tid = m.get("tool_call_id")
+            if tid:
+                tool_result_ids.add(tid)
+    # Every tool_use must have a matching tool_result, and vice versa
+    # Allow some slack: orphan tool_results (from already-dropped tool_uses) are ok
+    # but orphan tool_uses (tool_use without tool_result) are NOT ok
+    orphans = tool_use_ids - tool_result_ids
+    if len(orphans) > 3:  # allow up to 3 orphans (e.g., from truncation of tail)
+        LOG.warning("compact validator: %d orphan tool_use ids: %s", len(orphans), list(orphans)[:5])
+        return False
+    return True
 
 
 def _thinking_signature(text):
@@ -2050,16 +2103,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp)
         _inp_toks = _estimate_request_tokens(req)
+        _COMPACT_THRESHOLD = 1.25  # only compact when est exceeds limit by 25%+ (accounts for ~11% estimator overestimation)
         if _inp_toks > _pf:
-            LOG.warning("rid=%s [responses] over budget est=%d limit=%d model=%s — %s",
-                        _rid, _inp_toks, _pf, disp,
-                        "compacting" if _COMPACT_ENABLED else "forwarding as-is")
-            if _COMPACT_ENABLED:
-                req, _cprep = compact_request(req, int(_pf * 0.95))
-                LOG.info("rid=%s compacted %s", _rid, _cprep)
-                msgs = _resp_input_to_messages(req.get("input"), req.get("instructions"))
-                msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
-        else:
+            LOG.warning("rid=%s [responses] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
+        if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
+            LOG.warning("rid=%s [responses] compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
+            req, _cprep = compact_request(req, int(_pf * 0.95))
+            LOG.info("rid=%s compacted %s", _rid, _cprep)
+            msgs = _resp_input_to_messages(req.get("input"), req.get("instructions"))
+            msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
+        if _inp_toks <= _pf:
             LOG.info("rid=%s [responses] stream=%s model=%s ninput=%s ntools=%s tool_choice=%s est=%d limit=%d",
                      _rid, stream, model, len(req.get("input") or []) if isinstance(req.get("input"), list) else 1, len(tools), tool_choice, _inp_toks, _pf)
 
@@ -2219,22 +2272,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp, max_tokens)
         _inp_toks = _estimate_request_tokens(req)
+        _COMPACT_THRESHOLD = 1.25
         if _inp_toks > _pf:
-            LOG.warning("rid=%s over budget est=%d limit=%d model=%s — %s",
-                        _rid, _inp_toks, _pf, disp,
-                        "compacting" if _COMPACT_ENABLED else "forwarding as-is")
-            if _COMPACT_ENABLED:
-                req, _cprep = compact_request(req, int(_pf * 0.95))
-                LOG.info("rid=%s compacted %s", _rid, _cprep)
-                # rebuild from compacted request
-                anth_messages = req.get("messages") or []
-                sysc = req.get("system")
-                if isinstance(sysc, list):
-                    sysc = " ".join(b.get("text", "") for b in sysc if isinstance(b, dict) and b.get("type") == "text")
-                elif sysc is None:
-                    sysc = ""
-                openai_msgs = _flatten_anthropic_messages(anth_messages, sysc)
-                msgs_up, tools_enabled = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs)
+            LOG.warning("rid=%s over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
+        if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
+            LOG.warning("rid=%s compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
+            req, _cprep = compact_request(req, int(_pf * 0.95))
+            LOG.info("rid=%s compacted %s", _rid, _cprep)
+            # rebuild from compacted request
+            anth_messages = req.get("messages") or []
+            sysc = req.get("system")
+            if isinstance(sysc, list):
+                sysc = " ".join(b.get("text", "") for b in sysc if isinstance(b, dict) and b.get("type") == "text")
+            elif sysc is None:
+                sysc = ""
+            openai_msgs = _flatten_anthropic_messages(anth_messages, sysc)
+            msgs_up, tools_enabled = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs)
         else:
             LOG.info("rid=%s -> %s %s msgs=%d tools=%d est=%d limit=%d max_tokens=%s stream=%s",
                      _rid, self.path, disp, _msgs_count, _tools_count, _inp_toks, _pf, max_tokens, _stream)
@@ -2533,18 +2586,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp)
         _inp_toks = _estimate_request_tokens(req)
+        _COMPACT_THRESHOLD = 1.25
         if _inp_toks > _pf:
-            LOG.warning("rid=%s [chat] over budget est=%d limit=%d model=%s — %s",
-                        _rid, _inp_toks, _pf, disp,
-                        "compacting" if _COMPACT_ENABLED else "forwarding as-is")
-            if _COMPACT_ENABLED:
-                req, _cprep = compact_request(req, int(_pf * 0.95))
-                LOG.info("rid=%s compacted %s", _rid, _cprep)
-                messages = req.get("messages") or []
-                msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
-        else:
-            LOG.info("rid=%s [chat] -> %s model=%s msgs=%d tools=%d est=%d limit=%d stream=%s",
-                     _rid, self.path, disp, _msgs_count, _tools_count, _inp_toks, _pf, stream)
+            LOG.warning("rid=%s [chat] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
+        if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
+            LOG.warning("rid=%s [chat] compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
+            req, _cprep = compact_request(req, int(_pf * 0.95))
+            LOG.info("rid=%s compacted %s", _rid, _cprep)
+            messages = req.get("messages") or []
+            msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
+        LOG.info("rid=%s [chat] -> %s model=%s msgs=%d tools=%d est=%d limit=%d stream=%s",
+                 _rid, self.path, disp, _msgs_count, _tools_count, _inp_toks, _pf, stream)
         if not stream:
             answer, reason, tcs_out, err, sources = [], [], [], None, []
             for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
