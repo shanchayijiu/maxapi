@@ -1,10 +1,10 @@
 # maxapi STATUS
 
-> 2026-08-10 更新: commit `f1d7a42` — 移除preflight拒绝 + 结构化日志 + 上下文自动压缩 + post-compact validator。部署到8080并验证通过。
+> 2026-08-10 更新: commit `2b97bff` — 8080 review全部5项改进完成（B2响应header、EWMA自校准、Q2依赖图、B4格式感知、流式重试）。部署到8080并验证通过。
 
 ## 一句话现状
 
-`maxapi_server.py` 最新提交 `f1d7a42`。上下文自动压缩+结构化日志上线，13个模型可用，usage包含cache字段。
+`maxapi_server.py` 最新提交 `2b97bff`。上下文管理全链路改进完成，13个模型可用。
 
 ## 已稳部分
 
@@ -54,6 +54,37 @@
 | `MAXAPI_LOG_LEVEL` | `INFO` | 日志级别 |
 | `MAXAPI_KEEP_TAIL_SEGMENTS` | `6` | 压缩时保留的尾部segment数 |
 | `MAXAPI_TOOL_RESULT_CAP` | `4000` | tool_result截断阈值(字符) |
+
+## 2026-08-10 第二轮改动（commit `2b97bff`）
+
+### B2: 压缩信号改response header
+- 移除 `_append_system_note` 注入system prompt（会打穿prompt cache）
+- compact返回metadata dict → handler注入 `X-Maxapi-Compacted`、`X-Maxapi-Dropped-Segments`、`X-Maxapi-Token-Estimate` 等响应头
+
+### EWMA自校准
+- 按model维护 `ratio = EWMA(actual/estimated)`，alpha=0.15
+- 每次非流式响应后用 `usage.input_tokens` 更新
+- `_estimate_request_tokens(model=)` 自动应用校准比
+- ratio clamp [0.5, 2.0] 防异常值
+
+### Q2: segment分组改用显式依赖图
+- `_segments()` 同时处理Anthropic和OpenAI两种格式的tool配对
+- 以turn unit为粒度丢弃，保证配对完整性
+
+### B4: 格式感知压缩
+- Stage 1同时截断Anthropic content blocks和OpenAI `role:tool` 消息
+
+### 流式重试
+- 三端点流式路径：prefetch first event → 确认非error → 写SSE header
+- too long错误时自动compact → retry
+- 错误直接返回HTTP状态码（client能正确处理）
+
+### 测试结果
+```
+Test1 (non-stream): est=6 limit=199438 → 200 input=4 output=3 ✓
+Test2 (stream): est=4 limit=199438 → 200 stream ✓
+EWMA: 第二个请求est已从6降到4（校准生效）✓
+```
 
 ### 测试结果
 ```
