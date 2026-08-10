@@ -1631,9 +1631,11 @@ def _anthropic_tool_choice(tool_choice):
     return "auto"
 
 
-def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, tools_enabled=False, max_retry=5):
+def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, tools_enabled=False, max_retry=5, max_tokens=None):
     grp, sub, disp = resolve_model(model_field)
     payload = {"model": grp, "subModel": sub, "messages": messages, "stream": True}
+    if max_tokens:
+        payload["max_tokens"] = max_tokens
     if reasoning_effort and reasoning_effort != "off":
         payload["reasoningEffort"] = reasoning_effort
     if search:
@@ -1666,9 +1668,12 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             status = resp.status
             if status == 429:
                 volatile = True
+                err_body = resp.read(2048).decode("utf-8", "ignore")[:300]
+                LOG.warning("[volatile %d/%d] upstream 429: %s", attempt, max_retry, err_body)
             elif status in (502, 503, 504):
                 volatile = True
-                sys.stderr.write("[volatile %d/%d] upstream %d\n" % (attempt, max_retry, status));
+                err_body = resp.read(2048).decode("utf-8", "ignore")[:300]
+                LOG.warning("[volatile %d/%d] upstream %d: %s", attempt, max_retry, status, err_body)
             elif status not in (200, 201):
                 err = resp.read(2048).decode("utf-8", "ignore")[:300]
                 yield ("error", {"status": status, "error": err})
@@ -1690,7 +1695,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     if 'timed out' in _etxt or 'etimedout' in _etxt:
                         elapsed = time.monotonic() - last_data_time
                         if elapsed > _STALL_TIMEOUT:
-                            sys.stderr.write("[stall %d/%d] no data for %.0fs, abort\n" % (attempt, max_retry, elapsed));
+                            LOG.warning("[stall %d/%d] no data for %.0fs, abort", attempt, max_retry, elapsed)
                             volatile = True
                             break
                         continue
@@ -1755,12 +1760,12 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 # stream cut without done — likely connection error, retry
                 if attempt < max_retry:
                     _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
-                    sys.stderr.write("[nodone %d/%d] stream cut, retry in %.1fs\n" % (attempt, max_retry, _sleep));
+                    LOG.warning("[nodone %d/%d] stream cut, retry in %.1fs", attempt, max_retry, _sleep)
                     time.sleep(_sleep)
                     continue
             if volatile and not got_done and attempt < max_retry:
                 _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
-                sys.stderr.write("[volatile %d/%d] retry in %.1fs\n" % (attempt, max_retry, _sleep));
+                LOG.warning("[volatile %d/%d] retry in %.1fs", attempt, max_retry, _sleep)
                 time.sleep(_sleep)
                 continue
             if volatile and attempt >= max_retry:
@@ -1768,7 +1773,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             return
         except Exception as e:
             if attempt < max_retry:
-                sys.stderr.write("[connerr %d/%d %r] retry\n" % (attempt, max_retry, e))
+                LOG.warning("[connerr %d/%d %r] retry", attempt, max_retry, e)
                 time.sleep(1.0 * attempt)
                 continue
             yield ("error", {"error": "upstream failed: %r" % e})
@@ -2013,12 +2018,12 @@ def _upstream_iter(first, remainder_iter):
         yield from remainder_iter
 
 
-def _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5):
+def _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5, max_tokens=None):
     """Prefetch the first event from upstream. Returns (first_event, iter, error).
     If the first event is an error, error is set and iter is None.
     Otherwise first_event is the cached first event and iter is a chained generator
     that yields the first event from cache then continues the SAME upstream generator."""
-    it = upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=max_retry)
+    it = upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=max_retry, max_tokens=max_tokens)
     try:
         first = next(it, None)
     except Exception as e:
@@ -2174,7 +2179,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             effort = "max"
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         _rid = _uuid.uuid4().hex[:8]
-        _pf = _context_limit(disp)
+        max_tokens = req.get("max_tokens") or 8192
+        _pf = _context_limit(disp, max_tokens)
         _inp_toks = _estimate_request_tokens(req, model=disp)
         _COMPACT_THRESHOLD = 1.25
         _compact_meta = {}
@@ -2197,7 +2203,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         if not stream:
             answer, reason, tcs_out, err = [], [], [], None
-            for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
+            for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5, max_tokens=max_tokens):
                 if kind == "error":
                     err = data.get("error") if isinstance(data, dict) else str(data)
                     break
@@ -2217,7 +2223,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 msgs = req.get("messages") or []
                 msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
                 answer, reason, tcs_out, err = [], [], [], None
-                for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=3):
+                for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=3, max_tokens=max_tokens):
                     if kind == "error":
                         err = data.get("error") if isinstance(data, dict) else str(data)
                         break
@@ -2251,7 +2257,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         # Open SSE immediately, then stream upstream directly so the client
         # Prefetch first event BEFORE writing SSE header to client.
-        _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
+        _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
         if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
             actual, allowed = _parse_too_long(str(_err))
@@ -2261,7 +2267,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
             msgs2 = req2.get("messages") or []
             msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, msgs2)
-            _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, str(effort).lower(), search, tools_enabled2, max_retry=3)
+            _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, str(effort).lower(), search, tools_enabled2, max_retry=3, max_tokens=max_tokens)
         if _err:
             return self._send(classify_error(_err)[0], {"error": {"type": classify_error(_err)[1], "message": str(_err)}})
         # Now safe to write SSE header
@@ -2409,7 +2415,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         max_tokens = req.get("max_tokens") or 4096
         if not stream:
             answer, reason, tcs_out, err = [], [], [], None
-            for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5):
+            for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5, max_tokens=max_tokens):
                 if kind == "error":
                     err = data.get("error") if isinstance(data, dict) else str(data)
                     break
@@ -2435,7 +2441,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 openai_msgs = _flatten_anthropic_messages(anth_messages, sysc)
                 msgs_up, tools_enabled = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs)
                 answer, reason, tcs_out, err = [], [], [], None
-                for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=3):
+                for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=3, max_tokens=max_tokens):
                     if kind == "error":
                         err = data.get("error") if isinstance(data, dict) else str(data)
                         break
@@ -2483,7 +2489,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         # Prefetch first event BEFORE writing SSE header to client.
         # This allows retry with compaction if upstream returns "too long".
-        _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled)
+        _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
         if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
             actual, allowed = _parse_too_long(str(_err))
@@ -2499,7 +2505,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 sysc2 = ""
             openai_msgs2 = _flatten_anthropic_messages(anth_messages2, sysc2)
             msgs_up2, tools_enabled2 = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs2)
-            _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, effort, search, tools_enabled2, max_retry=3)
+            _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, effort, search, tools_enabled2, max_retry=3, max_tokens=max_tokens)
         if _err:
             return self._send(classify_error(_err, 529)[0], {"type": "error", "error": {"type": classify_error(_err, 529)[1], "message": str(_err)}})
         # Now safe to write SSE header — upstream is streaming
@@ -2710,7 +2716,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             tool_choice = "auto"
         msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
         _rid = _uuid.uuid4().hex[:8]
-        _pf = _context_limit(disp)
+        max_tokens = req.get("max_tokens") or 8192
+        _pf = _context_limit(disp, max_tokens)
         _inp_toks = _estimate_request_tokens(req, model=disp)
         _COMPACT_THRESHOLD = 1.25
         _compact_meta = {}
@@ -2726,7 +2733,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                  _rid, self.path, disp, _msgs_count, _tools_count, _inp_toks, _pf, stream)
         if not stream:
             answer, reason, tcs_out, err, sources = [], [], [], None, []
-            for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5):
+            for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=5, max_tokens=max_tokens):
                 if kind == "error":
                     err = data.get("error")
                     break
@@ -2748,7 +2755,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 messages = req.get("messages") or []
                 msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
                 answer, reason, tcs_out, err, sources = [], [], [], None, []
-                for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=3):
+                for kind, data in upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=3, max_tokens=max_tokens):
                     if kind == "error":
                         err = data.get("error")
                         break
@@ -2790,7 +2797,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             _ewma_update(disp, p_toks, _inp_toks)
             return
         # Prefetch first event BEFORE writing SSE header to client.
-        _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled)
+        _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
         if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
             actual, allowed = _parse_too_long(str(_err))
@@ -2800,7 +2807,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
             messages2 = req2.get("messages") or []
             msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, messages2)
-            _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, str(effort).lower(), search, tools_enabled2, max_retry=3)
+            _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, str(effort).lower(), search, tools_enabled2, max_retry=3, max_tokens=max_tokens)
         if _err:
             return self._send(classify_error(_err)[0], {"error": {"type": classify_error(_err)[1], "message": str(_err)}})
         # Now safe to write SSE header
