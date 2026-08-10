@@ -1379,6 +1379,7 @@ def _parse_too_long(err_text):
             except (ValueError, TypeError):
                 continue
             if actual < allowed:
+                LOG.warning("_parse_too_long: rejected inverted parse actual=%d < allowed=%d", actual, allowed)
                 return None  # suspicious parse, reject
             return _TooLong(actual, allowed)
     # _RE_MAXCTX_REV has (allowed, actual) group order — swap
@@ -1392,6 +1393,7 @@ def _parse_too_long(err_text):
         else:
             if actual >= allowed:
                 return _TooLong(actual, allowed)
+            LOG.warning("_parse_too_long: rejected inverted MAXCTX_REV actual=%d < allowed=%d", actual, allowed)
             return None  # inverted, reject
     # Keyword fallback: only if no regex matched at all
     low = txt.lower()
