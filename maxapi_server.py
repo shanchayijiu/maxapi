@@ -2223,7 +2223,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 actual, allowed = _parse_too_long(str(err))
                 LOG.warning("rid=%s [responses] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
                 target = int(_estimate_request_tokens(req, model=disp) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-                req, _cprep, _ = compact_request(req, target, model=disp)
+                req, _cprep, _compact_meta = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 msgs = req.get("messages") or []
                 msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
@@ -2268,7 +2268,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             actual, allowed = _parse_too_long(str(_err))
             LOG.warning("rid=%s [responses] stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
             target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-            req2, _cprep2, _ = compact_request(req, target, model=disp)
+            req2, _cprep2, _compact_meta = compact_request(req, target, model=disp)
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
             msgs2 = req2.get("messages") or []
             msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, msgs2)
@@ -2435,7 +2435,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 actual, allowed = _parse_too_long(str(err))
                 LOG.warning("rid=%s upstream rejected actual=%d allowed=%d — retrying with compaction", _rid, actual, allowed)
                 target = int(_estimate_request_tokens(req, model=disp) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-                req, _cprep, _ = compact_request(req, target, model=disp)
+                req, _cprep, _compact_meta = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 anth_messages = req.get("messages") or []
                 sysc = req.get("system")
@@ -2500,7 +2500,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             actual, allowed = _parse_too_long(str(_err))
             LOG.warning("rid=%s stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
             target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-            req2, _cprep2, _ = compact_request(req, target, model=disp)
+            req2, _cprep2, _compact_meta = compact_request(req, target, model=disp)
             LOG.info("rid=%s stream retry compacted %s", _rid, _cprep2)
             anth_messages2 = req2.get("messages") or []
             sysc2 = req2.get("system")
@@ -2755,7 +2755,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 actual, allowed = _parse_too_long(str(err))
                 LOG.warning("rid=%s [chat] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
                 target = int(_estimate_request_tokens(req, model=disp) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-                req, _cprep, _ = compact_request(req, target, model=disp)
+                req, _cprep, _compact_meta = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 messages = req.get("messages") or []
                 msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
@@ -2808,7 +2808,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             actual, allowed = _parse_too_long(str(_err))
             LOG.warning("rid=%s [chat] stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
             target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
-            req2, _cprep2, _ = compact_request(req, target, model=disp)
+            req2, _cprep2, _compact_meta = compact_request(req, target, model=disp)
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
             messages2 = req2.get("messages") or []
             msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, messages2)
