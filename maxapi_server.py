@@ -47,7 +47,7 @@ CLOSE_TAG = bytes([0x3c, 0x2f]) + b"think" + bytes([0x3e])
 LOG = logging.getLogger("maxapi")
 _COMPACT_ENABLED = os.getenv("MAXAPI_COMPACT", "1") != "0"
 _KEEP_TAIL_SEGMENTS = int(os.getenv("MAXAPI_KEEP_TAIL_SEGMENTS", "6"))
-_TOOL_RESULT_CAP = int(os.getenv("MAXAPI_TOOL_RESULT_CAP", "4000"))
+_TOOL_RESULT_CAP = int(os.getenv("MAXAPI_TOOL_RESULT_CAP", "4000"))  # token-based threshold per tool_result
 _MAX_BODY_BYTES = 10 * 1024 * 1024  # 10 MB max request body
 
 def _setup_logging():
@@ -1183,7 +1183,7 @@ def _estimate_tokens(text):
     # Count CJK characters (each ~1.5 tokens)
     cjk = 0
     for ch in text:
-        if '一' <= ch <= '鿿' or '　' <= ch <= '〿' or '＀' <= ch <= '￯':
+        if 0x3400 <= ord(ch) <= 0x4DBF or 0x4E00 <= ord(ch) <= 0x9FFF or '　' <= ch <= '〿' or 0xFF00 <= ord(ch) <= 0xFFEF:
             cjk += 1
     ascii_len = len(text) - cjk
     # English: ~4 chars per token (word-based is better but this is a fast heuristic)
@@ -1216,7 +1216,7 @@ def _est_text(s):
     """Estimate tokens for a plain text string."""
     if not s:
         return 0
-    cjk = sum(1 for ch in s if '一' <= ch <= '鿿')
+    cjk = sum(1 for ch in s if 0x3400 <= ord(ch) <= 0x4DBF or 0x4E00 <= ord(ch) <= 0x9FFF or 0xFF00 <= ord(ch) <= 0xFFEF)
     return int(cjk * 1.05 + (len(s) - cjk) / 3.6)
 
 
@@ -1232,7 +1232,7 @@ def _est_blocks(blocks):
         elif bt == "thinking":
             total += _est_text(b.get("thinking", ""))
         elif bt == "tool_use":
-            total += _est_text(json.dumps(b.get("input", {}), ensure_ascii=False)) + 12
+            total += _est_text(b.get("name", "")) + _est_text(json.dumps(b.get("input", {}), ensure_ascii=False)) + 12
         elif bt == "tool_result":
             total += _est_text(_stringify_content(b.get("content"))) + 8
         elif bt == "image":
@@ -1417,6 +1417,7 @@ def compact_request(body, budget, model=None):
 
     # Stage 1: clamp oversized tool_result payloads (oldest first)
     # Handles both Anthropic (content blocks) and OpenAI (role:tool) formats
+    # Threshold is token-based: _TOOL_RESULT_CAP tokens (~4000 chars English, ~3300 chars CJK)
     trimmed = 0
     for m in msgs:
         if _estimate_request_tokens(body, model=model) <= budget:
@@ -1425,21 +1426,26 @@ def compact_request(body, budget, model=None):
         for b in _msg_blocks(m):
             if b.get("type") == "tool_result":
                 txt = _stringify_content(b.get("content"))
-                if len(txt) > _TOOL_RESULT_CAP:
-                    half = _TOOL_RESULT_CAP // 2
-                    b["content"] = (
-                        f"{txt[:half]}\n\n[... {len(txt) - _TOOL_RESULT_CAP} "
-                        f"chars elided by proxy ...]\n\n{txt[-half:]}")
-                    trimmed += 1
+                if _est_text(txt) > _TOOL_RESULT_CAP:
+                    # Keep ~half tokens from each end; estimate char ratio
+                    _char_budget = int(_TOOL_RESULT_CAP * 3.6)  # rough chars per token
+                    half = _char_budget // 2
+                    if len(txt) > _char_budget:
+                        b["content"] = (
+                            f"{txt[:half]}\n\n[... {_est_text(txt) - _TOOL_RESULT_CAP} "
+                            f"tokens elided by proxy ...]\n\n{txt[-half:]}")
+                        trimmed += 1
         # OpenAI format: role="tool" messages
         if m.get("role") == "tool":
             txt = str(m.get("content", ""))
-            if len(txt) > _TOOL_RESULT_CAP:
-                half = _TOOL_RESULT_CAP // 2
-                m["content"] = (
-                    f"{txt[:half]}\n\n[... {len(txt) - _TOOL_RESULT_CAP} "
-                    f"chars elided by proxy ...]\n\n{txt[-half:]}")
-                trimmed += 1
+            if _est_text(txt) > _TOOL_RESULT_CAP:
+                _char_budget = int(_TOOL_RESULT_CAP * 3.6)
+                half = _char_budget // 2
+                if len(txt) > _char_budget:
+                    m["content"] = (
+                        f"{txt[:half]}\n\n[... {_est_text(txt) - _TOOL_RESULT_CAP} "
+                        f"tokens elided by proxy ...]\n\n{txt[-half:]}")
+                    trimmed += 1
     if trimmed:
         notes.append(f"tool_results_trimmed={trimmed}")
 
