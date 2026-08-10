@@ -1317,22 +1317,81 @@ def _ewma_get(model):
 
 
 # ── Compaction: shrink context to fit budget ─────────────────────────────────
-_TOO_LONG_RE = re.compile(
-    r"(?:prompt is too long|input too long|context length)\D*(\d[\d,]*)\s*(?:tokens)?\s*(?:exceeds|[><])\s*(?:context_length\s*)?(\d[\d,]*)",
+_TOO_LONG_HINTS = (
+    "input too long", "prompt is too long",
+    "context length exceeded", "context_length_exceeded",
+    "maximum context length", "exceeds context_length",
+    "too many total tokens", "reduce the length of the messages",
+)
+_OUTPUT_BUDGET_HINTS = ("max_tokens", "max_completion_tokens", "max output tokens")
+
+_RE_EXCEEDS = re.compile(
+    r"input too long[:.]?\s*(?:estimated\s+)?(\d[\d,]*)\s*tokens?\s*exceeds\s+(?:context_length|limit)\s+(\d[\d,]*)",
     re.I,
 )
+_RE_GT = re.compile(
+    r"(?:prompt|input)\s+is\s+too\s+long[:.]?\s*(\d[\d,]*)\s*>\s*(\d[\d,]*)",
+    re.I,
+)
+_RE_MAXCTX = re.compile(
+    r"(\d[\d,]*)\s*tokens?.{0,60}?maximum context length is\s*(\d[\d,]*)",
+    re.I,
+)
+_RE_MAXCTX_REV = re.compile(
+    r"maximum context length is\s*(\d[\d,]*).{0,60}?(\d[\d,]*)\s*tokens?",
+    re.I,
+)
+# Note: _RE_MAXCTX_REV group order is (allowed, actual) — reversed from others.
+# We swap in _parse_too_long when this regex matches.
+
+class _TooLong:
+    """Result of _parse_too_long: actual/allowed may each be int or None."""
+    __slots__ = ("actual", "allowed")
+    def __init__(self, actual, allowed):
+        self.actual = actual
+        self.allowed = allowed
+    def __bool__(self):
+        return True  # always truthy when returned (vs None = not matched)
+
+_COMPACT_SAFETY = 0.90        #留10%给system/tools编码差异
+_COMPACT_BLIND_RATIO = 0.60   #完全无数字时的盲压缩比
+_COMPACT_FLOOR = 8000
+_MAX_COMPACT_RETRIES = 2
 
 def _parse_too_long(err_text):
-    """Parse upstream 'too long' error to extract (actual, allowed) token counts."""
+    """Parse upstream 'too long' error.
+
+    Returns:
+        None          – not a "too long" error at all
+        _TooLong(a,b) – matched, a/allowed may be int or None
+    """
     txt = str(err_text) or ""
-    m = _TOO_LONG_RE.search(txt)
-    if not m:
-        # If the error looks like a "too long" variant but regex didn't parse numbers, warn
-        low = txt.lower()
-        if any(k in low for k in ("too long", "context length", "exceeds", "token limit")):
-            LOG.warning("_parse_too_long: matched keyword but failed to extract numbers from: %s", txt[:200])
-        return None
-    return int(m.group(1).replace(",", "")), int(m.group(2).replace(",", ""))
+    for rx in (_RE_EXCEEDS, _RE_GT, _RE_MAXCTX):
+        m = rx.search(txt)
+        if m:
+            return _TooLong(int(m.group(1).replace(",", "")), int(m.group(2).replace(",", "")))
+    # _RE_MAXCTX_REV has (allowed, actual) group order — swap
+    m = _RE_MAXCTX_REV.search(txt)
+    if m:
+        return _TooLong(int(m.group(2).replace(",", "")), int(m.group(1).replace(",", "")))
+    low = txt.lower()
+    if any(h in low for h in _TOO_LONG_HINTS):
+        #排除"输出预算过大"这类同样含too long但不该压缩的错误
+        if any(h in low for h in _OUTPUT_BUDGET_HINTS) and "context" not in low:
+            return None
+        return _TooLong(None, None)
+    return None
+
+
+def _compact_budget(tl, model, est_tokens):
+    """Derive compaction target from a _TooLong result."""
+    if tl.allowed:
+        return int(tl.allowed * _COMPACT_SAFETY)
+    ctx = (MODEL_META.get(model) or (None,))[0]
+    if ctx:
+        return int(ctx * _COMPACT_SAFETY)
+    base = tl.actual or est_tokens
+    return max(_COMPACT_FLOOR, int(base * _COMPACT_BLIND_RATIO))
 
 
 def _msg_blocks(msg):
@@ -1824,6 +1883,32 @@ def classify_error(err, default=529):
     return default, "api_error"
 
 
+# ── Error envelope builder ──────────────────────────────────────────────────
+# /v1/messages uses Anthropic format; /v1/responses and /v1/chat/completions
+# use OpenAI format (so openai-python / Cursor parse error.type / error.code).
+_OAI_ERROR_TYPE = {
+    "rate_limit_error": "rate_limit_exceeded",
+    "invalid_request_error": "invalid_request_error",
+    "overloaded_error": "server_error",
+    "api_error": "server_error",
+    "not_found_error": "invalid_request_error",
+}
+
+def _err_body(etype, message, flavor="openai"):
+    """Build error response body in the correct envelope for the endpoint.
+
+    flavor="anthropic" → {"type":"error","error":{"type":...,"message":...}}
+    flavor="openai"    → {"error":{"message":...,"type":...,"code":...}}
+    """
+    if flavor == "anthropic":
+        return {"type": "error", "error": {"type": etype, "message": message}}
+    return {"error": {
+        "message": message,
+        "type": _OAI_ERROR_TYPE.get(etype, "invalid_request_error"),
+        "code": etype,
+    }}
+
+
 def _tool_schemas_map(tools, anthropic=False):
     """Build name -> parameters-schema dict from an OpenAI or Anthropic tool list."""
     schemas = {}
@@ -2079,7 +2164,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         by /v1/chat/completions, then render a Responses-compatible response.
         This keeps Codex/Claude-Code-style clients from failing on 501."""
         if RATE and not RATE.acquire(timeout=0):
-            return self._send(429, {"error": {"type": "rate_limit_error", "message": "rate limit: too many requests, try again shortly"}}, extra={"Retry-After": "5"})
+            return self._send(429, _err_body("rate_limit_error", "rate limit: too many requests, try again shortly"), extra={"Retry-After": "5"})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
             threading.Thread(target=companion_touch, daemon=True).start()
         try:
@@ -2087,12 +2172,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except (ValueError, TypeError):
             length = 0
         if length > _MAX_BODY_BYTES:
-            return self._send(413, {"error": {"message": "request body too large (max %d MB)" % (_MAX_BODY_BYTES // 1024 // 1024)}})
+            return self._send(413, _err_body("invalid_request_error", "request body too large (max %d MB)" % (_MAX_BODY_BYTES // 1024 // 1024)))
         try:
             raw = self.rfile.read(length) if length else b"{}"
             req = json.loads(raw.decode("utf-8", "ignore"))
         except Exception as e:
-            return self._send(400, {"error": {"message": "bad json: %s" % e}})
+            return self._send(400, _err_body("invalid_request_error", "bad json: %s" % e))
 
         model = req.get("model") or DEFAULT_MODEL
         grp, sub, disp = resolve_model(model)
@@ -2231,9 +2316,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     tcs_out.append(data)
             # Retry with compaction on "too long" upstream error
             if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
-                actual, allowed = _parse_too_long(str(err))
-                LOG.warning("rid=%s [responses] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
-                target = int(_estimate_request_tokens(req, model=disp) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+                tl = _parse_too_long(str(err))
+                target = _compact_budget(tl, disp, _inp_toks)
+                LOG.warning("rid=%s [responses] upstream rejected — retrying compact target=%d", _rid, target)
                 req, _cprep, _compact_meta = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 msgs = req.get("messages") or []
@@ -2251,7 +2336,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         tcs_out.append(data)
             if err:
                 _code, _type = classify_error(err)
-                return self._send(_code, {"error": {"type": _type, "message": err}})
+                return self._send(_code, _err_body(_type, err, flavor="anthropic"))
             if tools_enabled and tcs_out:
                 tcs_out = _validate_and_coerce_tool_calls(tcs_out, tools)
             output = []
@@ -2276,9 +2361,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
         if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
-            actual, allowed = _parse_too_long(str(_err))
-            LOG.warning("rid=%s [responses] stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
-            target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+            tl = _parse_too_long(str(_err))
+            target = _compact_budget(tl, disp, _inp_toks)
+            LOG.warning("rid=%s [responses] stream upstream rejected — retrying compact target=%d", _rid, target)
             req2, _cprep2, _compact_meta = compact_request(req, target, model=disp)
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
             msgs2 = req2.get("messages") or []
@@ -2287,7 +2372,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if _err:
             _code, _type = classify_error(_err)
             _extra = {"Retry-After": "5"} if _code in (429, 529) else None
-            return self._send(_code, {"error": {"type": _type, "message": str(_err)}}, extra=_extra)
+            return self._send(_code, _err_body(_type, str(_err), flavor="anthropic"), extra=_extra)
         # Now safe to write SSE header
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -2354,7 +2439,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         directly, no external converter needed. Anthropic request -> private
         upstream -> Anthropic Messages streaming / non-streaming response."""
         if RATE and not RATE.acquire(timeout=0):
-            return self._send(429, {"type": "error", "error": {"type": "rate_limit_error", "message": "rate limit: too many requests, try again shortly"}}, extra={"Retry-After": "5"})
+            return self._send(429, _err_body("rate_limit_error", "rate limit: too many requests, try again shortly", flavor="anthropic"), extra={"Retry-After": "5"})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
             threading.Thread(target=companion_touch, daemon=True).start()
         try:
@@ -2362,7 +2447,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except (ValueError, TypeError):
             length = 0
         if length > _MAX_BODY_BYTES:
-            return self._send(413, {"error": {"message": "request body too large (max %d MB)" % (_MAX_BODY_BYTES // 1024 // 1024)}})
+            return self._send(413, _err_body("invalid_request_error", "request body too large (max %d MB)" % (_MAX_BODY_BYTES // 1024 // 1024)))
         try:
             raw = self.rfile.read(length) if length else b"{}"
             req = json.loads(raw.decode("utf-8", "ignore"))
@@ -2445,9 +2530,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     tcs_out.append(data)
             # Retry with compaction on "too long" upstream error
             if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
-                actual, allowed = _parse_too_long(str(err))
-                LOG.warning("rid=%s upstream rejected actual=%d allowed=%d — retrying with compaction", _rid, actual, allowed)
-                target = int(_estimate_request_tokens(req, model=disp) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+                tl = _parse_too_long(str(err))
+                target = _compact_budget(tl, disp, _inp_toks)
+                LOG.warning("rid=%s upstream rejected — retrying with compaction target=%d", _rid, target)
                 req, _cprep, _compact_meta = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 anth_messages = req.get("messages") or []
@@ -2510,9 +2595,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
         if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
-            actual, allowed = _parse_too_long(str(_err))
-            LOG.warning("rid=%s stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
-            target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+            tl = _parse_too_long(str(_err))
+            target = _compact_budget(tl, disp, _inp_toks)
+            LOG.warning("rid=%s stream upstream rejected — retrying compact target=%d", _rid, target)
             req2, _cprep2, _compact_meta = compact_request(req, target, model=disp)
             LOG.info("rid=%s stream retry compacted %s", _rid, _cprep2)
             anth_messages2 = req2.get("messages") or []
@@ -2527,7 +2612,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if _err:
             _code, _type = classify_error(_err, 529)
             _extra = {"Retry-After": "5"} if _code in (429, 529) else None
-            return self._send(_code, {"type": "error", "error": {"type": _type, "message": str(_err)}}, extra=_extra)
+            return self._send(_code, _err_body(_type, str(_err), flavor="anthropic"), extra=_extra)
         # Now safe to write SSE header — upstream is streaming
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -2681,7 +2766,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(200, {"object": "list", "data": data})
             sys.stderr.write(f"[RES] {self.path} 200 models={len(data)} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
             return
-        self._send(404, {"error": {"message": "not found"}})
+        self._send(404, _err_body("not_found_error", "not found"))
     def do_POST(self):
         _t0 = time.monotonic()
         if self.path.startswith("/v1/messages"):
@@ -2689,10 +2774,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path.startswith("/v1/responses"):
             return self._handle_responses()
         if not self.path.startswith("/v1/chat/completions"):
-            self._send(404, {"error": {"message": "not found"}})
+            self._send(404, _err_body("not_found_error", "not found"))
             return
         if RATE and not RATE.acquire(timeout=0):
-            return self._send(429, {"error": {"message": "rate limit: too many requests, try again shortly"}})
+            return self._send(429, _err_body("rate_limit_error", "rate limit: too many requests, try again shortly"), extra={"Retry-After": "5"})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
             threading.Thread(target=companion_touch, daemon=True).start()
         try:
@@ -2700,12 +2785,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except (ValueError, TypeError):
             length = 0
         if length > _MAX_BODY_BYTES:
-            return self._send(413, {"error": {"message": "request body too large (max %d MB)" % (_MAX_BODY_BYTES // 1024 // 1024)}})
+            return self._send(413, _err_body("invalid_request_error", "request body too large (max %d MB)" % (_MAX_BODY_BYTES // 1024 // 1024)))
         try:
             raw = self.rfile.read(length) if length else b"{}"
             req = json.loads(raw.decode("utf-8"))
         except Exception as e:
-            return self._send(400, {"error": {"message": "bad json: %s" % e}})
+            return self._send(400, _err_body("invalid_request_error", "bad json: %s" % e))
         # DIAG: dump compact shape of incoming chat/completions request (for Codex++ conversion debugging)
         try:
             _msgs = req.get("messages") or []
@@ -2767,9 +2852,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     sources = data or []
             # Retry with compaction on "too long" upstream error
             if err and _COMPACT_ENABLED and _parse_too_long(str(err)):
-                actual, allowed = _parse_too_long(str(err))
-                LOG.warning("rid=%s [chat] upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
-                target = int(_estimate_request_tokens(req, model=disp) * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+                tl = _parse_too_long(str(err))
+                target = _compact_budget(tl, disp, _inp_toks)
+                LOG.warning("rid=%s [chat] upstream rejected — retrying compact target=%d", _rid, target)
                 req, _cprep, _compact_meta = compact_request(req, target, model=disp)
                 LOG.info("rid=%s retry compacted %s", _rid, _cprep)
                 messages = req.get("messages") or []
@@ -2789,7 +2874,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         sources = data or []
             if err:
                 _code, _type = classify_error(err)
-                return self._send(_code, {"error": {"type": _type, "message": err}})
+                return self._send(_code, _err_body(_type, err))
             if tools_enabled and tcs_out:
                 tcs_out = _validate_and_coerce_tool_calls(tcs_out, tools)
             content = "".join(answer)
@@ -2820,9 +2905,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
         if _err and _COMPACT_ENABLED and _parse_too_long(str(_err)):
-            actual, allowed = _parse_too_long(str(_err))
-            LOG.warning("rid=%s [chat] stream upstream rejected actual=%d allowed=%d — retrying", _rid, actual, allowed)
-            target = int(_inp_toks * (allowed / actual) * 0.93) if actual else int(allowed * 0.93)
+            tl = _parse_too_long(str(_err))
+            target = _compact_budget(tl, disp, _inp_toks)
+            LOG.warning("rid=%s [chat] stream upstream rejected — retrying compact target=%d", _rid, target)
             req2, _cprep2, _compact_meta = compact_request(req, target, model=disp)
             LOG.info("rid=%s retry compacted %s", _rid, _cprep2)
             messages2 = req2.get("messages") or []
@@ -2831,7 +2916,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if _err:
             _code, _type = classify_error(_err)
             _extra = {"Retry-After": "5"} if _code in (429, 529) else None
-            return self._send(_code, {"error": {"type": _type, "message": str(_err)}}, extra=_extra)
+            return self._send(_code, _err_body(_type, str(_err)), extra=_extra)
         # Now safe to write SSE header
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
