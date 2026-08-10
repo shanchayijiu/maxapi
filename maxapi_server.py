@@ -1790,7 +1790,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 pass
 
 
-def classify_error(err, default=502):
+def classify_error(err, default=529):
     """Classify an upstream error string into (http_code, error_type) for both
     OpenAI and Anthropic error envelopes."""
     etxt = str(err)
@@ -2274,7 +2274,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, msgs2)
             _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, str(effort).lower(), search, tools_enabled2, max_retry=3, max_tokens=max_tokens)
         if _err:
-            return self._send(classify_error(_err)[0], {"error": {"type": classify_error(_err)[1], "message": str(_err)}})
+            _code, _type = classify_error(_err)
+            _extra = {"Retry-After": "5"} if _code in (429, 529) else None
+            return self._send(_code, {"error": {"type": _type, "message": str(_err)}}, extra=_extra)
         # Now safe to write SSE header
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -2512,7 +2514,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             msgs_up2, tools_enabled2 = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs2)
             _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, effort, search, tools_enabled2, max_retry=3, max_tokens=max_tokens)
         if _err:
-            return self._send(classify_error(_err, 529)[0], {"type": "error", "error": {"type": classify_error(_err, 529)[1], "message": str(_err)}})
+            _code, _type = classify_error(_err, 529)
+            _extra = {"Retry-After": "5"} if _code in (429, 529) else None
+            return self._send(_code, {"type": "error", "error": {"type": _type, "message": str(_err)}}, extra=_extra)
         # Now safe to write SSE header — upstream is streaming
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -2814,7 +2818,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             msgs_up2, tools_enabled2 = _build_messages_with_tools(tools, tool_choice, messages2)
             _first, _iter, _err = _prefetch_first_upstream(model, msgs_up2, include_reasoning, str(effort).lower(), search, tools_enabled2, max_retry=3, max_tokens=max_tokens)
         if _err:
-            return self._send(classify_error(_err)[0], {"error": {"type": classify_error(_err)[1], "message": str(_err)}})
+            _code, _type = classify_error(_err)
+            _extra = {"Retry-After": "5"} if _code in (429, 529) else None
+            return self._send(_code, {"error": {"type": _type, "message": str(_err)}}, extra=_extra)
         # Now safe to write SSE header
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
