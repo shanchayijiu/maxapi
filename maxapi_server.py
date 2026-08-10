@@ -1366,14 +1366,24 @@ def _parse_too_long(err_text):
         _TooLong(a,b) – matched, a/allowed may be int or None
     """
     txt = str(err_text) or ""
+    # Truncate to prevent ReDoS on huge upstream error bodies
+    txt = txt[:8192]
     for rx in (_RE_EXCEEDS, _RE_GT, _RE_MAXCTX):
         m = rx.search(txt)
         if m:
-            return _TooLong(int(m.group(1).replace(",", "")), int(m.group(2).replace(",", "")))
+            actual, allowed = int(m.group(1).replace(",", "")), int(m.group(2).replace(",", ""))
+            # Invariant: actual should be > allowed (used exceeded limit)
+            if actual is not None and allowed is not None and actual <= allowed:
+                return None  # suspicious parse, reject entirely
+            return _TooLong(actual, allowed)
     # _RE_MAXCTX_REV has (allowed, actual) group order — swap
     m = _RE_MAXCTX_REV.search(txt)
     if m:
-        return _TooLong(int(m.group(2).replace(",", "")), int(m.group(1).replace(",", "")))
+        actual, allowed = int(m.group(2).replace(",", "")), int(m.group(1).replace(",", ""))
+        if actual > allowed:
+            return _TooLong(actual, allowed)
+        return None  # inverted, reject
+    # Keyword fallback: only if no regex matched at all
     low = txt.lower()
     if any(h in low for h in _TOO_LONG_HINTS):
         #排除"输出预算过大"这类同样含too long但不该压缩的错误
