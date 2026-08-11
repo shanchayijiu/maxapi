@@ -1840,15 +1840,17 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                         return
                     ct = obj.get("content")
                     if ct is not None and ct != "":
-                        content_yielded = True
                         for kind, piece in filt.feed(ct):
                             if kind == "reasoning" and include_reasoning:
+                                content_yielded = True
                                 yield ("reasoning", piece)
                             elif kind == "content":
                                 if tparser is not None:
                                     for tk, tp in tparser.feed(piece):
+                                        content_yielded = True
                                         yield (tk, tp)
                                 else:
+                                    content_yielded = True
                                     yield ("content", piece)
                     if obj.get("sources") is not None and not sources_sent:
                         sources_sent = True
@@ -1858,15 +1860,20 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             # stream ended — always flush remaining buffers
             for kind, piece in filt.flush():
                 if kind == "reasoning" and include_reasoning:
+                    content_yielded = True
                     yield ("reasoning", piece)
                 elif kind == "content":
                     if tparser is not None:
                         for tk, tp in tparser.feed(piece):
+                            content_yielded = True
                             yield (tk, tp)
                     else:
+                        content_yielded = True
                         yield ("content", piece)
             if tparser is not None:
                 for tk, tp in tparser.flush():
+                    content_yielded = True
+                    yield (tk, tp)
                     yield (tk, tp)
             if not got_done and not volatile and not content_yielded:
                 # stream cut without done — likely connection error, retry only if no content sent
@@ -2319,7 +2326,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             effort = "max"
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         _rid = _uuid.uuid4().hex[:8]
-        max_tokens = req.get("max_tokens") or req.get("max_output_tokens") or 8192
+        max_tokens = req.get("max_tokens") if "max_tokens" in req else (req.get("max_output_tokens") if "max_output_tokens" in req else 8192)
+        max_tokens = max_tokens or 8192  # only fallback for None/0
         _pf = _context_limit(disp, max_tokens)
         # Inject synthetic "messages" key BEFORE estimation so token count is accurate
         _is_responses_fmt = "messages" not in req and ("input" in req or "instructions" in req)
