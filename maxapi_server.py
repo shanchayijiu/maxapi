@@ -1752,6 +1752,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         payload["search"] = True
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     sources_sent = False
+    content_yielded = False
     for attempt in range(1, max_retry + 1):
         # 重建解析器，避免重试时残留上次的部分状态导致输出错乱
         filt = ReasoningFilter(include_reasoning=include_reasoning)
@@ -1839,6 +1840,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                         return
                     ct = obj.get("content")
                     if ct is not None and ct != "":
+                        content_yielded = True
                         for kind, piece in filt.feed(ct):
                             if kind == "reasoning" and include_reasoning:
                                 yield ("reasoning", piece)
@@ -1866,14 +1868,14 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             if tparser is not None:
                 for tk, tp in tparser.flush():
                     yield (tk, tp)
-            if not got_done and not volatile:
-                # stream cut without done — likely connection error, retry
+            if not got_done and not volatile and not content_yielded:
+                # stream cut without done — likely connection error, retry only if no content sent
                 if attempt < max_retry:
                     _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
                     LOG.warning("[nodone %d/%d] stream cut, retry in %.1fs", attempt, max_retry, _sleep)
                     time.sleep(_sleep)
                     continue
-            if volatile and not got_done and attempt < max_retry:
+            if volatile and not got_done and not content_yielded and attempt < max_retry:
                 _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
                 LOG.warning("[volatile %d/%d] retry in %.1fs", attempt, max_retry, _sleep)
                 time.sleep(_sleep)
@@ -2213,6 +2215,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             req = json.loads(raw.decode("utf-8", "ignore"))
         except Exception as e:
             return self._send(400, _err_body("invalid_request_error", "bad json: %s" % e))
+        if not isinstance(req, dict):
+            return self._send(400, _err_body("invalid_request_error", "request body must be a JSON object"))
 
         model = req.get("model") or DEFAULT_MODEL
         grp, sub, disp = resolve_model(model)
@@ -2315,15 +2319,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             effort = "max"
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         _rid = _uuid.uuid4().hex[:8]
-        max_tokens = req.get("max_tokens") or 8192
+        max_tokens = req.get("max_tokens") or req.get("max_output_tokens") or 8192
         _pf = _context_limit(disp, max_tokens)
-        _inp_toks = _estimate_request_tokens(req, model=disp)
-        _COMPACT_THRESHOLD = 1.25
-        _compact_meta = {}
-        # Inject synthetic "messages" key for Responses format so compact_request can operate on it
+        # Inject synthetic "messages" key BEFORE estimation so token count is accurate
         _is_responses_fmt = "messages" not in req and ("input" in req or "instructions" in req)
         if _is_responses_fmt:
             req["messages"] = msgs
+        _inp_toks = _estimate_request_tokens(req, model=disp)
+        _COMPACT_THRESHOLD = 1.25
+        _compact_meta = {}
         if _inp_toks > _pf:
             LOG.warning("rid=%s [responses] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
         if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
@@ -2766,8 +2770,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if "text" not in blocks:
                     open_block("text", {"text": ""})
                     close_block("text")
-            sse("message_delta", {"delta": {"stop_reason": stop_reason["r"], "stop_sequence": None}, "usage": {"output_tokens": max(1, output_acc["n"] // 4 + 2)}})
-            sse("message_stop", {})
+            if not stream_failed:
+                sse("message_delta", {"delta": {"stop_reason": stop_reason["r"], "stop_sequence": None}, "usage": {"output_tokens": max(1, output_acc["n"] // 4 + 2)}})
+                sse("message_stop", {})
             LOG.info("rid=%s <- 200 stream model=%s time=%dms", _rid, disp, int((time.monotonic()-_t0)*1000))
         except Exception as e:
             try:
