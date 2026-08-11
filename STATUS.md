@@ -1,10 +1,10 @@
 # maxapi STATUS
 
-> 2026-08-10 更新: commit `2b97bff` — 8080 review全部5项改进完成（B2响应header、EWMA自校准、Q2依赖图、B4格式感知、流式重试）。部署到8080并验证通过。
+> 2026-08-10 更新: commit `288ae48` — Opus 5三轮review：_parse_too_long三态+head+tail截断+_compact_budget单调递减+output reserve+_err_body统一错误构造器。51项兼容测试全部通过。
 
 ## 一句话现状
 
-`maxapi_server.py` 最新提交 `2b97bff`。上下文管理全链路改进完成，13个模型可用。
+`maxapi_server.py` 最新提交 `288ae48`。Opus 5三轮review修复完成，51项兼容测试全部通过。
 
 ## 已稳部分
 
@@ -24,6 +24,27 @@
 - 真实 forced tool_call 路径通过：Responses 和 Chat 在 `tool_choice` 强制 `do_work` 时均返回 function call，参数为 `{"count": 3, "flag": true}`，未出现 502。
 
 ## 2026-08-10 改动详情
+
+### Opus 5三轮review修复（commit `288ae48`）
+
+#### P0: _parse_too_long三态
+- 返回`_TooLong(actual, allowed)`对象，actual/allowed可为None
+- 4个正则：exceeds、gt、max-context正序、max-context反序
+- head+tail截断(各4096字符，>8192才截)，防ReDoS
+- `int()`包try/except，invariant(actual>=allowed)用if return+LOG.warning
+- 关键词fallback仅在无regex匹配时触发
+
+#### P1: _err_body统一错误构造器
+- `flavor='anthropic'` → `{"type":"error","error":{"type":...,"message":...}}`
+- `flavor='openai'` → `{"error":{"message":...,"type":...,"code":...}}`
+- /v1/messages用anthropic，/v1/responses和/v1/chat/completions用openai
+- 流式SSE error frame保持手写Anthropic格式
+
+#### _compact_budget单调递减
+- `allowed*0.9 - out_reserve` → `min(budget, est*0.8)` → `max(8000, ...)`
+- MODEL_META查context不带默认值，unknown model走blind path
+- 负数budget时LOG.warning+fallback到floor
+- 所有6个调用点用walrus operator去重复调用
 
 ### 1. 移除preflight拒绝
 - 三个端点(`/v1/messages`, `/v1/responses`, `/v1/chat/completions`)不再在preflight阶段拒绝长输入
