@@ -1,10 +1,10 @@
 # maxapi STATUS
 
-> 2026-08-10 更新: commit `288ae48` — Opus 5三轮review：_parse_too_long三态+head+tail截断+_compact_budget单调递减+output reserve+_err_body统一错误构造器。51项兼容测试全部通过。
+> 2026-08-10 更新: commit `2906478` — GPT5.6-sol全面审计+修复（流式重试守卫、错误后停止、Responses估算+max_output_tokens、输入校验）。51项兼容测试全部通过。
 
 ## 一句话现状
 
-`maxapi_server.py` 最新提交 `288ae48`。Opus 5三轮review修复完成，51项兼容测试全部通过。
+`maxapi_server.py` 最新提交 `2906478`。Opus5三轮review + GPT5.6-sol审计修复完成，51项兼容测试全部通过。
 
 ## 已稳部分
 
@@ -168,22 +168,20 @@ python /c/Users/Administrator/Desktop/maxapi/_local_compat_check.py
 
 ## 当前文件状态
 
-- `maxapi_server.py`: 本会话未修改；与最新提交 `7032fc1` 保持一致。
-- `_local_compat_check.py`: 未跟踪文件，本会话扩展了检查项并修正 DSML prompt 断言。
-- `_orig.py`: 未跟踪文件，疑似本地源码备份，未修改。
-- `STATUS.md`: 本文件，本会话新建，用于续做断点。
+- `maxapi_server.py`: 最新提交 `2906478`，含Opus5三轮review修复+GPT5.6-sol审计5项修复。
+- `_local_compat_check.py`: 51项测试全部通过。
+- `STATUS.md`: 本文件。
 - `.gitignore`: 未修改。
 
 ## 下一步建议
 
-1. 如目标是只复核 Codex 修复: 当前可收口，证据是 `_local_compat_check.py` 24/24 PASS。
-2. 如目标是提交辅助检查: 需要决定是否把 `_local_compat_check.py` 和 `STATUS.md` 纳入 git；`_orig.py` 更像本地备份，不建议提交。
-3. 如真实客户端仍遇到 tool call 参数错误: 下一步重点验证 `additionalProperties: False` 时服务端应剔除额外字段、返回错误，还是保留当前“只记录 stderr”的行为。
-4. 真实本地服务访问真实 upstream 已验证通过；若后续仍遇到线上 502，下一步应对比线上部署环境、网络、端口代理、环境变量和请求体差异，而不是优先怀疑当前 `maxapi_server.py` 的已测桥接逻辑。
+1. 如目标是完美api化: 当前可收口，证据是51项兼容测试全部通过+GPT5.6-sol审计确认。
+2. 如真实客户端仍遇到 tool call 参数错误: 下一步重点验证 `additionalProperties: False` 时服务端应剔除额外字段、返回错误，还是保留当前”只记录 stderr”的行为。
+3. 真实本地服务访问真实 upstream 已验证通过；若后续仍遇到线上 502，下一步应对比线上部署环境、网络、端口代理、环境变量和请求体差异。
 
 ## 进度报告四要素
 
-- 已完成: 复核 Codex 最新提交、扩展本地兼容检查、修正测试断言、创建 STATUS.md。
-- 实证: `python /c/Users/Administrator/Desktop/maxapi/_local_compat_check.py` 最终 `TOTAL 24 FAIL 0`。
-- 未完成: 未决定是否提交 `_local_compat_check.py` / `STATUS.md`；未处理 `_orig.py`。
-- 下一步: 若继续，先 `git -C /c/Users/Administrator/Desktop/maxapi status --short`，再按目标选择提交检查脚本/STATUS 或清理本地备份 `_orig.py`。
+- 已完成: Opus5三轮review修复（17项问题）+ GPT5.6-sol审计修复（5项：流式重试守卫、错误后停止、Responses估算+max_output_tokens、输入校验）。
+- 实证: `python _local_compat_check.py` 最终 51/51 PASS。
+- 未完成: 无阻塞性待修项。
+- 下一步: 可收口；后续按真实客户端反馈按需修复。
