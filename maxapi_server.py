@@ -1408,7 +1408,7 @@ def _parse_too_long(err_text):
 def _compact_budget(tl, model, est_tokens, max_tokens=8192):
     """Derive compaction target from a _TooLong result.
 
-    Guarantees: result < est_tokens (monotonic decrease) and accounts for
+    Guarantees: result <= est_tokens (monotonic decrease) and accounts for
     output reservation (max_tokens) so the compacted payload fits.
     """
     out_reserve = max_tokens or 8192
@@ -1421,6 +1421,10 @@ def _compact_budget(tl, model, est_tokens, max_tokens=8192):
         else:
             base = tl.actual or est_tokens
             budget = max(_COMPACT_FLOOR, int(base * _COMPACT_BLIND_RATIO))
+    if budget <= 0:
+        LOG.warning("_compact_budget: budget=%d (allowed*0.9=%s out_reserve=%d), using floor",
+                     budget, tl.allowed, out_reserve)
+        budget = _COMPACT_FLOOR
     # Ensure strict decrease from current estimate
     return max(_COMPACT_FLOOR, min(budget, int(est_tokens * 0.80)))
 
