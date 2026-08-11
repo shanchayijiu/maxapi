@@ -1,10 +1,10 @@
 # maxapi STATUS
 
-> 2026-08-10 更新: commit `2906478` — GPT5.6-sol全面审计+修复（流式重试守卫、错误后停止、Responses估算+max_output_tokens、输入校验）。51项兼容测试全部通过。
+> 2026-08-11 更新: commit `5e80617` — 修复长对话+tools场景用户指令丢失问题（trailing system reminder），303条消息+19个tools记忆测试全满分。
 
 ## 一句话现状
 
-`maxapi_server.py` 最新提交 `2906478`。Opus5三轮review + GPT5.6-sol审计修复完成，51项兼容测试全部通过。
+`maxapi_server.py` 最新提交 `5e80617`。Opus5诊断+trailing reminder修复，scale test 10-150轮全4/4通过。
 
 ## 已稳部分
 
@@ -168,16 +168,17 @@ python /c/Users/Administrator/Desktop/maxapi/_local_compat_check.py
 
 ## 当前文件状态
 
-- `maxapi_server.py`: 最新提交 `2906478`，含Opus5三轮review修复+GPT5.6-sol审计5项修复。
+- `maxapi_server.py`: 最新提交 `5e80617`，含trailing reminder修复+upstream诊断日志。
 - `_local_compat_check.py`: 51项测试全部通过。
+- `_canary_scale.py`: 记忆scale test（10-150轮全满分）。
 - `STATUS.md`: 本文件。
 - `.gitignore`: 未修改。
 
 ## 下一步建议
 
-1. 如目标是完美api化: 当前可收口，证据是51项兼容测试全部通过+GPT5.6-sol审计确认。
-2. 如真实客户端仍遇到 tool call 参数错误: 下一步重点验证 `additionalProperties: False` 时服务端应剔除额外字段、返回错误，还是保留当前”只记录 stderr”的行为。
-3. 真实本地服务访问真实 upstream 已验证通过；若后续仍遇到线上 502，下一步应对比线上部署环境、网络、端口代理、环境变量和请求体差异。
+1. NAS部署最新代码（含trailing reminder修复）
+2. 测试stream中断问题 — 可能需要调大`_STALL_TIMEOUT`或优化上游连接处理
+3. 确认se.zzmax真实context limit（从日志看至少180k）
 
 ## 进度报告四要素
 
