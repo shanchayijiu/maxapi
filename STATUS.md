@@ -292,22 +292,59 @@ HTTP/1.0 客户端不认，会把 `163\r\n` 这类十六进制长度行当正文
 - 5 个退役 ID 全部路由到 `claude-opus-5`
 - 全项目 grep 无残留 4.8 引用
 
-## 待决策：`thinking: {type: "disabled"}` 白烧推理 token
+## 2026-08-12 GPT 5.6 sol 路径 Review
 
-`_handle_messages` 2635-2643 行：`disabled` 只关了 `include_reasoning`，
-`effort` 仍是 `max`。上游照样全速思考，推理内容在代理层被丢弃。
+### 结论：代理链路完全正常，之前误判
 
-实测传给 `upstream()` 的参数：
+实测确认：**GPT 5.6 sol 通过代理的 tool calling 是通的。**
+之前说"GPT 不能正常用"是误判，根因是测试脚本往 upstream payload 里
+加了 `tools` 参数（代理不会这么做），导致上游告诉 GPT"没有可用工具"。
 
-| 客户端请求 | effort | include_reasoning |
+### 逐段验证
+
+| 环节 | 状态 | 说明 |
 |---|---|---|
-| 默认（无思考参数）| `max` | True |
-| `thinking: disabled` | **`max`** | **False** ← 白烧 |
-| `reasoning_effort: "off"` | `off` | False（正确）|
+| 模型解析 | ✅ | `resolve_model("gpt-5.6-sol")` → `("chatgpt","gpt-5.6-luna")` |
+| DSML prompt | ✅ | 完整 prompt GPT 认，压缩单行版不认（代理用的是完整版） |
+| 上游 payload | ✅ | 不含 `tools` 参数，上游不会回绝 |
+| ReasoningFilter | ✅ | GPT 输出 `<think>` 标签，正确剥离为 `reasoning_content` |
+| ToolCallParser | ✅ | DSML 解析正确：`name="do_work"`, `count=3` |
+| 多轮 round-trip | ✅ | tool result 回传后 GPT 继续正确调用 |
+| 文本/工具切换 | ✅ | 被要求纯对话时正确退出 DSML 模式 |
+| SSE 转换 | ✅ | `/v1/chat/completions` 和 `/v1/messages` 都正确 |
 
-修法一行（`disabled` 时同时置 `effort="off"`），但有行为后果：
-若 Claude Code 默认就发 `disabled`，修完上游会真的不思考，输出质量下降。
-**建议先加一行 log 观察真实流量再决定**，别凭猜测改。
+### 多轮 round-trip 实测
+
+```
+Round 1: GPT → DSML(do_work, count=3)     ✅
+Round 2: GPT → DSML(do_work, count=5)     ✅（参数正确递增）
+Round 3: GPT → 纯文本笑话                  ✅（正确退出 tool call 模式）
+```
+
+### 上游 GPT 模型可用性
+
+| 模型 | 状态 |
+|---|---|
+| `gpt-5.6-sol` | ✅ 8/8 纯文本 + tool call |
+| `gpt-5.6-terra` | ❌ 0/8 上游已死 |
+| `GPT-5.5` | ❌ 0/8 上游已死 |
+
+`gpt-5.6-terra` 和 `GPT-5.5` 跟 4.8 一样的问题：上游「暂无可用的服务提供商」。
+要不要也下架？还是观察一段时间？
+
+### 上游 GPT 不支持原生 function calling
+
+OpenAI 原生 `tools` / `functions` 参数在上游被拦截，GPT 会收到
+"no tools available" 而拒绝调用。代理的 DSML prompt 工程绕过了这个限制：
+tools 不走 payload 而是注入 messages，上游不拦截 messages 里的文本指令。
+
+这是代理的核心设计优势——也是唯一可行的路径。
+
+### `thinking: disabled` 白烧推理 token（遗留）
+
+`/v1/messages` 2635 行：`disabled` 只关 `include_reasoning`，`effort` 仍是 `max`。
+上游照样全速思考，推理内容被丢弃。修法一行，但需要先确认 Claude Code 是否
+默认发 `disabled`。已记在上面待决策区。
 
 ## 已确认正常（无需动）
 
