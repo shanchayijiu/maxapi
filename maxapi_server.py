@@ -980,21 +980,65 @@ def _build_messages_with_tools(tools, tool_choice, messages):
 
 
 def _inside_fence(text):
-    depth = 0
-    fence_char = ""
-    at_start = True
-    for ch in text:
-        if ch in "`~":
-            if at_start and not fence_char:
-                fence_char = ch
-                depth += 1
-            elif fence_char and ch == fence_char:
-                depth -= 1
-                fence_char = ""
-            at_start = False
+    """Return True if `text` ends inside an open fenced code block.
+    Recognises triple-backtick and triple-tilde fences (CommonMark subset).
+    Each line is examined for a fence marker (run of 3+ identical chars at
+    line start, after up to 3 leading spaces); indented lines (4+ spaces)
+    are treated as indented code and never as fence openers/closers.
+    """
+    in_fence = False
+    fence_ch = ""
+    fence_run = 0
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        # consume line endings
+        if ch in "\r\n":
+            i += 1
+            if ch == "\r" and i < n and text[i] == "\n":
+                i += 1
             continue
-        at_start = ch in "\n\r"
-    return depth > 0
+        # count up to 3 leading spaces
+        spaces = 0
+        j = i
+        while j < n and text[j] == " " and spaces < 4:
+            spaces += 1
+            j += 1
+        if spaces >= 4:
+            # indented code line — cannot be a fence; skip to EOL
+            while i < n and text[i] not in "\r\n":
+                i += 1
+            continue
+        i = j  # advance past leading spaces
+        # check for backtick/tilde run
+        if i < n and text[i] in "`~":
+            fc = text[i]
+            run = 0
+            k = i
+            while k < n and text[k] == fc:
+                run += 1
+                k += 1
+            if run >= 3:
+                if not in_fence:
+                    in_fence = True
+                    fence_ch = fc
+                    fence_run = run
+                    i = k
+                    # skip info string to EOL
+                    while i < n and text[i] not in "\r\n":
+                        i += 1
+                    continue
+                elif fc == fence_ch and run >= fence_run:
+                    in_fence = False
+                    fence_ch = ""
+                    fence_run = 0
+                    i = k
+                    continue
+        # skip rest of line
+        while i < n and text[i] not in "\r\n":
+            i += 1
+    return in_fence
 
 
 def _find_partial(s):
@@ -1019,16 +1063,25 @@ def _find_seg(s):
     low = s.lower()
     best = -1
     for prefix in _TOOL_TAG_FULLS:
-        idx = low.find(prefix)
-        if idx >= 0 and not _inside_fence(s[:idx]):
-            if best < 0 or idx < best:
-                best = idx
+        # Loop past fence-enclosed occurrences so a tag inside a code block
+        # doesn't shadow a real tag that follows it.
+        pos = 0
+        while True:
+            idx = low.find(prefix, pos)
+            if idx < 0:
+                break
+            if not _inside_fence(s[:idx]):
+                if best < 0 or idx < best:
+                    best = idx
+                break  # found a valid one; earlier is always better for this prefix
+            pos = idx + 1
     # bare <function=NAME> opener (se.zzmax upstream): name varies, match by regex
-    fn = re.search(r'<function\s*=\s*"?[A-Za-z_]', s, re.IGNORECASE)
-    if fn:
+    for fn in re.finditer(r'<function\s*=\s*"?[A-Za-z_]', s, re.IGNORECASE):
         fidx = fn.start()
-        if not _inside_fence(s[:fidx]) and (best < 0 or fidx < best):
-            best = fidx
+        if not _inside_fence(s[:fidx]):
+            if best < 0 or fidx < best:
+                best = fidx
+            break  # earliest valid match wins
     return best
 
 
