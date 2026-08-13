@@ -439,12 +439,13 @@ _TOOL_TAG_PREFIXES = [
     "<|dsml|tool_calls", "<|dsml|invoke", "<|dsml|parameter",
     "<|tool_calls", "<|invoke", "<|parameter",
     "<dsml|tool_calls", "<dsml|invoke", "<dsml|parameter",
-    "<function",  # se.zzmax upstream <function=NAME> format
+    "<function",  # se.zzmax <function=NAME> AND Claude-native <function_calls>
 ]
 
 # Full opening tags (with > or space) for segment detection.
 # These only match when the tag has a body separator (> or whitespace), not mid-build.
 _TOOL_TAG_FULLS = [
+    "<function_calls>", "<function_calls ", "<function_calls\t", "<function_calls\n", "<function_calls\r",
     "<tool_calls>", "<tool_calls ", "<tool_calls\t", "<tool_calls\n", "<tool_calls\r",
     "<invoke>", "<invoke ", "<invoke\t", "<invoke\n", "<invoke\r",
     "<parameter>", "<parameter ", "<parameter\t", "<parameter\n", "<parameter\r",
@@ -592,7 +593,12 @@ def _parse_param(name, raw):
     return decoded
 
 
+_RE_FUNCTION_CALLS = re.compile(r'<(/?)function_calls\b[^>]*>', re.IGNORECASE)
+
 def _normalize_dsml(text):
+    # Claude-native antml format uses <function_calls> as the wrapper;
+    # normalize to <tool_calls> so all downstream parsing handles it uniformly.
+    text = _RE_FUNCTION_CALLS.sub(lambda m: '<' + m.group(1) +'tool_calls>', text)
     return _RE_DSML_STRIP.sub(r'\1', text)
 
 
