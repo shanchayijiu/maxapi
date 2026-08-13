@@ -321,16 +321,34 @@ Round 2: GPT → DSML(do_work, count=5)     ✅（参数正确递增）
 Round 3: GPT → 纯文本笑话                  ✅（正确退出 tool call 模式）
 ```
 
+## 2026-08-12 下架 GPT terra/5.5（commit `c2bcab3`）
+
 ### 上游 GPT 模型可用性
 
-| 模型 | 状态 |
-|---|---|
-| `gpt-5.6-sol` | ✅ 8/8 纯文本 + tool call |
-| `gpt-5.6-terra` | ❌ 0/8 上游已死 |
-| `GPT-5.5` | ❌ 0/8 上游已死 |
+| 模型 | 状态 | 处理 |
+|---|---|---|
+| `gpt-5.6-sol` | ✅ 8/8 | 保留，唯一可用 GPT |
+| `gpt-5.6-terra` | ❌ 0/8 | 下架，alias → sol |
+| `GPT-5.5` | ❌ 0/8 | 下架，alias → sol |
 
-`gpt-5.6-terra` 和 `GPT-5.5` 跟 4.8 一样的问题：上游「暂无可用的服务提供商」。
-要不要也下架？还是观察一段时间？
+处理方式同 4.8：RAW_MODELS 移除条目，所有 alias 重定向到 gpt-5.6-sol。
+加 `GPT-5.5` 大写显示名 alias 防止静默降级到 DEFAULT_MODEL（又一个 opus 4.8 踩过的坑）。
+
+模型清单：13 → 12（4.8）→ **10**（+terra/5.5）。
+
+### 实证
+
+- `python _local_compat_check.py` → **70/70 FAIL 0**
+- 退役模型（gpt-5.6-terra / GPT-5.5 / claude-opus-4-8）全部 200 路由到活模型
+- GPT tool call 两条路径端到端通过
+
+### 当前 commit 历史
+
+```
+c2bcab3 fix: 下架gpt-5.6-terra和GPT-5.5，只保留gpt-5.6-sol，70/70
+3d01139 docs: GPT 5.6 sol 路径 review — 代理链路完全正常
+5181a17 fix: SSE分帧修复+下架Opus4.8，63/63
+```
 
 ### 上游 GPT 不支持原生 function calling
 
