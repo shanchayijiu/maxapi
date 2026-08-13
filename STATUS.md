@@ -174,11 +174,164 @@ python /c/Users/Administrator/Desktop/maxapi/_local_compat_check.py
 - `STATUS.md`: 本文件。
 - `.gitignore`: 未修改。
 
+## 2026-08-12 SSE 分帧修复（未提交）
+
+### 根因: `Connection: close` + 无 Content-Length 的 SSE 无法判定完整性
+
+三个流式端点原来都这么发头：
+
+```
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: close        ← 正文边界只能靠 TCP FIN
+```
+
+HTTP/1.1 下这种 body **只由连接关闭来界定**。经 CF 隧道 + NewAPI 中转时，
+任何一跳中途断流，客户端收到的字节流和"正常收完"在协议层完全无法区分。
+Rust/hyper 系客户端（Claude Code）对此报 `error decoding response body`。
+
+改为 chunked 后，结尾的 0-length chunk 是唯一合法终止符，
+中转截断变成**可检测的错误**而不是静默截短。
+
+- 新增 `Handler._sse_begin/_sse_chunk/_sse_end` 统一分帧
+- 三端点（`/v1/messages`、`/v1/chat/completions`、`/v1/responses`）全部切过去
+- 三端点 `finally` 里补 `_sse_end()`，异常/return 路径也保证写终止 chunk
+- 加 `X-Accel-Buffering: no` + `no-transform`，防 nginx/CF 缓冲整条流
+
+### `/v1/responses` 完全没有 keepalive
+
+另两个端点有 1s 心跳，Responses 端点一个都没有。上游首 token 慢时连接空转，
+被中间层掐断 → 客户端按网络故障处理并长 backoff（即 `will retry in 4m 29s`）。
+已补 `: keepalive` 心跳线程，`response.created` 之后才启动。
+
+### 缓存命中率 0：不是统计 bug，是真的没有缓存
+
+`cache_read_input_tokens` / `cache_creation_input_tokens` 在 2644、2743 行**硬编码 0**，
+全文件无任何 `cache_control` 处理。上游 `/api/chat/stream` 不返回 usage，
+proxy 层无法凭空造出命中数据。要有真实命中必须上游支持。
+
+### 其他
+
+- 1893 行 `yield (tk, tp)` 重复两次 → tool_call flush 时末个 tool 被下发两遍，已删
+
+### Review 阶段发现的两个缺陷（都已修）
+
+**A. 心跳线程泄漏（本次改动引入的回归）**
+
+`_sse_chunk` 最初写成三次 `wfile.write`（长度头 / 正文 / CRLF）。
+客户端中途断开时，头几个字节的长度头写入落进 socket 缓冲区**不报错**，
+异常被推迟，心跳线程于是一直空转不退。
+
+- `git stash` 对照实测：原版 0.3s 退出，改动后 >14s 仍在转
+- 合并为单次 `write(size + payload + CRLF)` 后 → 0.0s 退出
+- 副作用：也消除了「长度头已写、正文未写」的半个 chunk 破坏分帧的可能
+
+这个 bug 只在慢上游 + 客户端中断时暴露，正是 NAS 上的常态路径。
+
+**B. HTTP/1.0 客户端收到乱码**
+
+chunked 是 HTTP/1.1 才有的。原先无条件发 `Transfer-Encoding: chunked`，
+HTTP/1.0 客户端不认，会把 `163\r\n` 这类十六进制长度行当正文读进去。
+已按 `request_version` 判断，1.0 客户端回退到 close-delimited。
+
+### 实证
+
+- `python _local_compat_check.py` → **TOTAL 51 FAIL 0**
+- 三端点 HTTP/1.1 线格式：`chunked=True` / 终止 0-chunk 存在 / `X-Accel-Buffering: no` 存在
+- HTTP/1.0 回退：`chunked=False` / 正文无十六进制长度行泄漏
+- 连接复用：同一条 TCP 连发两个流式请求，第二个正常返回并带终止 chunk
+- 客户端中断：三端点心跳线程均 0.0s 退出，无线程泄漏
+
+### 教训
+
+上一轮我在只跑通「正常路径」后就宣称验证完成，而 51/51 那套测试并不覆盖
+本次改动的分帧逻辑。缺的三件事：客户端中断路径、HTTP/1.0、以及
+`git stash` 与原版对照（判断「是我引入的还是本来就有」只需一条命令）。
+
+## 2026-08-12 下架 Claude Opus 4.8（未提交）
+
+### 上游 provider 已死，实测 0/8
+
+同一道题各打 8 次，只换 subModel：
+
+| subModel | 成功率 |
+|---|---|
+| `claude-opus-4.8` | **0/8**（全部「当前模型暂无可用的服务提供商」）|
+| `claude-opus-5` | 8/8 |
+| `claude-sonnet-5` | 8/8 |
+| `claude-opus-4-6` | 8/8 |
+
+不是临时抽风，是这个 subModel 上游没有 provider。留着的代价是每次请求走满
+5 次重试才报错。
+
+### 处理方式：下架模型，但保留所有入口 ID → Opus 5
+
+`claude-opus-4-8` 是 Claude Code 原生发送的 model id，直接删会变 404，
+所以全部 alias 重定向而非删除：
+
+- `RAW_MODELS` 移除 `Claude Opus 4.8` 条目（13 → 12 个模型）
+- `_ANTHROPIC_MODEL_IDS` 移除对应死条目
+- 4 个 alias（`claude-opus-4-8` / `claude-opus-4.8` / `claude/…` 两种）改指 `Claude Opus 5`
+- **补 `"Claude Opus 4.8"` 显示名 alias** — 漏了这条会 fall through 到
+  `DEFAULT_MODEL`，即请求 Opus 级模型静默拿到 `deepseek-v4-flash`。
+  这是移除模型时最容易漏的一环，已加断言锁住。
+
+### 测试
+
+`_local_compat_check.py` 51 → **63 项**，新增：
+
+- 4 个 alias 各自指向 Opus 5
+- `Claude Opus 4.8` 已不在模型清单
+- **所有 alias 的 value 都必须是活模型**（防以后再删模型留下悬空 alias）
+- 所有模型都有 anthropic id / 无死 anthropic 条目
+- 5 个退役 ID 逐个断言 `resolve_model()` 落到 `claude-opus-5`（防静默降级到 default）
+
+### 实证
+
+- `python _local_compat_check.py` → **TOTAL 63 FAIL 0**
+- 5 个退役 ID 全部路由到 `claude-opus-5`
+- 全项目 grep 无残留 4.8 引用
+
+## 待决策：`thinking: {type: "disabled"}` 白烧推理 token
+
+`_handle_messages` 2635-2643 行：`disabled` 只关了 `include_reasoning`，
+`effort` 仍是 `max`。上游照样全速思考，推理内容在代理层被丢弃。
+
+实测传给 `upstream()` 的参数：
+
+| 客户端请求 | effort | include_reasoning |
+|---|---|---|
+| 默认（无思考参数）| `max` | True |
+| `thinking: disabled` | **`max`** | **False** ← 白烧 |
+| `reasoning_effort: "off"` | `off` | False（正确）|
+
+修法一行（`disabled` 时同时置 `effort="off"`），但有行为后果：
+若 Claude Code 默认就发 `disabled`，修完上游会真的不思考，输出质量下降。
+**建议先加一行 log 观察真实流量再决定**，别凭猜测改。
+
+## 已确认正常（无需动）
+
+`reasoningEffort` 默认 `max` 三端点全部生效，上游也真的认这个字段：
+
+| effort | 耗时 | 正文长度 | 含 `<think>` |
+|---|---|---|---|
+| `max` | 10.6s | 550 | **是** |
+| `off` | 9.6s | 163 | 否 |
+| 不传 | 9.9s | 252 | 否 |
+| 乱值 | 9.9s | 296 | 否 |
+
+「感觉没推理」的真正原因是 Opus 4.8 上游已死，不是 effort 没传下去。
+
+已知脆弱点：`ReasoningFilter` 只认 `<think>` / `<thinking>` 标签。上游目前
+正是这个格式，但若改成结构化字段传推理，过滤器会静默失效、把推理当正文输出。
+
 ## 下一步建议
 
-1. NAS部署最新代码（含trailing reminder修复）
-2. 测试stream中断问题 — 可能需要调大`_STALL_TIMEOUT`或优化上游连接处理
-3. 确认se.zzmax真实context limit（从日志看至少180k）
+1. NAS 部署本次 SSE 分帧修复，观察 `error decoding response body` 是否消失
+2. 若仍复现，下一步查 CF 隧道侧：`cloudflared` 的 `--no-chunked-encoding` 若开启需关掉
+3. 确认 se.zzmax 真实 context limit（从日志看至少 180k）
+4. `_STALL_TIMEOUT=15s` 对慢上游可能偏短，视 NAS 实测再定
+5. 定期复查上游模型可用性：4.8 这次是静默死掉的，建议加个探活脚本
 
 ## 进度报告四要素
 

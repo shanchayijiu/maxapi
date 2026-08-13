@@ -59,7 +59,24 @@ try:
     check("models status 200", status.startswith("HTTP/1.1 200"), status)
     check("models context fields", all(k in model0 for k in ("context_length", "max_output_tokens", "supports_tool_use")), model0)
 
-    check("claude-opus alias reset", m.MODEL_ALIASES.get("claude-opus-4-8") == "Claude Opus 4.8", repr(m.MODEL_ALIASES.get("claude-opus-4-8")))
+    # Opus 4.8 was retired (upstream had no provider); the IDs clients still send
+    # must resolve to a live model, not 404.
+    check("claude-opus-4-8 alias -> Opus 5", m.MODEL_ALIASES.get("claude-opus-4-8") == "Claude Opus 5", repr(m.MODEL_ALIASES.get("claude-opus-4-8")))
+    check("claude-opus-4.8 alias -> Opus 5", m.MODEL_ALIASES.get("claude-opus-4.8") == "Claude Opus 5", repr(m.MODEL_ALIASES.get("claude-opus-4.8")))
+    check("claude/claude-opus-4-8 alias -> Opus 5", m.MODEL_ALIASES.get("claude/claude-opus-4-8") == "Claude Opus 5", repr(m.MODEL_ALIASES.get("claude/claude-opus-4-8")))
+    check("Opus 4.8 gone from model list", "Claude Opus 4.8" not in m.MODEL_DISPLAY_IDS, repr([x for x in m.MODEL_DISPLAY_IDS if "4.8" in x]))
+    check("every alias resolves to a live display id", all(v in m.MODEL_BY_DISPLAY for v in m.MODEL_ALIASES.values()),
+          repr([ (k,v) for k,v in m.MODEL_ALIASES.items() if v not in m.MODEL_BY_DISPLAY ]))
+    check("every model has an anthropic id", all(d in m._ANTHROPIC_MODEL_IDS for d in m.MODEL_DISPLAY_IDS),
+          repr([d for d in m.MODEL_DISPLAY_IDS if d not in m._ANTHROPIC_MODEL_IDS]))
+    check("no dead anthropic id entries", all(d in m.MODEL_BY_DISPLAY for d in m._ANTHROPIC_MODEL_IDS),
+          repr([d for d in m._ANTHROPIC_MODEL_IDS if d not in m.MODEL_BY_DISPLAY]))
+    check("opus-4-8 resolves to live submodel", m.resolve_model("claude-opus-4-8")[1] == "claude-opus-5", repr(m.resolve_model("claude-opus-4-8")))
+    # A retired Opus id must never silently fall through to DEFAULT_MODEL: that
+    # would answer an Opus-class request with deepseek-v4-flash.
+    for _rid in ("claude-opus-4-8", "claude-opus-4.8", "claude/claude-opus-4-8",
+                 "claude/claude-opus-4.8", "Claude Opus 4.8"):
+        check("retired id %r -> opus-5" % _rid, m.resolve_model(_rid)[1] == "claude-opus-5", repr(m.resolve_model(_rid)))
 
     tools = [{"type": "function", "function": {"name": "do_work", "parameters": {
         "type": "object",

@@ -22,7 +22,7 @@ Model naming: the external ids returned by /v1/models and accepted in "model"
 are the se.zzmax WEB display names ("Claude Sonnet 5", "gpt-5.6-sol",
 "Grok-4.5", doubao, ...) so clients match what users see on the site.
 resolve_model() also accepts raw actualModelIds and group-qualified aliases
-(e.g. "claude/claude-opus-4-8", "grok-4.5", "doubao-glm-5.1") for backward
+(e.g. "claude/claude-opus-5", "grok-4.5", "doubao-glm-5.1") for backward
 compatibility with older calls.
 
 reasoningEffort (off/low/medium/high/max) is forwarded to the upstream so the
@@ -96,7 +96,6 @@ BROWSER_GET_HEADERS = {
 RAW_MODELS = [
     ("Claude Sonnet 5",        "claude",   "claude-sonnet-5",       "premium"),
     ("Claude Opus 5",          "claude",   "claude-opus-5",         "premium"),
-    ("Claude Opus 4.8",        "claude",   "claude-opus-4.8",       "premium"),
     ("claude-opus-4-6",        "claude",   "claude-opus-4-6",       "normal"),
     ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-luna",          "normal"),
     ("gpt-5.6-terra",          "chatgpt",  "gpt-5.6-terra",         "normal"),
@@ -121,14 +120,21 @@ MODEL_BY_DISPLAY = {m[0]: (m[1], m[2]) for m in RAW_MODELS}
 MODEL_ALIASES = {
     "claude-sonnet-5": "Claude Sonnet 5",
     "claude/claude-sonnet-5": "Claude Sonnet 5",
-    "claude/claude-opus-4-8": "Claude Sonnet 5",
+    "claude/claude-opus-4-8": "Claude Opus 5",
     "qwen/qwen3.6-plus": "qwen3.6-plus",
     "mimo/qwen3.6-plus": "MiMo-V2.5-Pro",
     "mimo-qwen3.6-plus": "MiMo-V2.5-Pro",
     "chatgpt/gpt-5.6-luna": "gpt-5.6-sol",
     "chatgpt/gpt-5.6-terra": "gpt-5.6-terra",
     "chatgpt/gpt-5.5": "GPT-5.5",
-    "claude/claude-opus-4.8": "Claude Opus 4.8",
+    # Opus 4.8 retired: upstream had no provider for claude-opus-4.8 (0/8 OK on
+    # 2026-08-12 while opus-5 / sonnet-5 / opus-4-6 were all 8/8). Clients that
+    # still ask for it — Claude Code sends "claude-opus-4-8" natively — are
+    # routed to Opus 5 rather than 404'd. The old display name is aliased too,
+    # otherwise resolve_model() falls through to DEFAULT_MODEL and a request for
+    # an Opus-class model silently lands on deepseek-v4-flash.
+    "claude/claude-opus-4.8": "Claude Opus 5",
+    "Claude Opus 4.8": "Claude Opus 5",
     "claude/claude-opus-4-6": "claude-opus-4-6",
     "deepseek/deepseek-v4-pro": "deepseek-v4-pro",
     "deepseek/deepseek-v4-flash": "deepseek-v4-flash",
@@ -138,7 +144,7 @@ MODEL_ALIASES = {
     "gpt-5.6-luna": "gpt-5.6-sol",
     "gpt-5.6-terra": "gpt-5.6-terra",
     "gpt-5.5": "GPT-5.5",
-    "claude-opus-4.8": "Claude Opus 4.8",
+    "claude-opus-4.8": "Claude Opus 5",
     "claude-opus-4-6": "claude-opus-4-6",
     "claude-opus-5": "Claude Opus 5",
     "deepseek-v4-pro": "deepseek-v4-pro",
@@ -146,7 +152,7 @@ MODEL_ALIASES = {
     "gemini-3.5-flash": "gemini-3.5-flash",
     "gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
     # ambiguous plain actuals -> canonical display (preferred group)
-    "claude-opus-4-8": "Claude Opus 4.8",
+    "claude-opus-4-8": "Claude Opus 5",
     "qwen3.6-plus": "qwen3.6-plus",
 }
 
@@ -173,7 +179,6 @@ MODEL_META = {m[0]: _GROUP_META.get(m[1], (200000, 8192, True)) for m in RAW_MOD
 # Claude Code can look up context_length from its internal model registry).
 _ANTHROPIC_MODEL_IDS = {
     "Claude Sonnet 5":        "claude-sonnet-4-20250514",
-    "Claude Opus 4.8":        "claude-opus-4-20250514",
     "Claude Opus 5":          "claude-opus-5",
     "claude-opus-4-6":        "claude-opus-4-20250514",
     "gpt-5.6-sol":            "claude-sonnet-4-20250514",
@@ -1890,7 +1895,6 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 for tk, tp in tparser.flush():
                     content_yielded = True
                     yield (tk, tp)
-                    yield (tk, tp)
             if not got_done and not volatile and not content_yielded:
                 # stream cut without done — likely connection error, retry only if no content sent
                 if attempt < max_retry:
@@ -2217,6 +2221,59 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._cors()
         self.end_headers()
         self.wfile.write(b)
+
+    # ── SSE framing ────────────────────────────────────────────────────────
+    # An SSE body sent with "Connection: close" and no Content-Length is
+    # delimited ONLY by the TCP FIN. Any intermediary (Cloudflare Tunnel,
+    # nginx, a NewAPI relay) that drops the connection mid-stream produces a
+    # body the client cannot tell apart from a complete one, and Rust/hyper
+    # based clients surface that as "error decoding response body".
+    # Chunked encoding makes completion explicit: the terminating 0-length
+    # chunk is the only legitimate end, so a truncated relay becomes a
+    # detectable error instead of a silently short message.
+    # Chunked is HTTP/1.1-only; a 1.0 client would read the hex size lines as
+    # body text, so fall back to close-delimited framing for those.
+    def _sse_begin(self, code=200, extra_headers=None):
+        self._sse_chunked = self.request_version >= "HTTP/1.1"
+        self.send_response(code)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-transform")
+        self.send_header("X-Accel-Buffering", "no")  # stop nginx/CF from buffering
+        if self._sse_chunked:
+            self.send_header("Transfer-Encoding", "chunked")
+        else:
+            self.send_header("Connection", "close")
+            self.close_connection = True
+        self._cors()
+        for k, v in (extra_headers or {}).items():
+            self.send_header(k, str(v))
+        self.end_headers()
+        self._sse_done = False
+
+    def _sse_chunk(self, b):
+        if not b:
+            return
+        if getattr(self, "_sse_chunked", False):
+            # One write, not three: a partial chunk (size line written, payload
+            # not) both corrupts the framing and hides the disconnect, because
+            # the small size-line write can land in the socket buffer and defer
+            # the error past the point where a heartbeat thread would notice.
+            self.wfile.write(b"%X\r\n" % len(b) + b + b"\r\n")
+        else:
+            self.wfile.write(b)
+        self.wfile.flush()
+
+    def _sse_end(self):
+        if getattr(self, "_sse_done", False):
+            return
+        self._sse_done = True
+        if not getattr(self, "_sse_chunked", False):
+            return
+        try:
+            self.wfile.write(b"0\r\n\r\n")
+            self.wfile.flush()
+        except Exception:
+            pass
     def _handle_responses(self):
         """OpenAI Responses API bridge for coding clients.
 
@@ -2435,24 +2492,33 @@ class Handler(http.server.BaseHTTPRequestHandler):
             _extra = {"Retry-After": "5"} if _code in (429, 529) else None
             return self._send(_code, _err_body(_type, str(_err), flavor="anthropic"), extra=_extra)
         # Now safe to write SSE header
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream")
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("Connection", "close")
-        self.close_connection = True
-        self._cors()
-        for _hk, _hv in _compact_headers(_compact_meta).items():
-            self.send_header(_hk, _hv)
-        self.end_headers()
+        self._sse_begin(200, _compact_headers(_compact_meta))
         lock = threading.Lock()
+        _hb_stop = {"v": False}
+        _hb_started = threading.Event()
         def emit_event(ev, data):
             if isinstance(data, dict) and data.get("type") is None:
                 data = {"type": ev, **data}
             with lock:
-                self.wfile.write(("event: %s\ndata: %s\n\n" % (ev, json.dumps(data, ensure_ascii=False))).encode("utf-8"))
-                self.wfile.flush()
+                self._sse_chunk(("event: %s\ndata: %s\n\n" % (ev, json.dumps(data, ensure_ascii=False))).encode("utf-8"))
+        def _hb():
+            # Keepalive comment frames: without traffic, Cloudflare Tunnel and
+            # most reverse proxies drop an idle connection well before a slow
+            # upstream produces its first token, which the client then reports
+            # as a network failure and retries with a long backoff.
+            _hb_started.wait()
+            while not _hb_stop["v"]:
+                try:
+                    with lock:
+                        self._sse_chunk(b": keepalive\n\n")
+                except Exception:
+                    return
+                time.sleep(1.0)
+        _hbt = threading.Thread(target=_hb, daemon=True)
+        _hbt.start()
         try:
             emit_event("response.created", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "in_progress", "model": disp, "output": []}})
+            _hb_started.set()  # keepalive only after the first real event
             msg_item = None
             text_index = None
             out_index = 0
@@ -2495,6 +2561,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 emit_event("response.failed", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "failed", "model": disp, "error": {"type": "api_error", "message": "server: %s" % e}}})
             except Exception:
                 pass
+        finally:
+            _hb_stop["v"] = True
+            _hb_started.set()
+            _hbt.join(1.0)
+            with lock:
+                self._sse_end()
     def _handle_messages(self):
         """Native Anthropic /v1/messages endpoint: Claude Code / Codex connect
         directly, no external converter needed. Anthropic request -> private
@@ -2673,24 +2745,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             _extra = {"Retry-After": "5"} if _code in (429, 529) else None
             return self._send(_code, _err_body(_type, str(_err), flavor="anthropic"), extra=_extra)
         # Now safe to write SSE header — upstream is streaming
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream")
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("Connection", "close")
-        self.send_header("anthropic-version", "2023-06-01")
-        self.send_header("request-id", msg_id)
-        self.close_connection = True
-        self._cors()
-        for _hk, _hv in _compact_headers(_compact_meta).items():
-            self.send_header(_hk, _hv)
-        self.end_headers()
+        _hdrs = {"anthropic-version": "2023-06-01", "request-id": msg_id}
+        _hdrs.update(_compact_headers(_compact_meta))
+        self._sse_begin(200, _hdrs)
         lock = threading.Lock()
         stop = {"v": False}
         started_evt = threading.Event()  # barrier: heartbeat must not fire before message_start
         def emit(b):
             with lock:
-                self.wfile.write(b)
-                self.wfile.flush()
+                self._sse_chunk(b)
         def sse(ev, data):
             # Anthropic SDK routes on the TOP-LEVEL "type" field of each parsed
             # event payload (MessageStream checks event.type === 'message_start'
@@ -2807,6 +2870,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         finally:
             stop["v"] = True
             hb.join(1.0)
+            with lock:
+                self._sse_end()
     def do_OPTIONS(self):
         self.send_response(204)
         self._cors()
@@ -2976,22 +3041,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             _extra = {"Retry-After": "5"} if _code in (429, 529) else None
             return self._send(_code, _err_body(_type, str(_err)), extra=_extra)
         # Now safe to write SSE header
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream")
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("Connection", "close")
-        self.close_connection = True
-        self._cors()
-        for _hk, _hv in _compact_headers(_compact_meta).items():
-            self.send_header(_hk, _hv)
-        self.end_headers()
+        self._sse_begin(200, _compact_headers(_compact_meta))
         lock = threading.Lock()
         stop = {"v": False}
         started_evt = threading.Event()
         def emit(b):
             with lock:
-                self.wfile.write(b)
-                self.wfile.flush()
+                self._sse_chunk(b)
         def sse(o):
             emit(("data: " + json.dumps(o, ensure_ascii=False) + "\n\n").encode("utf-8"))
         def heartbeat():
@@ -3050,6 +3106,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         finally:
             stop["v"] = True
             hb.join(1.0)
+            with lock:
+                self._sse_end()
 
 
 def main():
