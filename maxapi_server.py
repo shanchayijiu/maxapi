@@ -98,8 +98,6 @@ RAW_MODELS = [
     ("Claude Opus 5",          "claude",   "claude-opus-5",         "premium"),
     ("claude-opus-4-6",        "claude",   "claude-opus-4-6",       "normal"),
     ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-luna",          "normal"),
-    ("gpt-5.6-terra",          "chatgpt",  "gpt-5.6-terra",         "normal"),
-    ("GPT-5.5",                "chatgpt",  "gpt-5.5",               "premium"),
     ("deepseek-v4-pro",        "deepseek", "deepseek-v4-pro",       "premium"),
     ("deepseek-v4-flash",      "deepseek", "deepseek-v4-flash",     "normal"),
     ("qwen3.6-plus",           "qwen",     "qwen3.6-plus",         "premium"),
@@ -125,8 +123,8 @@ MODEL_ALIASES = {
     "mimo/qwen3.6-plus": "MiMo-V2.5-Pro",
     "mimo-qwen3.6-plus": "MiMo-V2.5-Pro",
     "chatgpt/gpt-5.6-luna": "gpt-5.6-sol",
-    "chatgpt/gpt-5.6-terra": "gpt-5.6-terra",
-    "chatgpt/gpt-5.5": "GPT-5.5",
+    "chatgpt/gpt-5.6-terra": "gpt-5.6-sol",
+    "chatgpt/gpt-5.5": "gpt-5.6-sol",
     # Opus 4.8 retired: upstream had no provider for claude-opus-4.8 (0/8 OK on
     # 2026-08-12 while opus-5 / sonnet-5 / opus-4-6 were all 8/8). Clients that
     # still ask for it — Claude Code sends "claude-opus-4-8" natively — are
@@ -142,8 +140,11 @@ MODEL_ALIASES = {
     "gemini/gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
     # plain (unambiguous) actuals
     "gpt-5.6-luna": "gpt-5.6-sol",
-    "gpt-5.6-terra": "gpt-5.6-terra",
-    "gpt-5.5": "GPT-5.5",
+    # GPT terra / 5.5 retired (upstream had no provider, 0/8 on 2026-08-12).
+    # Old display names aliased to sol to prevent silent fall-through to DEFAULT_MODEL.
+    "gpt-5.6-terra": "gpt-5.6-sol",
+    "gpt-5.5": "gpt-5.6-sol",
+    "GPT-5.5": "gpt-5.6-sol",
     "claude-opus-4.8": "Claude Opus 5",
     "claude-opus-4-6": "claude-opus-4-6",
     "claude-opus-5": "Claude Opus 5",
@@ -182,8 +183,6 @@ _ANTHROPIC_MODEL_IDS = {
     "Claude Opus 5":          "claude-opus-5",
     "claude-opus-4-6":        "claude-opus-4-20250514",
     "gpt-5.6-sol":            "claude-sonnet-4-20250514",
-    "gpt-5.6-terra":          "claude-sonnet-4-20250514",
-    "GPT-5.5":                "claude-sonnet-4-20250514",
     "deepseek-v4-pro":        "claude-sonnet-4-20250514",
     "deepseek-v4-flash":      "claude-sonnet-4-20250514",
     "qwen3.6-plus":           "claude-sonnet-4-20250514",
