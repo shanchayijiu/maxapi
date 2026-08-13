@@ -2639,13 +2639,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         effort = "max"
         if isinstance(thinking_cfg, dict):
             if thinking_cfg.get("type") == "disabled":
-                include_reasoning = False
+                # Upstream always thinks regardless of disabled — keep reasoning
+                # on so the client receives it instead of burning tokens for nothing.
+                pass
         # CC sometimes sends reasoning_effort via extension; honor it too.
         eff_in = req.get("reasoning_effort") or req.get("reasoningEffort")
         if eff_in and str(eff_in).lower() in ("off", "low", "medium", "high", "max"):
             effort = str(eff_in).lower()
-            if effort == "off":
-                include_reasoning = False
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         max_tokens = req.get("max_tokens") or 4096
         if not stream:

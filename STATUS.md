@@ -148,7 +148,7 @@ git -C /c/Users/Administrator/Desktop/maxapi status --short && git -C /c/Users/A
 
 结果要点:
 - `main` 上最新提交 `7032fc1`。
-- 当时未跟踪文件: `_local_compat_check.py`、`_orig.py`。
+- 当时未跟踪文件: `_local_compat_check.py`。
 
 ```bash
 python /c/Users/Administrator/Desktop/maxapi/_local_compat_check.py
@@ -170,7 +170,7 @@ python /c/Users/Administrator/Desktop/maxapi/_local_compat_check.py
 
 - `maxapi_server.py`: 最新提交 `5e80617`，含trailing reminder修复+upstream诊断日志。
 - `_local_compat_check.py`: 51项测试全部通过。
-- `_canary_scale.py`: 记忆scale test（10-150轮全满分）。
+- `_canary_scale.py`: 已清理（记忆scale test，10-150轮全满分，结果已验证）。
 - `STATUS.md`: 本文件。
 - `.gitignore`: 未修改。
 
