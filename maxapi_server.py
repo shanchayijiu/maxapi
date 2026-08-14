@@ -2043,8 +2043,11 @@ _CONN_POOL_MAXSIZE = 8  # idle connections kept per host
 # Connect/headers budget. Keep short so a hung upstream fails before the client
 # (Claude Code ~60-90s) shows a generic "API Error" with no body.
 _CONN_CONNECT_TIMEOUT = 20
-_STALL_TIMEOUT = 12          # no SSE bytes between chunks
-_UPSTREAM_DEADLINE = 45.0    # wall-clock budget for one upstream() incl. retries
+# Upstream emits SSE keepalives ": ping <ts>" about every 15s while thinking.
+# Stall must exceed that interval or healthy streams are aborted as false 529s.
+_STALL_TIMEOUT = 35          # no socket bytes between chunks (ping ~15s)
+_FIRST_BYTE_TIMEOUT = 45     # allow slow first content under ping keepalives
+_UPSTREAM_DEADLINE = 75.0    # wall-clock budget for one upstream() incl. retries
 _conn_pool_lock = threading.Lock()
 _conn_pool = []  # list of idle http.client.HTTPSConnection
 
@@ -2142,12 +2145,12 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             conn.request("POST", "/api/chat/stream", body, h)
             resp = conn.getresponse()
             status = resp.status
-            # After headers, switch to inter-chunk stall timeout.
+            # After headers, allow long first-byte wait (thinking + pings).
             try:
                 if conn.sock is not None:
-                    conn.sock.settimeout(_STALL_TIMEOUT)
+                    conn.sock.settimeout(_FIRST_BYTE_TIMEOUT)
                 if resp.fp is not None:
-                    resp.fp.settimeout(_STALL_TIMEOUT)
+                    resp.fp.settimeout(_FIRST_BYTE_TIMEOUT)
             except Exception:
                 pass
             if status == 429:
@@ -2165,15 +2168,16 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             buf = b""
             got_done = False
             last_data_time = time.monotonic()
+            saw_data_event = False  # True after first data: event (not SSE ping comments)
             while True:
                 _remain = _deadline - time.monotonic()
                 if _remain <= 0.2:
                     LOG.warning("[deadline %d/%d] abort mid-stream model=%s", attempt, max_retry, disp)
                     volatile = True
                     break
-                # Re-arm socket timeout every read so a broken settimeout can't
-                # leave us blocked past the client-visible API deadline.
-                _chunk_to = max(0.5, min(float(_STALL_TIMEOUT), _remain))
+                # Before first real data event, allow longer wait (thinking + pings).
+                _limit = float(_STALL_TIMEOUT if saw_data_event else _FIRST_BYTE_TIMEOUT)
+                _chunk_to = max(0.5, min(_limit, _remain))
                 try:
                     if conn.sock is not None:
                         conn.sock.settimeout(_chunk_to)
@@ -2188,14 +2192,16 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     chunk = resp.read1(8192)
                 except Exception as _re:
                     _etxt = str(_re).lower()
-                    if 'timed out' in _etxt or 'etimedout' in _etxt or 'timeout' in _etxt:
+                    if "timed out" in _etxt or "etimedout" in _etxt or "timeout" in _etxt:
                         elapsed = time.monotonic() - last_data_time
-                        LOG.warning("[stall %d/%d] no data for %.0fs (to=%.1f), abort", attempt, max_retry, elapsed, _chunk_to)
+                        LOG.warning("[stall %d/%d] no data for %.0fs (to=%.1f saw_data=%s), abort",
+                                    attempt, max_retry, elapsed, _chunk_to, saw_data_event)
                         volatile = True
                         break
                     raise
                 if not chunk:
                     break
+                # Any socket bytes (including ": ping") count as liveness.
                 last_data_time = time.monotonic()
                 buf += chunk
                 if len(buf) > 4 * 1024 * 1024:
@@ -2206,8 +2212,12 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 while b"\n" in buf:
                     line, buf = buf.split(b"\n", 1)
                     line = line.strip()
+                    # SSE comment keepalive from upstream: ": ping <ts>"
+                    if not line or line.startswith(b":"):
+                        continue
                     if not line.startswith(b"data:"):
                         continue
+                    saw_data_event = True
                     payload_s = line[5:].strip()
                     if not payload_s:
                         continue
