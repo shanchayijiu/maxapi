@@ -97,7 +97,8 @@ RAW_MODELS = [
     ("Claude Sonnet 5",        "claude",   "claude-sonnet-5",       "premium"),
     ("Claude Opus 5",          "claude",   "claude-opus-5",         "premium"),
     ("claude-opus-4-6",        "claude",   "claude-opus-4-6",       "normal"),
-    ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-luna",          "normal"),
+    ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-sol",           "normal"),
+    ("gpt-5.6-luna",           "chatgpt",  "gpt-5.6-luna",          "normal"),
     ("deepseek-v4-pro",        "deepseek", "deepseek-v4-pro",       "premium"),
     ("deepseek-v4-flash",      "deepseek", "deepseek-v4-flash",     "normal"),
     ("qwen3.6-plus",           "qwen",     "qwen3.6-plus",         "premium"),
@@ -122,7 +123,8 @@ MODEL_ALIASES = {
     "qwen/qwen3.6-plus": "qwen3.6-plus",
     "mimo/qwen3.6-plus": "MiMo-V2.5-Pro",
     "mimo-qwen3.6-plus": "MiMo-V2.5-Pro",
-    "chatgpt/gpt-5.6-luna": "gpt-5.6-sol",
+    "chatgpt/gpt-5.6-sol": "gpt-5.6-sol",
+    "chatgpt/gpt-5.6-luna": "gpt-5.6-luna",
     "chatgpt/gpt-5.6-terra": "gpt-5.6-sol",
     "chatgpt/gpt-5.5": "gpt-5.6-sol",
     # Opus 4.8 retired: upstream had no provider for claude-opus-4.8 (0/8 OK on
@@ -139,9 +141,7 @@ MODEL_ALIASES = {
     "gemini/gemini-3.5-flash": "gemini-3.5-flash",
     "gemini/gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
     # plain (unambiguous) actuals
-    "gpt-5.6-luna": "gpt-5.6-sol",
-    # GPT terra / 5.5 retired (upstream had no provider, 0/8 on 2026-08-12).
-    # Old display names aliased to sol to prevent silent fall-through to DEFAULT_MODEL.
+    # GPT terra / 5.5 retired (upstream had no provider). Keep aliases on sol.
     "gpt-5.6-terra": "gpt-5.6-sol",
     "gpt-5.5": "gpt-5.6-sol",
     "GPT-5.5": "gpt-5.6-sol",
@@ -183,6 +183,7 @@ _ANTHROPIC_MODEL_IDS = {
     "Claude Opus 5":          "claude-opus-5",
     "claude-opus-4-6":        "claude-opus-4-20250514",
     "gpt-5.6-sol":            "claude-sonnet-4-20250514",
+    "gpt-5.6-luna":           "claude-sonnet-4-20250514",
     "deepseek-v4-pro":        "claude-sonnet-4-20250514",
     "deepseek-v4-flash":      "claude-sonnet-4-20250514",
     "qwen3.6-plus":           "claude-sonnet-4-20250514",
@@ -2107,14 +2108,14 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             yield ("error", {"error": "upstream failed: %r" % e})
             return
         finally:
-            if volatile or not got_done:
-                # Connection had a bad exchange — don't recycle it
-                try:
-                    conn.close()
-                except Exception:
-                    pass
-            else:
-                _pool_put(conn)
+            # http.client connections are not reliably reusable after SSE streams;
+            # always close to avoid hung sockets under concurrency.
+            try:
+                conn.close()
+            except Exception:
+                pass
+            # Keep pool API but do not recycle stream sockets for now.
+            # _pool_put(conn)
 
 
 def classify_error(err, default=529):
