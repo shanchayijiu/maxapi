@@ -2047,7 +2047,11 @@ _CONN_CONNECT_TIMEOUT = 20
 # Stall must exceed that interval or healthy streams are aborted as false 529s.
 _STALL_TIMEOUT = 35          # no socket bytes between chunks (ping ~15s)
 _FIRST_BYTE_TIMEOUT = 45     # allow slow first content under ping keepalives
-_UPSTREAM_DEADLINE = 75.0    # active upstream I/O budget incl. retries (not consumer pause)
+# Budget ONLY for connect + retries BEFORE any content/reasoning is yielded.
+# Once the model starts streaming (incl. thinking), wall-clock deadline is
+# disabled — only inter-chunk stall applies. Otherwise long thinking (~1min+)
+# gets hard-killed mid-stream (Cherry shows thinking then forced stop).
+_UPSTREAM_DEADLINE = 75.0
 _conn_pool_lock = threading.Lock()
 _conn_pool = []  # list of idle http.client.HTTPSConnection
 
@@ -2105,13 +2109,16 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
     content_yielded = False
     _deadline = time.monotonic() + _UPSTREAM_DEADLINE
     for attempt in range(1, max_retry + 1):
-        _remain = _deadline - time.monotonic()
-        if _remain <= 0.5:
-            LOG.warning("[deadline] upstream budget exhausted before attempt %d/%d model=%s",
-                        attempt, max_retry, disp)
-            if not content_yielded:
-                yield ("error", {"error": "upstream model busy/stalled (deadline); retry shortly"})
+        # Never retry after bytes were already sent to the client — would duplicate.
+        if content_yielded and attempt > 1:
             return
+        if not content_yielded:
+            _remain = _deadline - time.monotonic()
+            if _remain <= 0.5:
+                LOG.warning("[deadline] upstream budget exhausted before attempt %d/%d model=%s",
+                            attempt, max_retry, disp)
+                yield ("error", {"error": "upstream model busy/stalled (deadline); retry shortly"})
+                return
         # 重建解析器，避免重试时残留上次的部分状态导致输出错乱
         filt = ReasoningFilter(include_reasoning=include_reasoning)
         tparser = ToolCallParser()  # always active: strips tool tags even when tools_enabled=False
@@ -2182,14 +2189,19 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             last_data_time = time.monotonic()
             saw_data_event = False  # True after first data: event (not SSE ping comments)
             while True:
-                _remain = _deadline - time.monotonic()
-                if _remain <= 0.2:
-                    LOG.warning("[deadline %d/%d] abort mid-stream model=%s", attempt, max_retry, disp)
-                    volatile = True
-                    break
+                # After any content/reasoning has been yielded, never hard-kill on
+                # wall-clock deadline — long thinking is legitimate. Stall-only.
+                if not content_yielded:
+                    _remain = _deadline - time.monotonic()
+                    if _remain <= 0.2:
+                        LOG.warning("[deadline %d/%d] abort pre-content model=%s", attempt, max_retry, disp)
+                        volatile = True
+                        break
+                else:
+                    _remain = 1e9  # no wall budget once streaming
                 # Before first real data event, allow longer wait (thinking + pings).
                 _limit = float(_STALL_TIMEOUT if saw_data_event else _FIRST_BYTE_TIMEOUT)
-                _chunk_to = max(0.5, min(_limit, _remain))
+                _chunk_to = max(0.5, min(_limit, _remain if not content_yielded else _limit))
                 try:
                     if conn.sock is not None:
                         conn.sock.settimeout(_chunk_to)
