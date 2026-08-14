@@ -2039,8 +2039,12 @@ def _anthropic_tool_choice(tool_choice):
 # ── Connection pool for upstream HTTPS ───────────────────────────────────────
 # Reuse idle connections across concurrent requests to reduce handshake latency
 # and avoid port-exhaustion under 3-4 parallel agents.
-_CONN_POOL_MAXSIZE = 8# idle connections kept per host
-_CONN_POOL_TIMEOUT = 180         # same as upstream request timeout
+_CONN_POOL_MAXSIZE = 8  # idle connections kept per host
+# Connect/headers budget. Keep short so a hung upstream fails before the client
+# (Claude Code ~60-90s) shows a generic "API Error" with no body.
+_CONN_CONNECT_TIMEOUT = 20
+_STALL_TIMEOUT = 12          # no SSE bytes between chunks
+_UPSTREAM_DEADLINE = 45.0    # wall-clock budget for one upstream() incl. retries
 _conn_pool_lock = threading.Lock()
 _conn_pool = []  # list of idle http.client.HTTPSConnection
 
@@ -2054,10 +2058,17 @@ def _pool_get():
                 if c.sock is None:
                     c.close()
                     continue
+                # Reset per-request timeouts; pooled sockets may carry old values.
+                if c.sock is not None:
+                    c.sock.settimeout(_CONN_CONNECT_TIMEOUT)
             except Exception:
+                try:
+                    c.close()
+                except Exception:
+                    pass
                 continue
             return c
-    return http.client.HTTPSConnection(BASE, timeout=_CONN_POOL_TIMEOUT,
+    return http.client.HTTPSConnection(BASE, timeout=_CONN_CONNECT_TIMEOUT,
                                        context=ssl.create_default_context())
 
 def _pool_put(conn):
@@ -2071,7 +2082,7 @@ def _pool_put(conn):
     except Exception:
         pass
 
-def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, tools_enabled=False, max_retry=5, max_tokens=None):
+def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, tools_enabled=False, max_retry=3, max_tokens=None):
     grp, sub, disp = resolve_model(model_field)
     payload = {"model": grp, "subModel": sub, "messages": messages, "stream": True}
     if max_tokens:
@@ -2089,7 +2100,15 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                  len(messages), len(_payload_str), "ZK-7391" in _payload_str, _roles)
     sources_sent = False
     content_yielded = False
+    _deadline = time.monotonic() + _UPSTREAM_DEADLINE
     for attempt in range(1, max_retry + 1):
+        _remain = _deadline - time.monotonic()
+        if _remain <= 0.5:
+            LOG.warning("[deadline] upstream budget exhausted before attempt %d/%d model=%s",
+                        attempt, max_retry, disp)
+            if not content_yielded:
+                yield ("error", {"error": "upstream model busy/stalled (deadline); retry shortly"})
+            return
         # 重建解析器，避免重试时残留上次的部分状态导致输出错乱
         filt = ReasoningFilter(include_reasoning=include_reasoning)
         tparser = ToolCallParser()  # always active: strips tool tags even when tools_enabled=False
@@ -2111,9 +2130,26 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         volatile = False
         got_done = False  # initialize before try so finally can reference it safely
         try:
+            # Bound connect+headers by remaining deadline (floor 3s, cap connect timeout).
+            _to = max(3.0, min(_CONN_CONNECT_TIMEOUT, _deadline - time.monotonic()))
+            try:
+                if conn.sock is not None:
+                    conn.sock.settimeout(_to)
+                else:
+                    conn.timeout = _to
+            except Exception:
+                conn.timeout = _to
             conn.request("POST", "/api/chat/stream", body, h)
             resp = conn.getresponse()
             status = resp.status
+            # After headers, switch to inter-chunk stall timeout.
+            try:
+                if conn.sock is not None:
+                    conn.sock.settimeout(_STALL_TIMEOUT)
+                if resp.fp is not None:
+                    resp.fp.settimeout(_STALL_TIMEOUT)
+            except Exception:
+                pass
             if status == 429:
                 volatile = True
                 err_body = resp.read(2048).decode("utf-8", "ignore")[:300]
@@ -2126,27 +2162,37 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 err = resp.read(2048).decode("utf-8", "ignore")[:300]
                 yield ("error", {"status": status, "error": err})
                 return
-            # 设置流式读取超时：检测上游卡死
-            _STALL_TIMEOUT = 15  # 秒，超过此时间无数据视为卡死
-            try:
-                resp.fp.settimeout(_STALL_TIMEOUT)
-            except Exception:
-                pass
             buf = b""
             got_done = False
             last_data_time = time.monotonic()
             while True:
+                _remain = _deadline - time.monotonic()
+                if _remain <= 0.2:
+                    LOG.warning("[deadline %d/%d] abort mid-stream model=%s", attempt, max_retry, disp)
+                    volatile = True
+                    break
+                # Re-arm socket timeout every read so a broken settimeout can't
+                # leave us blocked past the client-visible API deadline.
+                _chunk_to = max(0.5, min(float(_STALL_TIMEOUT), _remain))
+                try:
+                    if conn.sock is not None:
+                        conn.sock.settimeout(_chunk_to)
+                    if getattr(resp, "fp", None) is not None:
+                        try:
+                            resp.fp.settimeout(_chunk_to)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
                 try:
                     chunk = resp.read1(8192)
                 except Exception as _re:
                     _etxt = str(_re).lower()
-                    if 'timed out' in _etxt or 'etimedout' in _etxt:
+                    if 'timed out' in _etxt or 'etimedout' in _etxt or 'timeout' in _etxt:
                         elapsed = time.monotonic() - last_data_time
-                        if elapsed > _STALL_TIMEOUT:
-                            LOG.warning("[stall %d/%d] no data for %.0fs, abort", attempt, max_retry, elapsed)
-                            volatile = True
-                            break
-                        continue
+                        LOG.warning("[stall %d/%d] no data for %.0fs (to=%.1f), abort", attempt, max_retry, elapsed, _chunk_to)
+                        volatile = True
+                        break
                     raise
                 if not chunk:
                     break
@@ -2219,22 +2265,35 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             if not got_done and not volatile and not content_yielded:
                 # stream cut without done — likely connection error, retry only if no content sent
                 if attempt < max_retry:
-                    _sleep = min(8, 1.5 ** attempt) + random.uniform(0, 0.5)
+                    _remain = _deadline - time.monotonic()
+                    if _remain <= 1.0:
+                        yield ("error", {"error": "upstream stream cut (deadline); retry shortly"})
+                        return
+                    _sleep = min(4.0, max(0.2, min(1.5 ** attempt, _remain - 0.5))) + random.uniform(0, 0.3)
                     LOG.warning("[nodone %d/%d] stream cut, retry in %.1fs", attempt, max_retry, _sleep)
                     time.sleep(_sleep)
                     continue
             if volatile and not got_done and not content_yielded and attempt < max_retry:
-                _sleep = min(8, 1.5 ** attempt) + random.uniform(0, 0.5)
+                _remain = _deadline - time.monotonic()
+                if _remain <= 1.0:
+                    yield ("error", {"error": "upstream model busy/stalled (deadline); retry shortly"})
+                    return
+                _sleep = min(4.0, max(0.2, min(1.5 ** attempt, _remain - 0.5))) + random.uniform(0, 0.3)
                 LOG.warning("[volatile %d/%d] retry in %.1fs", attempt, max_retry, _sleep)
                 time.sleep(_sleep)
                 continue
-            if volatile and attempt >= max_retry:
-                yield ("error", {"error": "upstream model repeatedly busy after %d retries; retry shortly" % max_retry})
+            if volatile and (attempt >= max_retry or time.monotonic() >= _deadline):
+                if not content_yielded:
+                    yield ("error", {"error": "upstream model repeatedly busy after %d retries; retry shortly" % attempt})
             return
         except Exception as e:
             if attempt < max_retry:
+                _remain = _deadline - time.monotonic()
+                if _remain <= 1.0:
+                    yield ("error", {"error": "upstream failed (deadline): %r" % e})
+                    return
                 LOG.warning("[connerr %d/%d %r] retry", attempt, max_retry, e)
-                time.sleep(min(8.0, 1.0 * attempt))
+                time.sleep(min(4.0, max(0.2, min(1.0 * attempt, _remain - 0.5))))
                 continue
             yield ("error", {"error": "upstream failed: %r" % e})
             return
