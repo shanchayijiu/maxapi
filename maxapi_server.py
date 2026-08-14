@@ -285,13 +285,14 @@ _COMPANION_ENDPOINTS = [
 def companion_touch():
     """Simulate a visitor landing on the site.  Captures cookies for session
     realism and optionally hits a second endpoint (favicon) for behavioral variety."""
+    conn = None
+    conn2 = None
     try:
         conn = http.client.HTTPSConnection(BASE, timeout=8, context=ssl.create_default_context())
         conn.request("GET", "/api/chat/nav-categories", headers=BROWSER_GET_HEADERS)
         resp = conn.getresponse()
         COOKIE_JAR.update_from_response(resp)
         resp.read(1024)
-        conn.close()
         # 30% probability: hit a second endpoint for behavioral variety
         if random.random() < 0.3:
             time.sleep(random.uniform(0.1, 0.5))
@@ -302,9 +303,15 @@ def companion_touch():
             resp2 = conn2.getresponse()
             COOKIE_JAR.update_from_response(resp2)
             resp2.read()
-            conn2.close()
     except Exception:
         pass
+    finally:
+        for _conn in (conn2, conn):
+            if _conn is not None:
+                try:
+                    _conn.close()
+                except Exception:
+                    pass
 
 
 class ReasoningFilter:
@@ -344,6 +351,12 @@ class ReasoningFilter:
         out = []
         while True:
             if self.mode is None:
+                # Strip leading whitespace so a <thinking> tag after a leading
+                # newline is not missed. If the buffer is pure whitespace, hold.
+                if self.buf and self.buf[0] in "\r\n\t ":
+                    self.buf = self.buf.lstrip("\r\n\t ")
+                    if not self.buf:
+                        return out
                 n = self._match_open()
                 if n:
                     self.buf = self.buf[n:]
@@ -413,7 +426,8 @@ def _make_msg_id():
 # ---- DSML toolcall (ported from ds2api, replaces bytes-tag parser) ----
 
 _DSML = chr(0x7c) + "DSML" + chr(0x7c)
-_RE_DSML_STRIP = re.compile(r'(</?)\|?dsml[\s|]*', re.IGNORECASE)
+# Match both |DSML| and |DSTML| variants (upstream occasionally emits DSTML with an extra T).
+_RE_DSML_STRIP = re.compile(r'(</?)\|?dst?ml[\s|]*', re.IGNORECASE)
 _RE_CDATA = re.compile(r'^<!\[CDATA\[(.*?)\]\]>$', re.DOTALL | re.IGNORECASE)
 _RE_INVOKE = re.compile(r'<invoke\b[^>]*\bname\s*=\s*"([^"]*)"[^>]*>(.*?)</invoke>', re.DOTALL | re.IGNORECASE)
 _RE_INVOKE_SQ = re.compile(r"<invoke\b[^>]*\bname\s*=\s*'([^']*)'[^>]*>(.*?)</invoke>", re.DOTALL | re.IGNORECASE)
@@ -436,9 +450,13 @@ _STRING_PRESERVE = frozenset([
 ])
 _TOOL_TAG_PREFIXES = [
     "<tool_calls", "<invoke", "<parameter",
+    # DSML variant (|DSML| prefix)
     "<|dsml|tool_calls", "<|dsml|invoke", "<|dsml|parameter",
+    # DSTML variant (upstream occasionally emits an extra T)
+    "<|dstml|tool_calls", "<|dstml|invoke", "<|dstml|parameter",
     "<|tool_calls", "<|invoke", "<|parameter",
-    "<dsml|tool_calls", "<dsml|invoke", "<dsml|parameter",
+    "<|tool_calls", "<|invoke", "<|parameter",
+    "<dstml|tool_calls", "<dstml|invoke", "<dstml|parameter",
     "<function",  # se.zzmax <function=NAME> AND Claude-native <function_calls>
 ]
 
@@ -449,16 +467,62 @@ _TOOL_TAG_FULLS = [
     "<tool_calls>", "<tool_calls ", "<tool_calls\t", "<tool_calls\n", "<tool_calls\r",
     "<invoke>", "<invoke ", "<invoke\t", "<invoke\n", "<invoke\r",
     "<parameter>", "<parameter ", "<parameter\t", "<parameter\n", "<parameter\r",
+    # DSML variant (|DSML| prefix)
     "<|dsml|tool_calls>", "<|dsml|tool_calls ", "<|dsml|tool_calls\t", "<|dsml|tool_calls\n", "<|dsml|tool_calls\r",
     "<|dsml|invoke>", "<|dsml|invoke ", "<|dsml|invoke\t", "<|dsml|invoke\n", "<|dsml|invoke\r",
     "<|dsml|parameter>", "<|dsml|parameter ", "<|dsml|parameter\t", "<|dsml|parameter\n", "<|dsml|parameter\r",
+    # DSTML variant (upstream occasionally emits an extra T)
+    "<|dstml|tool_calls>", "<|dstml|tool_calls ", "<|dstml|tool_calls\t", "<|dstml|tool_calls\n", "<|dstml|tool_calls\r",
+    "<|dstml|invoke>", "<|dstml|invoke ", "<|dstml|invoke\t", "<|dstml|invoke\n", "<|dstml|invoke\r",
+    "<|dstml|parameter>", "<|dstml|parameter ", "<|dstml|parameter\t", "<|dstml|parameter\n", "<|dstml|parameter\r",
+    # bare |tool_calls| variants without dsml prefix
     "<|tool_calls>", "<|tool_calls ", "<|tool_calls\t", "<|tool_calls\n", "<|tool_calls\r",
     "<|invoke>", "<|invoke ", "<|invoke\t", "<|invoke\n", "<|invoke\r",
     "<|parameter>", "<|parameter ", "<|parameter\t", "<|parameter\n", "<|parameter\r",
-    "<dsml|tool_calls>", "<dsml|tool_calls ", "<dsml|tool_calls\t", "<dsml|tool_calls\n", "<dsml|tool_calls\r",
-    "<dsml|invoke>", "<dsml|invoke ", "<dsml|invoke\t", "<dsml|invoke\n", "<dsml|invoke\r",
-    "<dsml|parameter>", "<dsml|parameter ", "<dsml|parameter\t", "<dsml|parameter\n", "<dsml|parameter\r",
+    # dsml| without leading pipe
+    "<|tool_calls>", "<|tool_calls ", "<|tool_calls\t", "<|tool_calls\n", "<|tool_calls\r",
+    "<|invoke>", "<|invoke ", "<|invoke\t", "<|invoke\n", "<|invoke\r",
+    "<|parameter>", "<|parameter ", "<|parameter\t", "<|parameter\n", "<|parameter\r",
+    # dstml| without leading pipe
+    "<dstml|tool_calls>", "<dstml|tool_calls ", "<dstml|tool_calls\t", "<dstml|tool_calls\n", "<dstml|tool_calls\r",
+    "<dstml|invoke>", "<dstml|invoke ", "<dstml|invoke\t", "<dstml|invoke\n", "<dstml|invoke\r",
+    "<dstml|parameter>", "<dstml|parameter ", "<dstml|parameter\t", "<dstml|parameter\n", "<dstml|parameter\r",
 ]
+
+
+# Upstream (claude-opus-5 via se.zzmax) sometimes emits a literal HTML <br>
+# on its own line as a paragraph separator. Terminal clients (Claude Code)
+# don't render HTML, so it leaks as visible text. Strip only the standalone
+# form -- a <br> alone on a line -- and leave inline / fenced ones alone so
+# real HTML in code blocks survives.
+_RE_BR_LINE = re.compile(r'(?:\r\n|\r|\n)[ \t]*<br\s*/?>[ \t]*(?=\r\n|\r|\n|\Z)', re.IGNORECASE)
+_RE_BR_LEAD = re.compile(r'\A[ \t]*<br\s*/?>[ \t]*(?:\r\n|\r|\n)', re.IGNORECASE)
+# Upstream models sometimes leak the EOS token </s> as literal text.
+_RE_EOS_TOKEN = re.compile(r'</s>', re.IGNORECASE)
+
+
+def _strip_stray_br(text):
+    """Remove standalone <br> lines and stray EOS </s> tokens emitted as
+    literal text by upstream. Leaves inline <br> and fenced code untouched."""
+    if not text:
+        return text
+    # Strip </s> EOS token regardless of context (never legitimate in API output)
+    if "</s" in text.lower():
+        text = _RE_EOS_TOKEN.sub("", text)
+    if "<br" not in text.lower():
+        return text
+    # Protect fenced regions: only rewrite spans that are outside a fence.
+    parts = []
+    pos = 0
+    for m in re.finditer(r'(?:^|\n)[ \t]{0,3}(`{3,}|~{3,})[^\n]*\n.*?(?:\n[ \t]{0,3}\1[ \t]*(?=\n|\Z)|\Z)',
+                         text, re.DOTALL):
+        outside = text[pos:m.start()]
+        parts.append(_RE_BR_LINE.sub("", _RE_BR_LEAD.sub("", outside)))
+        parts.append(m.group(0))          # fenced block: verbatim
+        pos = m.end()
+    tail = text[pos:]
+    parts.append(_RE_BR_LINE.sub("", _RE_BR_LEAD.sub("", tail)))
+    return "".join(parts)
 
 
 def _dsml_wrap_cdata(text):
@@ -1149,10 +1213,18 @@ class ToolCallParser:
     """Streaming DSML sieve (ported from ds2api toolstream).
     feed(str) -> list of ("content", str) / ("tool_call", {id,name,arguments}).
     flush() -> list of same."""
+    _MAX_CAPTURE_CHARS = 2 * 1024 * 1024
+
     def __init__(self):
         self.pending = ""
         self.capture = ""
         self.capturing = False
+
+    @staticmethod
+    def _emit(text):
+        """Content emission point: strips upstream literal <br> artifacts."""
+        return ("content", _strip_stray_br(text))
+
     def feed(self, text):
         self.pending += text
         out = []
@@ -1160,6 +1232,11 @@ class ToolCallParser:
             if self.capturing:
                 self.capture += self.pending
                 self.pending = ""
+                if len(self.capture) > self._MAX_CAPTURE_CHARS:
+                    LOG.warning("[tcp] dropping oversized incomplete tool capture (%d chars)", len(self.capture))
+                    self.capture = ""
+                    self.capturing = False
+                    continue
                 r = _consume_capture(self.capture)
                 if r is None:
                     break
@@ -1169,7 +1246,7 @@ class ToolCallParser:
                 self.capturing = False
                 self.capture = ""
                 if prefix:
-                    out.append(("content", prefix))
+                    out.append(self._emit(prefix))
                 for c in calls:
                     out.append(("tool_call", c))
                 if suffix:
@@ -1181,7 +1258,7 @@ class ToolCallParser:
             if seg >= 0:
                 prefix = self.pending[:seg]
                 if prefix:
-                    out.append(("content", prefix))
+                    out.append(self._emit(prefix))
                 self.capture = self.pending[seg:]
                 self.pending = ""
                 self.capturing = True
@@ -1191,30 +1268,36 @@ class ToolCallParser:
                 safe = self.pending[:partial]
                 hold = self.pending[partial:]
                 if safe:
-                    out.append(("content", safe))
+                    out.append(self._emit(safe))
                 self.pending = hold
                 break
             else:
-                out.append(("content", self.pending))
+                out.append(self._emit(self.pending))
                 self.pending = ""
                 break
         return out
+
     def flush(self):
         out = []
         if self.capturing:
             self.capture += self.pending
             self.pending = ""
+            if len(self.capture) > self._MAX_CAPTURE_CHARS:
+                LOG.warning("[tcp] dropping oversized incomplete tool capture (%d chars)", len(self.capture))
+                self.capture = ""
+                self.capturing = False
+                return out
             r = _consume_capture(self.capture)
             if r is not None:
                 prefix, calls, suffix, ready = r
                 self.capturing = False
                 self.capture = ""
                 if prefix:
-                    out.append(("content", prefix))
+                    out.append(self._emit(prefix))
                 for c in calls:
                     out.append(("tool_call", c))
                 if suffix:
-                    out.append(("content", suffix))
+                    out.append(self._emit(suffix))
                 return out
             content = self.capture
             self.capture = ""
@@ -1240,11 +1323,11 @@ class ToolCallParser:
                         _seg = _fm.start()
                 if _seg > 0:
                     # has text before the incomplete tag — keep that prefix
-                    out.append(("content", content[:_seg]))
+                    out.append(self._emit(content[:_seg]))
                 # else: entire content is the incomplete DSML fragment → discard
                 sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete DSML\n" % len(content));
         if self.pending:
-            out.append(("content", self.pending))
+            out.append(self._emit(self.pending))
             self.pending = ""
         return out
 
@@ -1364,7 +1447,9 @@ def _estimate_request_tokens(body, model=None):
 
 # ── EWMA self-calibration for token estimation ───────────────────────────────
 _EWMA_ALPHA = 0.15  # smoothing factor (lower = more stable, higher = faster adaptation)
-_ewma_store = {}    # model -> {"ratio": float, "n": int}  # intentional: unbounded but bounded by ~13 known models
+_EWMA_MAX_KEYS = 64
+_EWMA_MAX_N = 1_000_000
+_ewma_store = {}    # model -> {"ratio": float, "n": int}, hard-bounded
 _EWMA_LOCK = threading.Lock()
 
 def _ewma_update(model, actual, estimated):
@@ -1374,13 +1459,17 @@ def _ewma_update(model, actual, estimated):
     ratio = actual / estimated
     # Clamp to [0.5, 2.0] to prevent single outlier from destabilizing
     ratio = max(0.5, min(2.0, ratio))
+    # Prevent arbitrary request/model data from creating huge persistent keys.
+    model = str(model)[:128]
     with _EWMA_LOCK:
         if model not in _ewma_store:
+            if len(_ewma_store) >= _EWMA_MAX_KEYS:
+                _ewma_store.pop(next(iter(_ewma_store)))
             _ewma_store[model] = {"ratio": ratio, "n": 1}
         else:
             s = _ewma_store[model]
             s["ratio"] = _EWMA_ALPHA * ratio + (1 - _EWMA_ALPHA) * s["ratio"]
-            s["n"] += 1
+            s["n"] = min(_EWMA_MAX_N, s["n"] + 1)
 
 def _ewma_get(model):
     """Get the current calibration ratio for a model. Returns 1.0 if no data."""
@@ -1814,6 +1903,42 @@ def _anthropic_tool_choice(tool_choice):
     return "auto"
 
 
+
+# ── Connection pool for upstream HTTPS ───────────────────────────────────────
+# Reuse idle connections across concurrent requests to reduce handshake latency
+# and avoid port-exhaustion under 3-4 parallel agents.
+_CONN_POOL_MAXSIZE = 8# idle connections kept per host
+_CONN_POOL_TIMEOUT = 180         # same as upstream request timeout
+_conn_pool_lock = threading.Lock()
+_conn_pool = []  # list of idle http.client.HTTPSConnection
+
+def _pool_get():
+    """Borrow an idle connection or create a fresh one."""
+    with _conn_pool_lock:
+        while _conn_pool:
+            c = _conn_pool.pop()
+            try:
+                # Quick liveness probe: if the socket is gone, discard
+                if c.sock is None:
+                    c.close()
+                    continue
+            except Exception:
+                continue
+            return c
+    return http.client.HTTPSConnection(BASE, timeout=_CONN_POOL_TIMEOUT,
+                                       context=ssl.create_default_context())
+
+def _pool_put(conn):
+    """Return a connection to the pool if there is room; otherwise close it."""
+    with _conn_pool_lock:
+        if len(_conn_pool) < _CONN_POOL_MAXSIZE:
+            _conn_pool.append(conn)
+            return
+    try:
+        conn.close()
+    except Exception:
+        pass
+
 def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, tools_enabled=False, max_retry=5, max_tokens=None):
     grp, sub, disp = resolve_model(model_field)
     payload = {"model": grp, "subModel": sub, "messages": messages, "stream": True}
@@ -1835,7 +1960,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
     for attempt in range(1, max_retry + 1):
         # 重建解析器，避免重试时残留上次的部分状态导致输出错乱
         filt = ReasoningFilter(include_reasoning=include_reasoning)
-        tparser = ToolCallParser() if tools_enabled else None
+        tparser = ToolCallParser()  # always active: strips tool tags even when tools_enabled=False
         xff = rand_ip()
         h = dict(BROWSER_STREAM_HEADERS)
         h["X-Forwarded-For"] = xff
@@ -1850,8 +1975,9 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             _cookie = COOKIE_JAR.get_header()
             if _cookie:
                 h["Cookie"] = _cookie
-        conn = http.client.HTTPSConnection(BASE, timeout=180, context=ssl.create_default_context())
+        conn = _pool_get()
         volatile = False
+        got_done = False  # initialize before try so finally can reference it safely
         try:
             conn.request("POST", "/api/chat/stream", body, h)
             resp = conn.getresponse()
@@ -1894,6 +2020,11 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     break
                 last_data_time = time.monotonic()
                 buf += chunk
+                if len(buf) > 4 * 1024 * 1024:
+                    LOG.warning("[stream] oversized SSE buffer (%d bytes), aborting exchange", len(buf))
+                    buf = b""
+                    volatile = True
+                    break
                 while b"\n" in buf:
                     line, buf = buf.split(b"\n", 1)
                     line = line.strip()
@@ -1956,12 +2087,12 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             if not got_done and not volatile and not content_yielded:
                 # stream cut without done — likely connection error, retry only if no content sent
                 if attempt < max_retry:
-                    _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
+                    _sleep = min(8, 1.5 ** attempt) + random.uniform(0, 0.5)
                     LOG.warning("[nodone %d/%d] stream cut, retry in %.1fs", attempt, max_retry, _sleep)
                     time.sleep(_sleep)
                     continue
             if volatile and not got_done and not content_yielded and attempt < max_retry:
-                _sleep = min(30, 1.5 ** attempt) + random.uniform(0, 0.5)
+                _sleep = min(8, 1.5 ** attempt) + random.uniform(0, 0.5)
                 LOG.warning("[volatile %d/%d] retry in %.1fs", attempt, max_retry, _sleep)
                 time.sleep(_sleep)
                 continue
@@ -1971,15 +2102,19 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         except Exception as e:
             if attempt < max_retry:
                 LOG.warning("[connerr %d/%d %r] retry", attempt, max_retry, e)
-                time.sleep(1.0 * attempt)
+                time.sleep(min(8.0, 1.0 * attempt))
                 continue
             yield ("error", {"error": "upstream failed: %r" % e})
             return
         finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+            if volatile or not got_done:
+                # Connection had a bad exchange — don't recycle it
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            else:
+                _pool_put(conn)
 
 
 def classify_error(err, default=529):
@@ -2590,8 +2725,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         emit_event("response.content_part.added", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "part": {"type": "output_text", "text": "", "annotations": []}})
                     emit_event("response.output_text.delta", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "delta": data})
                 elif kind == "tool_call":
-                    if tools_enabled:
-                        data = _validate_and_coerce_tool_calls([data], tools)[0]
+                    if not tools_enabled:
+                        continue
+                    data = _validate_and_coerce_tool_calls([data], tools)[0]
                     if msg_item is not None:
                         emit_event("response.output_text.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "text": ""})
                         emit_event("response.content_part.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "part": {"type": "output_text", "text": "", "annotations": []}})
@@ -2885,14 +3021,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     output_acc["n"] += len(data)
                     emitted_any["v"] = True
                 elif kind == "tool_call":
+                    if not tools_enabled:
+                        continue
                     if "text" in blocks:
                         close_block("text")
                         del blocks["text"]
                     if "tool_use" in blocks:
                         close_block("tool_use")
                         del blocks["tool_use"]
-                    if anth_tools:
-                        data = _validate_and_coerce_tool_calls([data], anth_tools, anthropic=True)[0]
+                    data = _validate_and_coerce_tool_calls([data], anth_tools, anthropic=True)[0]
                     idx = open_block("tool_use", {"id": data["id"], "name": data["name"], "input": {}})
                     argstr = json.dumps(data["arguments"], ensure_ascii=False)
                     for off in range(0, len(argstr), 20):
@@ -3135,18 +3272,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [], "sources": data})
                 elif kind == "tool_call":
-                    tci = tool_call_count
-                    tool_call_count += 1
                     if tools_enabled:
+                        tci = tool_call_count
+                        tool_call_count += 1
                         data = _validate_and_coerce_tool_calls([data], tools)[0]
-                    argstr = json.dumps(data["arguments"], ensure_ascii=False)
-                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                         "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tci, "id": data["id"], "type": "function", "function": {"name": data["name"], "arguments": ""}}]}, "finish_reason": None}]})
-                    step = 20
-                    for off in range(0, len(argstr), step):
-                        piece = argstr[off:off + step]
+                        argstr = json.dumps(data["arguments"], ensure_ascii=False)
                         sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                             "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tci, "function": {"arguments": piece}}]}, "finish_reason": None}]})
+                             "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tci, "id": data["id"], "type": "function", "function": {"name": data["name"], "arguments": ""}}]}, "finish_reason": None}]})
+                        step = 20
+                        for off in range(0, len(argstr), step):
+                            piece = argstr[off:off + step]
+                            sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                                 "choices": [{"index": 0, "delta": {"tool_calls": [{"index": tci, "function": {"arguments": piece}}]}, "finish_reason": None}]})
                 elif kind == "error":
                     sse({"error": {"message": data.get("error") if isinstance(data, dict) else str(data), "type": "api_error", "code": None}})
                     stream_failed = True
