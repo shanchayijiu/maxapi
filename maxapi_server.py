@@ -200,9 +200,32 @@ def _anthropic_model_id(display_id):
 SAFETY_MARGIN = 512  # blocks/tools/metadata the estimator can't see
 
 def _context_limit(display_id, max_tokens=None):
-    ctx, _out, _tu = MODEL_META.get(display_id, (200000, 8192, True))
-    reserve = max_tokens if max_tokens else 4096
+    """Input-token budget for preflight/compaction.
+
+    Clients (esp. Claude Code) often send huge max_tokens (e.g. 64000) that the
+    upstream model cannot actually emit. Reserving the raw value collapses the
+    input window (200k-64k-512=135k) and triggers catastrophic compaction.
+    Cap the reserve at the model's advertised max_output_tokens.
+    """
+    ctx, model_out, _tu = MODEL_META.get(display_id, (200000, 8192, True))
+    try:
+        req_out = int(max_tokens) if max_tokens else min(4096, model_out)
+    except (TypeError, ValueError):
+        req_out = min(4096, model_out)
+    reserve = max(0, min(req_out, model_out))
     return max(ctx - reserve - SAFETY_MARGIN, 8192)
+
+
+def _clamp_max_tokens(display_id, max_tokens):
+    """Clamp client max_tokens to the model's advertised output cap."""
+    _ctx, model_out, _tu = MODEL_META.get(display_id, (200000, 8192, True))
+    try:
+        mt = int(max_tokens) if max_tokens not in (None, "") else model_out
+    except (TypeError, ValueError):
+        mt = model_out
+    if mt <= 0:
+        mt = model_out
+    return max(1, min(mt, model_out))
 
 def resolve_model(name):
     """Map a client-supplied model id to (group, actualModelId, display_id)."""
@@ -1663,75 +1686,184 @@ def _append_system_note(body, note):
         body["system"] = [note_block]
 
 
+def _msg_token_cost(m):
+    """Per-message token estimate without EWMA (for incremental compaction)."""
+    total = 4  # role/turn overhead
+    if not isinstance(m, dict):
+        return total
+    c = m.get("content")
+    if isinstance(c, str):
+        total += _est_text(c)
+    elif isinstance(c, list):
+        total += _est_blocks(c)
+    tcs = m.get("tool_calls")
+    if isinstance(tcs, list):
+        for tc in tcs:
+            if not isinstance(tc, dict):
+                continue
+            fn = tc.get("function") or {}
+            total += _est_text(fn.get("arguments", "")) + _est_text(fn.get("name", "")) + 8
+    return total
+
+
+def _fixed_overhead_tokens(body):
+    """system + tools overhead (stable across message compaction)."""
+    total = 0
+    sys = body.get("system")
+    if isinstance(sys, str):
+        total += _est_text(sys)
+    elif isinstance(sys, list):
+        total += sum(_est_text(b.get("text", "")) for b in sys if isinstance(b, dict))
+    for t in (body.get("tools") or []):
+        total += _est_text(json.dumps(t, ensure_ascii=False)) + 8
+    return total
+
+
+def _trim_tool_result_text(txt):
+    """Head/tail clamp a tool_result string to _TOOL_RESULT_CAP tokens. Returns (new_txt, changed)."""
+    if _est_text(txt) <= _TOOL_RESULT_CAP:
+        return txt, False
+    _char_budget = int(_TOOL_RESULT_CAP * 3.6)
+    if len(txt) <= _char_budget:
+        return txt, False
+    half = _char_budget // 2
+    new_txt = (
+        f"{txt[:half]}\n\n[... {_est_text(txt) - _TOOL_RESULT_CAP} "
+        f"tokens elided by proxy ...]\n\n{txt[-half:]}")
+    return new_txt, True
+
+
 def compact_request(body, budget, model=None):
     """4-stage compaction to fit request within token budget.
-    Returns (compacted_body, report_string, compaction_meta_dict). Never touches the last 2 messages or system."""
+
+    Uses incremental per-message costs so long chats (600+ msgs) finish in
+    milliseconds instead of O(n^2) full-body re-estimates per drop.
+    Returns (compacted_body, report_string, compaction_meta_dict).
+    Never touches the last 2 messages or system.
+    """
     body_original = body  # keep reference for validation fallback
     body = copy.deepcopy(body)
     msgs = body.get("messages") or []
     notes = []
-    before = _estimate_request_tokens(body, model=model)
+    ratio = _ewma_get(model) if model else 1.0
+    overhead = _fixed_overhead_tokens(body)
+    costs = [_msg_token_cost(m) for m in msgs]
+
+    def _est_now():
+        return int((overhead + sum(costs)) * ratio)
+
+    before = _est_now()
+    est = before
 
     # Stage 1: clamp oversized tool_result payloads (oldest first)
-    # Handles both Anthropic (content blocks) and OpenAI (role:tool) formats
-    # Threshold is token-based: _TOOL_RESULT_CAP tokens (~4000 chars English, ~3300 chars CJK)
     trimmed = 0
-    for m in msgs:
-        if _estimate_request_tokens(body, model=model) <= budget:
+    for i, m in enumerate(msgs):
+        if est <= budget:
             break
-        # Anthropic format: tool_result blocks in content array
+        changed = False
         for b in _msg_blocks(m):
             if b.get("type") == "tool_result":
                 txt = _stringify_content(b.get("content"))
-                if _est_text(txt) > _TOOL_RESULT_CAP:
-                    # Keep ~half tokens from each end; estimate char ratio
-                    _char_budget = int(_TOOL_RESULT_CAP * 3.6)  # rough chars per token
-                    half = _char_budget // 2
-                    if len(txt) > _char_budget:
-                        b["content"] = (
-                            f"{txt[:half]}\n\n[... {_est_text(txt) - _TOOL_RESULT_CAP} "
-                            f"tokens elided by proxy ...]\n\n{txt[-half:]}")
-                        trimmed += 1
-        # OpenAI format: role="tool" messages
+                new_txt, did = _trim_tool_result_text(txt)
+                if did:
+                    b["content"] = new_txt
+                    changed = True
+                    trimmed += 1
         if m.get("role") == "tool":
             txt = str(m.get("content", ""))
-            if _est_text(txt) > _TOOL_RESULT_CAP:
-                _char_budget = int(_TOOL_RESULT_CAP * 3.6)
-                half = _char_budget // 2
-                if len(txt) > _char_budget:
-                    m["content"] = (
-                        f"{txt[:half]}\n\n[... {_est_text(txt) - _TOOL_RESULT_CAP} "
-                        f"tokens elided by proxy ...]\n\n{txt[-half:]}")
-                    trimmed += 1
+            new_txt, did = _trim_tool_result_text(txt)
+            if did:
+                m["content"] = new_txt
+                changed = True
+                trimmed += 1
+        if changed:
+            old_c = costs[i]
+            costs[i] = _msg_token_cost(m)
+            est -= int((old_c - costs[i]) * ratio)
+            if trimmed % 8 == 0:
+                est = _est_now()
     if trimmed:
+        est = _est_now()
         notes.append(f"tool_results_trimmed={trimmed}")
 
     # Stage 2: drop middle segments, keep first turn + tail
+    body["messages"] = msgs
     segs = _segments(msgs)
+    seg_costs = []
+    idx = 0
+    for s in segs:
+        sc = 0
+        for _m in s:
+            sc += costs[idx] if idx < len(costs) else _msg_token_cost(_m)
+            idx += 1
+        seg_costs.append(sc)
+
     dropped = 0
-    while _estimate_request_tokens(body, model=model) > budget and len(segs) > _KEEP_TAIL_SEGMENTS + 1:
-        segs.pop(1)  # index 0 = original task framing, keep it
-        dropped += 1
-        body["messages"] = [m for s in segs for m in s]
+    # Batch-drop middle segments: sort middle by cost desc and drop until under budget.
+    # O(n log n) instead of hundreds of single-pop passes on 600+ msg chats.
+    if est > budget and len(segs) > _KEEP_TAIL_SEGMENTS + 1:
+        if _KEEP_TAIL_SEGMENTS > 0:
+            mid_lo, mid_hi = 1, len(segs) - _KEEP_TAIL_SEGMENTS
+        else:
+            mid_lo, mid_hi = 1, len(segs)
+        mid_idx = list(range(mid_lo, mid_hi))
+        # heaviest first
+        mid_idx.sort(key=lambda j: seg_costs[j], reverse=True)
+        drop_set = set()
+        need = est - budget
+        freed = 0
+        for j in mid_idx:
+            if freed >= need and len(segs) - len(drop_set) <= _KEEP_TAIL_SEGMENTS + 1:
+                break
+            if len(segs) - len(drop_set) <= _KEEP_TAIL_SEGMENTS + 1:
+                break
+            # always keep at least head + tail
+            if freed >= need and drop_set:
+                break
+            drop_set.add(j)
+            freed += int(seg_costs[j] * ratio)
+        if drop_set:
+            new_segs, new_costs = [], []
+            for i, s in enumerate(segs):
+                if i in drop_set:
+                    dropped += 1
+                    continue
+                new_segs.append(s)
+                new_costs.append(seg_costs[i])
+            segs, seg_costs = new_segs, new_costs
+            est -= freed
+            # clamp drift
+            if est < 0:
+                est = 0
+    body["messages"] = [m for s in segs for m in s]
+    costs = [_msg_token_cost(m) for m in body["messages"]]
+    est = int((overhead + sum(costs)) * ratio)
     if dropped:
         notes.append(f"segments_dropped={dropped}")
 
     # Stage 3: head/tail truncate remaining text blocks (oldest first, skip last 2 msgs)
     truncated = 0
     target_msgs = body.get("messages") or []
-    for m in target_msgs[:-2] if len(target_msgs) > 2 else []:
-        if _estimate_request_tokens(body, model=model) <= budget:
+    for i, m in enumerate(target_msgs[:-2] if len(target_msgs) > 2 else []):
+        if est <= budget:
             break
+        changed = False
         for b in _msg_blocks(m):
             if b.get("type") == "text" and len(b.get("text", "")) > 2000:
                 txt = b["text"]
                 b["text"] = txt[:1000] + f"\n[... {len(txt) - 1800} chars elided ...]\n" + txt[-800:]
+                changed = True
                 truncated += 1
+        if changed:
+            old_c = costs[i]
+            costs[i] = _msg_token_cost(m)
+            est -= int((old_c - costs[i]) * ratio)
     if truncated:
+        est = int((overhead + sum(costs)) * ratio)
         notes.append(f"text_truncated={truncated}")
 
     # Stage 4: still over? forward anyway (upstream decides)
-    after = _estimate_request_tokens(body, model=model)
+    after = int((overhead + sum(costs)) * ratio)
 
     meta = {"before": before, "after": after, "budget": budget,
             "dropped_segments": dropped, "tool_results_trimmed": trimmed,
@@ -1744,7 +1876,6 @@ def compact_request(body, budget, model=None):
         return copy.deepcopy(body_original), f"est {before} budget={budget} VALIDATION_FAILED", {}
 
     return body, f"est {before}->{after} budget={budget} " + " ".join(notes), meta
-
 
 def _validate_compacted_messages(messages):
     """Post-compaction validator: ensure tool_use/tool_result pairing is intact.
@@ -2595,6 +2726,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _rid = _uuid.uuid4().hex[:8]
         max_tokens = req.get("max_tokens") if "max_tokens" in req else (req.get("max_output_tokens") if "max_output_tokens" in req else 8192)
         max_tokens = max_tokens or 8192  # only fallback for None/0
+        max_tokens = _clamp_max_tokens(disp, max_tokens)
         _pf = _context_limit(disp, max_tokens)
         # Inject synthetic "messages" key BEFORE estimation so token count is accurate
         _is_responses_fmt = "messages" not in req and ("input" in req or "instructions" in req)
@@ -2803,7 +2935,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             tool_choice = "auto"
         openai_msgs = _flatten_anthropic_messages(anth_messages, sysc)
         msgs_up, tools_enabled = _build_messages_with_tools(openai_tools, tool_choice, openai_msgs)
-        max_tokens = req.get("max_tokens") or 4096
+        max_tokens = _clamp_max_tokens(disp, req.get("max_tokens") or 4096)
         _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp, max_tokens)
         _inp_toks = _estimate_request_tokens(req, model=disp)
@@ -2843,7 +2975,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if eff_in and str(eff_in).lower() in ("off", "low", "medium", "high", "max"):
             effort = str(eff_in).lower()
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
-        max_tokens = req.get("max_tokens") or 4096
+        max_tokens = _clamp_max_tokens(disp, req.get("max_tokens") or 4096)
         if not stream:
             answer, reason, tcs_out, err = [], [], [], None
             for kind, data in upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5, max_tokens=max_tokens):
@@ -3142,7 +3274,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             tool_choice = "auto"
         msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
         _rid = _uuid.uuid4().hex[:8]
-        max_tokens = req.get("max_tokens") or 8192
+        max_tokens = _clamp_max_tokens(disp, req.get("max_tokens") or 8192)
         _pf = _context_limit(disp, max_tokens)
         _inp_toks = _estimate_request_tokens(req, model=disp)
         _COMPACT_THRESHOLD = 1.25
