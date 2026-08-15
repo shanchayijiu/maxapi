@@ -277,65 +277,238 @@ class RateLimiter:
 
 
 class CookieJar:
-    """Global cookie jar: capture Set-Cookie from companion responses,
-    replay them in upstream requests to look like a real browser session."""
+    """Global cookie jar: capture Set-Cookie from companion/upstream responses.
+
+    generation bumps when sticky identity rotates; stale responses from an old
+    generation must not write cookies into the new identity.
+    """
     def __init__(self):
         self.jar = {}
         self.lock = threading.Lock()
-    def update_from_response(self, resp):
+        self.last_update = 0.0  # monotonic
+        self.generation = 0
+
+    def update_from_response(self, resp, generation=None):
         try:
+            changed = False
             with self.lock:
+                if generation is not None and generation != self.generation:
+                    return False  # stale identity
                 for hdr in resp.getheaders():
-                    if hdr[0].lower() == 'set-cookie':
-                        part = hdr[1].split(';')[0].strip()
-                        if '=' in part:
-                            k, v = part.split('=', 1)
-                            self.jar[k.strip()] = v.strip()
+                    if hdr[0].lower() == "set-cookie":
+                        part = hdr[1].split(";")[0].strip()
+                        if "=" in part:
+                            k, v = part.split("=", 1)
+                            k, v = k.strip(), v.strip()
+                            if k and self.jar.get(k) != v:
+                                self.jar[k] = v
+                                changed = True
+                if changed:
+                    self.last_update = time.monotonic()
+            return changed
         except Exception:
-            pass
+            return False
+
     def get_header(self):
         with self.lock:
             if not self.jar:
                 return None
-            return '; '.join(k + '=' + v for k, v in self.jar.items())
+            return "; ".join(k + "=" + v for k, v in self.jar.items())
+
+    def snapshot(self):
+        """Atomic (generation, cookie_header) under jar lock."""
+        with self.lock:
+            if not self.jar:
+                return self.generation, None
+            return self.generation, "; ".join(k + "=" + v for k, v in self.jar.items())
+
+    def size(self):
+        with self.lock:
+            return len(self.jar)
+
+    def snapshot_generation(self):
+        with self.lock:
+            return self.generation
+
+    def clear(self, bump=True):
+        with self.lock:
+            self.jar.clear()
+            self.last_update = 0.0
+            if bump:
+                self.generation += 1
+            return self.generation
+
 
 COOKIE_JAR = CookieJar()
 
-_COMPANION_ENDPOINTS = [
-    ("/api/chat/nav-categories", BROWSER_GET_HEADERS),
-    ("/favicon.ico", None),  # uses BROWSER_GET_HEADERS with Referer tweak
-]
+# Sticky egress identity: real browsers keep one public IP per session. Rotating
+# XFF every request looks like a botnet and breaks session affinity upstream.
+# IP + cookie generation share _session_lock so snapshots are atomic.
+_STICKY_IP_TTL = float(os.getenv("MAXAPI_STICKY_IP_TTL", "600"))  # seconds
+_sticky_ip = None
+_sticky_ip_until = 0.0
+_session_lock = threading.Lock()
+_warm_lock = threading.Lock()
+_warm_inflight = False
 
-def companion_touch():
-    """Simulate a visitor landing on the site.  Captures cookies for session
-    realism and optionally hits a second endpoint (favicon) for behavioral variety."""
-    conn = None
-    conn2 = None
+
+def sticky_ip():
+    """Return current sticky XFF (may rotate on TTL). Prefer session_snapshot()."""
+    snap = session_snapshot(kick_warm=False)
+    return snap[0]
+
+
+def session_snapshot(kick_warm=True):
+    """Atomic (ip, generation, cookie_header) for one upstream attempt.
+
+    Holds _session_lock across IP selection and CookieJar.snapshot() so rotate
+    cannot interleave. CookieJar.snapshot() itself is one jar-lock critical section.
+    """
+    global _sticky_ip, _sticky_ip_until
+    now = time.monotonic()
+    with _session_lock:
+        if not _sticky_ip or now >= _sticky_ip_until:
+            _sticky_ip = rand_ip()
+            _sticky_ip_until = now + max(60.0, _STICKY_IP_TTL)
+        ip = _sticky_ip
+        gen, cookie = COOKIE_JAR.snapshot()
+    if kick_warm and not cookie:
+        _kick_warm_singleflight()
+    return ip, gen, cookie
+
+
+def rotate_sticky_ip(reason=""):
+    """Atomically rotate XFF and drop cookies (quota / guest / ban)."""
+    global _sticky_ip, _sticky_ip_until
+    with _session_lock:
+        prev = _sticky_ip
+        _sticky_ip = rand_ip()
+        _sticky_ip_until = time.monotonic() + max(60.0, _STICKY_IP_TTL)
+        gen = COOKIE_JAR.clear(bump=True)
+        new_ip = _sticky_ip
+    LOG.info("sticky identity rotated (%s): %s -> %s gen=%d", reason or "manual", prev, new_ip, gen)
+    _kick_warm_singleflight()
+    return new_ip
+
+
+def _kick_warm_singleflight():
+    """At most one background companion warm at a time."""
+    global _warm_inflight
+    with _warm_lock:
+        if _warm_inflight:
+            return
+        _warm_inflight = True
+
+    def _run():
+        global _warm_inflight
+        try:
+            background_companion_refresh()
+        finally:
+            with _warm_lock:
+                _warm_inflight = False
+
     try:
-        conn = http.client.HTTPSConnection(BASE, timeout=8, context=ssl.create_default_context())
-        conn.request("GET", "/api/chat/nav-categories", headers=BROWSER_GET_HEADERS)
-        resp = conn.getresponse()
-        COOKIE_JAR.update_from_response(resp)
-        resp.read(1024)
-        # 30% probability: hit a second endpoint for behavioral variety
-        if random.random() < 0.3:
-            time.sleep(random.uniform(0.1, 0.5))
-            conn2 = http.client.HTTPSConnection(BASE, timeout=8, context=ssl.create_default_context())
-            h2 = dict(BROWSER_GET_HEADERS)
-            h2["Referer"] = "https://se.zzmax.cn/"
-            conn2.request("GET", "/favicon.ico", headers=h2)
-            resp2 = conn2.getresponse()
-            COOKIE_JAR.update_from_response(resp2)
-            resp2.read()
+        threading.Thread(target=_run, daemon=True).start()
     except Exception:
-        pass
-    finally:
-        for _conn in (conn2, conn):
-            if _conn is not None:
+        with _warm_lock:
+            _warm_inflight = False
+
+
+_COMPANION_PATHS = (
+    "/",  # landing page often sets session cookies
+    "/api/chat/nav-categories",
+    "/favicon.ico",
+)
+_companion_lock = threading.Lock()
+_companion_last_try = 0.0
+_COMPANION_MIN_INTERVAL = 15.0  # avoid stampedes when jar empty under concurrency
+
+
+def companion_touch(force_all=False):
+    """Warm browser-like session: hit landing + nav, capture Set-Cookie.
+
+    force_all=True walks all paths (startup / empty-jar ensure). Otherwise a
+    light touch (landing + maybe favicon) for background refresh.
+    """
+    paths = list(_COMPANION_PATHS) if force_all else ["/", "/api/chat/nav-categories"]
+    if not force_all and random.random() < 0.3:
+        paths.append("/favicon.ico")
+    got = 0
+    for path in paths:
+        conn = None
+        try:
+            gen_at_start = COOKIE_JAR.snapshot_generation()
+            conn = http.client.HTTPSConnection(BASE, timeout=8, context=ssl.create_default_context())
+            h = dict(BROWSER_GET_HEADERS)
+            if path != "/":
+                h["Referer"] = "https://%s/" % BASE
+            else:
+                h["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                h["Sec-Fetch-Dest"] = "document"
+                h["Sec-Fetch-Mode"] = "navigate"
+            conn.request("GET", path, headers=h)
+            resp = conn.getresponse()
+            # Serialize cookie writes with rotate/snapshot; drop if identity rotated mid-warm.
+            with _session_lock:
+                if COOKIE_JAR.update_from_response(resp, generation=gen_at_start):
+                    got += 1
+            try:
+                resp.read(65536)
+            except Exception:
+                pass
+        except Exception as e:
+            LOG.debug("companion %s failed: %r", path, e)
+        finally:
+            if conn is not None:
                 try:
-                    _conn.close()
+                    conn.close()
                 except Exception:
                     pass
+        if not force_all:
+            time.sleep(random.uniform(0.05, 0.2))
+    if got:
+        LOG.info("companion warm cookies=%d header=%s", COOKIE_JAR.size(),
+                 (COOKIE_JAR.get_header() or "")[:80])
+    return COOKIE_JAR.size()
+
+
+def ensure_cookies(force=False):
+    """Return Cookie header without blocking the request hot path.
+
+    Prefer session_snapshot() on the request path. force=True is for bg/startup.
+    """
+    h = COOKIE_JAR.get_header()
+    if h:
+        return h
+    if force:
+        global _companion_last_try
+        with _companion_lock:
+            h = COOKIE_JAR.get_header()
+            if h:
+                return h
+            now = time.monotonic()
+            if now - _companion_last_try < _COMPANION_MIN_INTERVAL:
+                return COOKIE_JAR.get_header()
+            _companion_last_try = now
+            try:
+                companion_touch(force_all=True)
+            except Exception as e:
+                LOG.warning("ensure_cookies warm failed: %r", e)
+        return COOKIE_JAR.get_header()
+    _kick_warm_singleflight()
+    return None
+
+
+def background_companion_refresh():
+    """Async non-blocking refresh (startup / entry / empty-jar kick)."""
+    try:
+        if COOKIE_JAR.size() == 0:
+            ensure_cookies(force=True)
+        else:
+            companion_touch(force_all=False)
+    except Exception:
+        pass
+
 
 
 class ReasoningFilter:
@@ -2122,20 +2295,13 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         # 重建解析器，避免重试时残留上次的部分状态导致输出错乱
         filt = ReasoningFilter(include_reasoning=include_reasoning)
         tparser = ToolCallParser()  # always active: strips tool tags even when tools_enabled=False
-        xff = rand_ip()
+        xff, _id_gen, _cookie = session_snapshot(kick_warm=True)
         h = dict(BROWSER_STREAM_HEADERS)
         h["X-Forwarded-For"] = xff
         h["X-Real-IP"] = xff
-        # 注入 Cookie：模拟已访问过网站的浏览器会话
-        _cookie = COOKIE_JAR.get_header()
+        # Cookie from same atomic snapshot as XFF (may be None for guest).
         if _cookie:
             h["Cookie"] = _cookie
-        # 10%概率在请求前"逛一下"网站，获取/刷新 cookie
-        if random.random() < 0.1:
-            companion_touch()
-            _cookie = COOKIE_JAR.get_header()
-            if _cookie:
-                h["Cookie"] = _cookie
         conn = _pool_get()
         volatile = False
         got_done = False  # initialize before try so finally can reference it safely
@@ -2157,6 +2323,10 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             conn.request("POST", "/api/chat/stream", body, h)
             resp = conn.getresponse()
             status = resp.status
+            try:
+                COOKIE_JAR.update_from_response(resp, generation=_id_gen)
+            except Exception:
+                pass
             # After headers, allow long first-byte wait (thinking + pings).
             try:
                 if conn.sock is not None:
@@ -2259,12 +2429,17 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     if obj.get("error"):
                         err = obj["error"]
                         etxt = str(err)
-                        if any(k in etxt for k in ("额度", "2次", "登录", "游客", "套餐", "频繁", "繁忙", "服务提供商", "provider", "暂无可用")):
+                        # Quota / guest / ban — rotate sticky identity then retry
+                        if any(k in etxt for k in ("额度", "2次", "登录", "游客", "套餐", "频繁")):
+                            LOG.warning("[quota] %s", etxt[:120])
+                            rotate_sticky_ip("quota")
                             volatile = True
                             break
-                        if any(k in etxt for k in ("稍后",)):
-                            yield ("error", {"error": err})
-                            return
+                        # Capacity / busy — retry without rotating (sticky still fine)
+                        if any(k in etxt for k in ("繁忙", "服务提供商", "provider", "暂无可用", "稍后")):
+                            LOG.warning("[busy] %s", etxt[:120])
+                            volatile = True
+                            break
                         yield ("error", {"error": err})
                         return
                     ct = obj.get("content")
@@ -2708,7 +2883,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if RATE and not RATE.acquire(timeout=0):
             return self._send(429, _err_body("rate_limit_error", "rate limit: too many requests, try again shortly"), extra={"Retry-After": "5"})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
-            threading.Thread(target=companion_touch, daemon=True).start()
+            threading.Thread(target=background_companion_refresh, daemon=True).start()
         try:
             length = int(self.headers.get("Content-Length", "0") or 0)
         except (ValueError, TypeError):
@@ -3001,7 +3176,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if RATE and not RATE.acquire(timeout=0):
             return self._send(429, _err_body("rate_limit_error", "rate limit: too many requests, try again shortly", flavor="anthropic"), extra={"Retry-After": "5"})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
-            threading.Thread(target=companion_touch, daemon=True).start()
+            threading.Thread(target=background_companion_refresh, daemon=True).start()
         try:
             length = int(self.headers.get("Content-Length", "0") or 0)
         except (ValueError, TypeError):
@@ -3332,7 +3507,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if RATE and not RATE.acquire(timeout=0):
             return self._send(429, _err_body("rate_limit_error", "rate limit: too many requests, try again shortly"), extra={"Retry-After": "5"})
         if COMPANION_PROB and random.random() < COMPANION_PROB:
-            threading.Thread(target=companion_touch, daemon=True).start()
+            threading.Thread(target=background_companion_refresh, daemon=True).start()
         try:
             length = int(self.headers.get("Content-Length", "0") or 0)
         except (ValueError, TypeError):
@@ -3551,13 +3726,22 @@ def main():
         global COMPANION_PROB
         COMPANION_PROB = 0.0
     RATE = RateLimiter(args.rpm) if args.rpm > 0 else None
+    # Warm guest session before first client request (non-fatal).
+    if COMPANION_PROB:
+        try:
+            n = companion_touch(force_all=True)
+            LOG.info("startup companion cookies=%d", n)
+        except Exception as e:
+            LOG.warning("startup companion failed: %r", e)
+        threading.Thread(target=background_companion_refresh, daemon=True).start()
     srv = http.server.ThreadingHTTPServer((args.host, args.port), Handler)
     print("maxapi listening on %s:%d  models=%d  rpm=%s  companion=%s" % (
         args.host, args.port, len(MODEL_DISPLAY_IDS), args.rpm, not args.no_companion))
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
-        print("\nbye")
+        print("")
+        print("bye")
 
 
 if __name__ == "__main__":
