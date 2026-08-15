@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """maxapi - se.zzmax.cn guest-bypass OpenAI-compatible HTTP service.
 
-Guest no-auth + forged X-Forwarded-For (unlimited quota reset) + client-side
+Guest no-auth + per-attempt forged X-Forwarded-For (2/day free tier reset) + client-side
 long context -> standard OpenAI Chat Completions. 17 chat/vision models routed
 through the upstream /api/chat/stream SSE endpoint. Image/video/audio generation
 models dropped: they use dedicated endpoints that return 401 for guests.
@@ -2262,7 +2262,7 @@ def _pool_put(conn):
     except Exception:
         pass
 
-def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, tools_enabled=False, max_retry=3, max_tokens=None):
+def upstream(model_field, messages, include_reasoning=False, reasoning_effort="medium", search=False, tools_enabled=False, max_retry=6, max_tokens=None):
     grp, sub, disp = resolve_model(model_field)
     payload = {"model": grp, "subModel": sub, "messages": messages, "stream": True}
     if max_tokens:
@@ -2295,13 +2295,21 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         # 重建解析器，避免重试时残留上次的部分状态导致输出错乱
         filt = ReasoningFilter(include_reasoning=include_reasoning)
         tparser = ToolCallParser()  # always active: strips tool tags even when tools_enabled=False
-        xff, _id_gen, _cookie = session_snapshot(kick_warm=True)
+        # CORE BYPASS: fresh forged XFF every attempt. Upstream free tier is
+        # ~2 calls/day per client IP identity — sticky XFF exhausts that and
+        # surfaces 额度 errors. Randomizing per attempt is intentional.
+        xff = rand_ip()
         h = dict(BROWSER_STREAM_HEADERS)
         h["X-Forwarded-For"] = xff
         h["X-Real-IP"] = xff
-        # Cookie from same atomic snapshot as XFF (may be None for guest).
+        # Cookie is optional camouflage only (upstream often sends none).
+        # Never block; never couple cookies to XFF identity.
+        _cookie = COOKIE_JAR.get_header()
         if _cookie:
             h["Cookie"] = _cookie
+        else:
+            _kick_warm_singleflight()
+        _id_gen = COOKIE_JAR.snapshot_generation()
         conn = _pool_get()
         volatile = False
         got_done = False  # initialize before try so finally can reference it safely
@@ -2340,7 +2348,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 err_body = resp.read(2048).decode("utf-8", "ignore")[:300]
                 LOG.warning("[volatile %d/%d] upstream %s: %s", attempt, max_retry, status, err_body)
                 if attempt >= max_retry:
-                    yield ("error", {"error": "upstream model repeatedly busy after %d retries; retry shortly" % attempt})
+                    yield ("error", {"error": "upstream temporarily unavailable after %d retries; retry shortly" % attempt})
                     return
                 _remain = _deadline - time.monotonic()
                 if _remain <= 1.0:
@@ -2429,17 +2437,18 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     if obj.get("error"):
                         err = obj["error"]
                         etxt = str(err)
-                        # Quota / guest / ban — rotate sticky identity then retry
+                        # Free-tier / guest gate — next attempt gets a new rand_ip().
+                        # Do NOT yield Chinese quota text to client (silent rotate).
                         if any(k in etxt for k in ("额度", "2次", "登录", "游客", "套餐", "频繁")):
-                            LOG.warning("[quota] %s", etxt[:120])
-                            rotate_sticky_ip("quota")
+                            LOG.info("[quota-rotate] attempt=%d/%d %s", attempt, max_retry, etxt[:80])
                             volatile = True
                             break
-                        # Capacity / busy — retry without rotating (sticky still fine)
+                        # Capacity — retry with fresh IP as well
                         if any(k in etxt for k in ("繁忙", "服务提供商", "provider", "暂无可用", "稍后")):
-                            LOG.warning("[busy] %s", etxt[:120])
+                            LOG.info("[busy-retry] attempt=%d/%d %s", attempt, max_retry, etxt[:80])
                             volatile = True
                             break
+                        # Real hard errors only: surface once
                         yield ("error", {"error": err})
                         return
                     ct = obj.get("content")
@@ -2492,15 +2501,17 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             if volatile and not got_done and not content_yielded and attempt < max_retry:
                 _remain = _deadline - time.monotonic()
                 if _remain <= 1.0:
-                    yield ("error", {"error": "upstream model busy/stalled (deadline); retry shortly"})
+                    yield ("error", {"error": "upstream temporarily unavailable; retry shortly"})
                     return
-                _sleep = min(4.0, max(0.2, min(1.5 ** attempt, _remain - 0.5))) + random.uniform(0, 0.3)
-                LOG.warning("[volatile %d/%d] retry in %.1fs", attempt, max_retry, _sleep)
+                # Fast rotate: first retries nearly immediate (new XFF is the fix).
+                _sleep = min(2.0, max(0.05, min(0.35 * attempt, _remain - 0.5))) + random.uniform(0, 0.15)
+                LOG.info("[retry %d/%d] new XFF in %.2fs", attempt, max_retry, _sleep)
                 time.sleep(_sleep)
                 continue
-            if volatile and (attempt >= max_retry or time.monotonic() >= _deadline):
+            if volatile and (attempt >= max_retry or (not content_yielded and time.monotonic() >= _deadline)):
                 if not content_yielded:
-                    yield ("error", {"error": "upstream model repeatedly busy after %d retries; retry shortly" % attempt})
+                    # Generic client message — never leak 额度/登录 Chinese copy
+                    yield ("error", {"error": "upstream temporarily unavailable after %d retries; retry shortly" % attempt})
             return
         except Exception as e:
             if attempt < max_retry:
