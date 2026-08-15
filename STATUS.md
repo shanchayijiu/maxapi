@@ -1,10 +1,10 @@
 # maxapi STATUS
 
-> 2026-08-15 更新: gpt-5.6-sol auto tool 可靠性 — escalate + terminal-force + 529 旁路；验收 28/28 + 15 轮 agent 链 17/17。保护路径（XFF / 2-OK identity / busy≠quota / 并发5）未改。
+> 2026-08-16 更新: 预压缩触发从 `est>limit*1.25` 改为 `eff>limit*0.88`（估算 inflate 1.20 + 分段 budget），修「超 100% 不自动压、手动压才正常」。tool escalate 仍为 c217562 基线。
 
 ## 一句话现状
 
-`maxapi_server.py` 已部署 8080：sol/agent 场景 auto tool 可稳定出 `tool_use`（20/20），howto/禁 tool 不误触，15 轮多轮 agent 链通过。上一稳定提交 `50ed3db`（2-OK identity）；本批 tool-escalate 待本 STATUS 同批 push。
+`maxapi_server.py`：sol auto tool 阶梯（c217562）+ 预压缩安全余量（本批）。8080 已重建。
 
 ## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
 
@@ -23,7 +23,7 @@
 - OpenAI Responses 流式文本路径通过：SSE 含 `response.output_text.delta` 和 `response.completed`。
 - OpenAI Responses 流式 function_call 路径通过：SSE 含 `function_call` item、`response.function_call_arguments.done`，参数字符串内已是 coerced JSON。
 - forced function `tool_choice` prompt 已验证：保留强制调用指令、完整 DSML schema 模板、且用 `m._DSML` 拼出的精确 `<invoke name="do_work">` 标签存在。
-- **上下文压缩机制上线**：preflight拒绝已移除，改为advisory日志+可选compaction(1.25x阈值)+上游错误重试。
+- **上下文压缩机制上线**：preflight 拒绝已移除；**2026-08-16** 起预压缩触发 `eff>limit*0.88`（估核算 inflate 默认 1.20 + 分段 budget），上游 too-long 仍重试 compact。
 - **结构化日志上线**：`LOG.info/warning/error` 替代 `sys.stderr.write`，含rid、model、est/actual tokens、耗时。
 - **post-compact validator上线**：校验tool_use/tool_result配对，失败回退到原始请求透传。
 - 真实本地服务端到端验证通过：`python maxapi_server.py --host 127.0.0.1 --port 18080 --rpm 0 --no-companion` 后，`/healthz`、`/v1/models`、`/v1/responses`、`/v1/chat/completions`、`/v1/messages` 均返回 200。
@@ -55,7 +55,7 @@
 
 ### 1. 移除preflight拒绝
 - 三个端点(`/v1/messages`, `/v1/responses`, `/v1/chat/completions`)不再在preflight阶段拒绝长输入
-- 改为LOG.warning记录超限，est超过limit 1.25倍时触发compaction
+- 改为LOG.warning记录超限；**旧** est>limit×1.25 才压 → **现** eff>limit×0.88（见 2026-08-16 节）
 - 上游返回"too long"错误时自动解析actual/allowed并重试（非流式路径）
 
 ### 2. 结构化日志
@@ -79,6 +79,8 @@
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `MAXAPI_COMPACT` | `1` | `0`=纯透传，不做压缩 |
+| `MAXAPI_COMPACT_TRIGGER` | `0.88` | 预压缩触发：eff > limit × 该值 |
+| `MAXAPI_EST_COMPACT_INFLATE` | `1.20` | 无 EWMA 样本时对 est 上浮，抵消低估 |
 | `MAXAPI_LOG_LEVEL` | `INFO` | 日志级别 |
 | `MAXAPI_KEEP_TAIL_SEGMENTS` | `6` | 压缩时保留的尾部segment数 |
 | `MAXAPI_TOOL_RESULT_CAP` | `4000` | tool_result截断阈值(字符) |
@@ -386,6 +388,31 @@ tools 不走 payload 而是注入 messages，上游不拦截 messages 里的文�
 
 已知脆弱点：`ReasoningFilter` 只认 `<think>` / `<thinking>` 标签。上游目前
 正是这个格式，但若改成结构化字段传推理，过滤器会静默失效、把推理当正文输出。
+
+
+## 2026-08-16 预压缩安全余量（Sonnet5 规划）
+
+### 根因
+- 旧逻辑：`est > limit` 只 warning；**`est > limit * 1.25` 才 compact**，目标 `limit*0.95`。
+- 用户实证：上下文 **>100%** 时 agent 异常；**手动压缩一次再继续就正常** → 自动压缩触发过晚。
+- 用户否定「100% 就压」：贴顶无安全额度。
+- 额外实证：原始估算相对上游 `input_tokens` 可低估 ~20–25%（CJK 长历史 fat 测：est 148k / actual 196k），仅改 1.25→0.88 仍可能不触发。
+
+### 修复（最小 diff，三端点 messages/chat/responses）
+| 项 | 值 |
+|---|---|
+| 触发 | `eff > limit * MAXAPI_COMPACT_TRIGGER`（默认 **0.88**） |
+| eff | raw est × `MAXAPI_EST_COMPACT_INFLATE`（默认 **1.20**）；有 EWMA 样本时用 max(ratio,1.0) |
+| budget 分段 | eff/limit ≤1.05→limit 的 82%；≤1.25→78%；>1.25→72%；再 /scale 回到 raw 单位，且 **强制 raw≤0.85×** |
+| 上游 too-long 重试 | 仍走 `_compact_budget`（未改算法本体） |
+
+环境变量：`MAXAPI_COMPACT_TRIGGER`、`MAXAPI_EST_COMPACT_INFLATE`、`MAXAPI_COMPACT`。
+
+### 实证
+- 单元：trigger/inflate/budget 分段断言通过。
+- 日志：`compacting (est=148779 eff=178534 limit=199232 ratio=0.90 trigger=0.88 budget=126462)` → `compacted est 148779->126183 ... segments_dropped=7`。
+- 短请求 PONG 不误压；fat 请求触发丢段。
+
 
 ## 2026-08-15 sol auto tool 可靠性（本批）
 

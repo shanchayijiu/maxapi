@@ -4,9 +4,7 @@
 封装成标准 **OpenAI Chat Completions** 与 **Anthropic Messages**（Claude Code / agent 可直连）。
 纯 Python 标准库、零依赖、单文件 Docker。
 
-**2026-08-15**：`gpt-5.6-sol` auto tool 可靠性收口 — escalate → terminal-force → 529 旁路；
-验收 `_accept_tool_suite` **28/28**（auto Bash **20/20**）+ 15 轮 agent 链 **17/17**。
-身份：2 次 OK 主动 retire XFF；`busy≠quota`；并发 5。详见 [STATUS.md](STATUS.md)。
+**2026-08-16**：预压缩 `eff>limit*0.88`（估核算 inflate 1.20，分段 budget），修超 100% 不自动压。**2026-08-15**：sol auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy!=quota`。详见 [STATUS.md](STATUS.md)。
 
 ## 上游机制（实证，2026-08-01）
 

@@ -49,6 +49,78 @@ _COMPACT_ENABLED = os.getenv("MAXAPI_COMPACT", "1") != "0"
 _KEEP_TAIL_SEGMENTS = int(os.getenv("MAXAPI_KEEP_TAIL_SEGMENTS", "6"))
 _TOOL_RESULT_CAP = int(os.getenv("MAXAPI_TOOL_RESULT_CAP", "4000"))  # token-based threshold per tool_result
 _MAX_BODY_BYTES = 10 * 1024 * 1024  # 10 MB max request body
+# Preflight compact: trigger BEFORE hard limit so estimator error + upstream hidden
+# tokens never ride the 100%~125% "warn only" band (user-confirmed agent stall zone).
+# Default 0.88 leaves ~12% headroom; target tiers leave ~18%~28% after compact.
+try:
+    _COMPACT_TRIGGER = float(os.getenv("MAXAPI_COMPACT_TRIGGER", "0.88"))
+except (TypeError, ValueError):
+    _COMPACT_TRIGGER = 0.88
+_COMPACT_TRIGGER = max(0.50, min(0.99, _COMPACT_TRIGGER))
+try:
+    _EST_COMPACT_INFLATE = float(os.getenv("MAXAPI_EST_COMPACT_INFLATE", "1.20"))
+except (TypeError, ValueError):
+    _EST_COMPACT_INFLATE = 1.20
+_EST_COMPACT_INFLATE = max(1.0, min(2.0, _EST_COMPACT_INFLATE))
+
+
+def _est_for_preflight(est_tokens, model=None):
+    """Inflate token estimate for compact decisions.
+
+    Live evidence: raw estimator can under-count ~20-30% vs upstream input_tokens
+    (esp. CJK-heavy agent histories). EWMA ratio is actual/estimated when sampled;
+    with no samples, apply _EST_COMPACT_INFLATE. Never use a scale < 1.0 here —
+    under-triggering compact is worse than compacting slightly early.
+    """
+    est = int(est_tokens or 0)
+    if est <= 0:
+        return 0
+    scale = _EST_COMPACT_INFLATE
+    if model:
+        with _EWMA_LOCK:
+            s = _ewma_store.get(model)
+            if s and s.get("n", 0) > 0:
+                # actual/estimated; only honor values that indicate under-count
+                scale = max(float(s.get("ratio") or 1.0), 1.0)
+    return int(est * scale)
+
+
+def _preflight_should_compact(est_tokens, limit_tokens, model=None):
+    """True when estimated input should be compacted before first upstream call."""
+    if not _COMPACT_ENABLED or limit_tokens <= 0:
+        return False
+    eff = _est_for_preflight(est_tokens, model)
+    return eff > int(limit_tokens * _COMPACT_TRIGGER)
+
+
+def _preflight_compact_budget(est_tokens, limit_tokens, model=None):
+    """Target budget for compact_request (uses RAW estimator units).
+
+    Tier by effective (inflated) ratio vs limit, then convert target back to raw
+    estimator units so compact actually shrinks when under-count hid over-limit.
+    Always force at least ~15% raw shrink when we decided to compact.
+    """
+    lim = max(1, int(limit_tokens))
+    raw = max(0, int(est_tokens or 0))
+    eff = _est_for_preflight(raw, model)
+    ratio = float(eff) / float(lim)
+    if ratio > 1.25:
+        frac = 0.72
+    elif ratio > 1.05:
+        frac = 0.78
+    else:
+        frac = 0.82
+    scale = float(eff) / float(raw) if raw > 0 else _EST_COMPACT_INFLATE
+    if scale < 1.0:
+        scale = 1.0
+    # Want inflated(raw_after) ~= limit*frac => raw_after ~= limit*frac/scale
+    budget = int(lim * frac / scale)
+    if raw > 0:
+        budget = min(budget, int(raw * 0.85))
+    budget = min(budget, lim - 1)
+    if lim > 10000:
+        budget = max(8000, budget)
+    return max(1, budget)
 
 def _setup_logging():
     lvl = os.getenv("MAXAPI_LOG_LEVEL", "INFO").upper()
@@ -3457,13 +3529,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if _is_responses_fmt:
             req["messages"] = msgs
         _inp_toks = _estimate_request_tokens(req, model=disp)
-        _COMPACT_THRESHOLD = 1.25
         _compact_meta = {}
         if _inp_toks > _pf:
             LOG.warning("rid=%s [responses] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
-        if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
-            LOG.warning("rid=%s [responses] compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
-            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95), model=disp)
+        if _preflight_should_compact(_inp_toks, _pf, model=disp):
+            _eff = _est_for_preflight(_inp_toks, disp)
+            _cb = _preflight_compact_budget(_inp_toks, _pf, disp)
+            LOG.warning("rid=%s [responses] compacting (est=%d eff=%d limit=%d ratio=%.2f trigger=%.2f budget=%d)",
+                        _rid, _inp_toks, _eff, _pf, _eff / max(1, _pf), _COMPACT_TRIGGER, _cb)
+            req, _cprep, _compact_meta = compact_request(req, _cb, model=disp)
             LOG.info("rid=%s compacted %s", _rid, _cprep)
             # Use compacted messages directly
             msgs = req.get("messages") or []
@@ -3666,13 +3740,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _rid = _uuid.uuid4().hex[:8]
         _pf = _context_limit(disp, max_tokens)
         _inp_toks = _estimate_request_tokens(req, model=disp)
-        _COMPACT_THRESHOLD = 1.25
         _compact_meta = {}
         if _inp_toks > _pf:
             LOG.warning("rid=%s over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
-        if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
-            LOG.warning("rid=%s compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
-            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95), model=disp)
+        if _preflight_should_compact(_inp_toks, _pf, model=disp):
+            _eff = _est_for_preflight(_inp_toks, disp)
+            _cb = _preflight_compact_budget(_inp_toks, _pf, disp)
+            LOG.warning("rid=%s compacting (est=%d eff=%d limit=%d ratio=%.2f trigger=%.2f budget=%d)",
+                        _rid, _inp_toks, _eff, _pf, _eff / max(1, _pf), _COMPACT_TRIGGER, _cb)
+            req, _cprep, _compact_meta = compact_request(req, _cb, model=disp)
             LOG.info("rid=%s compacted %s", _rid, _cprep)
             # rebuild from compacted request
             anth_messages = req.get("messages") or []
@@ -4058,13 +4134,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         max_tokens = _clamp_max_tokens(disp, req.get("max_tokens") or 8192)
         _pf = _context_limit(disp, max_tokens)
         _inp_toks = _estimate_request_tokens(req, model=disp)
-        _COMPACT_THRESHOLD = 1.25
         _compact_meta = {}
         if _inp_toks > _pf:
             LOG.warning("rid=%s [chat] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
-        if _inp_toks > _pf * _COMPACT_THRESHOLD and _COMPACT_ENABLED:
-            LOG.warning("rid=%s [chat] compacting (est/limit=%.2f)", _rid, _inp_toks / _pf)
-            req, _cprep, _compact_meta = compact_request(req, int(_pf * 0.95), model=disp)
+        if _preflight_should_compact(_inp_toks, _pf, model=disp):
+            _eff = _est_for_preflight(_inp_toks, disp)
+            _cb = _preflight_compact_budget(_inp_toks, _pf, disp)
+            LOG.warning("rid=%s [chat] compacting (est=%d eff=%d limit=%d ratio=%.2f trigger=%.2f budget=%d)",
+                        _rid, _inp_toks, _eff, _pf, _eff / max(1, _pf), _COMPACT_TRIGGER, _cb)
+            req, _cprep, _compact_meta = compact_request(req, _cb, model=disp)
             LOG.info("rid=%s compacted %s", _rid, _cprep)
             messages = req.get("messages") or []
             msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
