@@ -245,6 +245,46 @@ def rand_ip():
     return "%d.%d.%d.%d" % (random.randint(1,250), random.randint(0,251), random.randint(0,251), random.randint(1,250))
 
 
+# Free tier ~2 successful calls / network-identity / day.
+# After 2 OK uses, retire so the next call never waits for a quota error.
+_IDENTITY_MAX_OK = int(os.getenv("MAXAPI_IDENTITY_MAX_OK", "2"))
+_identity_lock = threading.Lock()
+_identity_ip = None
+_identity_ok = 0
+
+
+def identity_acquire(force_new=False):
+    global _identity_ip, _identity_ok
+    with _identity_lock:
+        if force_new or _identity_ip is None or _identity_ok >= _IDENTITY_MAX_OK:
+            _identity_ip = rand_ip()
+            _identity_ok = 0
+        return _identity_ip
+
+
+def identity_mark_ok(ip):
+    global _identity_ip, _identity_ok
+    if not ip:
+        return
+    with _identity_lock:
+        if ip != _identity_ip:
+            return
+        _identity_ok += 1
+        if _identity_ok >= _IDENTITY_MAX_OK:
+            LOG.info("identity retire after %d ok uses", _identity_ok)
+            _identity_ip = None
+            _identity_ok = 0
+
+
+def identity_retire(ip, reason=""):
+    global _identity_ip, _identity_ok
+    with _identity_lock:
+        if ip is None or ip == _identity_ip:
+            LOG.info("identity retire (%s)", reason or "force")
+            _identity_ip = None
+            _identity_ok = 0
+
+
 class RateLimiter:
     """Token-bucket: max 'rpm' chat requests per minute, smoothed across time."""
     def __init__(self, rpm=60):
@@ -2225,6 +2265,9 @@ _FIRST_BYTE_TIMEOUT = 45     # allow slow first content under ping keepalives
 # disabled — only inter-chunk stall applies. Otherwise long thinking (~1min+)
 # gets hard-killed mid-stream (Cherry shows thinking then forced stop).
 _UPSTREAM_DEADLINE = 75.0
+_UPSTREAM_CONCURRENCY = int(os.getenv("MAXAPI_UPSTREAM_CONCURRENCY", "5"))
+_UPSTREAM_QUEUE_WAIT = float(os.getenv("MAXAPI_UPSTREAM_QUEUE_WAIT", "3.0"))
+_upstream_sema = threading.BoundedSemaphore(max(1, _UPSTREAM_CONCURRENCY))
 _conn_pool_lock = threading.Lock()
 _conn_pool = []  # list of idle http.client.HTTPSConnection
 
@@ -2281,6 +2324,8 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
     sources_sent = False
     content_yielded = False
     _deadline = time.monotonic() + _UPSTREAM_DEADLINE
+    xff = identity_acquire(force_new=False)
+    retry_class = None  # quota|busy|stall
     for attempt in range(1, max_retry + 1):
         # Never retry after bytes were already sent to the client — would duplicate.
         if content_yielded and attempt > 1:
@@ -2295,21 +2340,25 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         # 重建解析器，避免重试时残留上次的部分状态导致输出错乱
         filt = ReasoningFilter(include_reasoning=include_reasoning)
         tparser = ToolCallParser()  # always active: strips tool tags even when tools_enabled=False
-        # CORE BYPASS: fresh forged XFF every attempt. Upstream free tier is
-        # ~2 calls/day per client IP identity — sticky XFF exhausts that and
-        # surfaces 额度 errors. Randomizing per attempt is intentional.
-        xff = rand_ip()
+        if retry_class == "quota":
+            identity_retire(xff, "quota")
+            xff = identity_acquire(force_new=True)
+        retry_class = None
         h = dict(BROWSER_STREAM_HEADERS)
         h["X-Forwarded-For"] = xff
         h["X-Real-IP"] = xff
-        # Cookie is optional camouflage only (upstream often sends none).
-        # Never block; never couple cookies to XFF identity.
         _cookie = COOKIE_JAR.get_header()
         if _cookie:
             h["Cookie"] = _cookie
         else:
             _kick_warm_singleflight()
         _id_gen = COOKIE_JAR.snapshot_generation()
+        _slot_wait = min(_UPSTREAM_QUEUE_WAIT, max(0.05, _deadline - time.monotonic() - 0.5))
+        _slot_held = False
+        if not _upstream_sema.acquire(timeout=max(0.05, _slot_wait)):
+            yield ("error", {"error": "upstream temporarily unavailable; retry shortly"})
+            return
+        _slot_held = True
         conn = _pool_get()
         volatile = False
         got_done = False  # initialize before try so finally can reference it safely
@@ -2346,16 +2395,31 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             if status == 429 or status in (502, 503, 504):
                 volatile = True
                 err_body = resp.read(2048).decode("utf-8", "ignore")[:300]
-                LOG.warning("[volatile %d/%d] upstream %s: %s", attempt, max_retry, status, err_body)
+                if any(k in err_body for k in ("额度", "2次", "登录", "游客", "套餐", "频繁")):
+                    retry_class = "quota"
+                    LOG.info("[quota] http=%s attempt=%d/%d", status, attempt, max_retry)
+                else:
+                    retry_class = "busy"
+                    LOG.info("[busy] http=%s attempt=%d/%d", status, attempt, max_retry)
                 if attempt >= max_retry:
                     yield ("error", {"error": "upstream temporarily unavailable after %d retries; retry shortly" % attempt})
                     return
+                if locals().get("_slot_held"):
+                    try:
+                        _upstream_sema.release()
+                    except Exception:
+                        pass
+                    _slot_held = False
                 _remain = _deadline - time.monotonic()
                 if _remain <= 1.0:
-                    yield ("error", {"error": "upstream model busy/stalled (deadline); retry shortly"})
+                    yield ("error", {"error": "upstream temporarily unavailable; retry shortly"})
                     return
-                _sleep = min(4.0, max(0.2, min(1.5 ** attempt, _remain - 0.5))) + random.uniform(0, 0.3)
-                LOG.warning("[volatile %d/%d] retry in %.1fs", attempt, max_retry, _sleep)
+                if retry_class == "quota":
+                    _sleep = min(0.25, max(0.05, 0.08 * attempt)) + random.uniform(0, 0.08)
+                else:
+                    _base = (0.5, 1.0, 2.0, 4.0, 4.0, 4.0)
+                    _sleep = min(_base[min(attempt, len(_base)) - 1] + random.uniform(0.0, 0.3), max(0.2, _remain - 0.5))
+                LOG.info("[retry %d/%d class=%s] sleep=%.2fs", attempt, max_retry, retry_class, _sleep)
                 time.sleep(_sleep)
                 continue
             elif status not in (200, 201):
@@ -2397,6 +2461,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     LOG.warning("[stall %d/%d] no data for %.0fs (to=%.1f saw_data=%s), abort",
                                 attempt, max_retry, elapsed, _chunk_to, saw_data_event)
                     volatile = True
+                    retry_class = "stall"
                     break
                 except OSError as _re:
                     _errno = getattr(_re, "errno", None)
@@ -2406,6 +2471,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                         LOG.warning("[stall %d/%d] no data for %.0fs (to=%.1f saw_data=%s), abort",
                                     attempt, max_retry, elapsed, _chunk_to, saw_data_event)
                         volatile = True
+                        retry_class = "stall"
                         break
                     raise
                 if not chunk:
@@ -2437,19 +2503,17 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     if obj.get("error"):
                         err = obj["error"]
                         etxt = str(err)
-                        # Free-tier / guest gate — next attempt gets a new rand_ip().
-                        # Do NOT yield Chinese quota text to client (silent rotate).
                         if any(k in etxt for k in ("额度", "2次", "登录", "游客", "套餐", "频繁")):
-                            LOG.info("[quota-rotate] attempt=%d/%d %s", attempt, max_retry, etxt[:80])
+                            LOG.info("[quota] attempt=%d/%d", attempt, max_retry)
                             volatile = True
+                            retry_class = "quota"
                             break
-                        # Capacity — retry with fresh IP as well
                         if any(k in etxt for k in ("繁忙", "服务提供商", "provider", "暂无可用", "稍后")):
-                            LOG.info("[busy-retry] attempt=%d/%d %s", attempt, max_retry, etxt[:80])
+                            LOG.info("[busy] attempt=%d/%d", attempt, max_retry)
                             volatile = True
+                            retry_class = "busy"
                             break
-                        # Real hard errors only: surface once
-                        yield ("error", {"error": err})
+                        yield ("error", {"error": "upstream temporarily unavailable; retry shortly"})
                         return
                     ct = obj.get("content")
                     if ct is not None and ct != "":
@@ -2487,6 +2551,9 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 for tk, tp in tparser.flush():
                     content_yielded = True
                     yield (tk, tp)
+            if got_done and not volatile:
+                identity_mark_ok(xff)
+                return
             if not got_done and not volatile and not content_yielded:
                 # stream cut without done — likely connection error, retry only if no content sent
                 if attempt < max_retry:
@@ -2499,13 +2566,26 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     time.sleep(_sleep)
                     continue
             if volatile and not got_done and not content_yielded and attempt < max_retry:
+                if locals().get("_slot_held"):
+                    try:
+                        _upstream_sema.release()
+                    except Exception:
+                        pass
+                    _slot_held = False
                 _remain = _deadline - time.monotonic()
                 if _remain <= 1.0:
                     yield ("error", {"error": "upstream temporarily unavailable; retry shortly"})
                     return
-                # Fast rotate: first retries nearly immediate (new XFF is the fix).
-                _sleep = min(2.0, max(0.05, min(0.35 * attempt, _remain - 0.5))) + random.uniform(0, 0.15)
-                LOG.info("[retry %d/%d] new XFF in %.2fs", attempt, max_retry, _sleep)
+                rc = retry_class or "busy"
+                if rc == "quota":
+                    _sleep = min(0.25, max(0.05, 0.08 * attempt)) + random.uniform(0, 0.08)
+                elif rc == "stall":
+                    _base = (0.3, 0.6, 1.2, 2.0, 3.0, 3.0)
+                    _sleep = min(_base[min(attempt, len(_base)) - 1] + random.uniform(0, 0.3), max(0.2, _remain - 0.5))
+                else:
+                    _base = (0.5, 1.0, 2.0, 4.0, 4.0, 4.0)
+                    _sleep = min(_base[min(attempt, len(_base)) - 1] + random.uniform(0, 0.3), max(0.2, _remain - 0.5))
+                LOG.info("[retry %d/%d class=%s] sleep=%.2fs", attempt, max_retry, rc, _sleep)
                 time.sleep(_sleep)
                 continue
             if volatile and (attempt >= max_retry or (not content_yielded and time.monotonic() >= _deadline)):
@@ -2531,6 +2611,12 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 conn.close()
             except Exception:
                 pass
+            if locals().get("_slot_held"):
+                try:
+                    _upstream_sema.release()
+                except Exception:
+                    pass
+                _slot_held = False
             # Keep pool API but do not recycle stream sockets for now.
             # _pool_put(conn)
 
