@@ -1,7 +1,12 @@
-# maxapi — se.zzmax.cn 访客旁路 OpenAI 兼容服务
+# maxapi — se.zzmax.cn 访客旁路 OpenAI / Anthropic 兼容服务
 
 把 se.zzmax.cn 的访客免登录 + 伪造 X-Forwarded-For（无限重置每日 2 次额度）+ 客户端维护长上下文，
-封装成标准 OpenAI Chat Completions。纯 Python 标准库、零依赖、单文件 Docker。
+封装成标准 **OpenAI Chat Completions** 与 **Anthropic Messages**（Claude Code / agent 可直连）。
+纯 Python 标准库、零依赖、单文件 Docker。
+
+**2026-08-15**：`gpt-5.6-sol` auto tool 可靠性收口 — escalate → terminal-force → 529 旁路；
+验收 `_accept_tool_suite` **28/28**（auto Bash **20/20**）+ 15 轮 agent 链 **17/17**。
+身份：2 次 OK 主动 retire XFF；`busy≠quota`；并发 5。详见 [STATUS.md](STATUS.md)。
 
 ## 上游机制（实证，2026-08-01）
 
@@ -115,16 +120,35 @@ curl http://localhost:8080/healthz   # {"status":"ok","models":17}
 | 思考时长卡住/连接不结束 | 思考 dump+不关连接 | 简单 "1"：`[DONE]` 后干净关闭 |
 | 隐身（本节） | 非浏览器 header/高频/无会话 | P0 全量实测见上表 |
 
-## 工具调用（tool use / 伪 OpenAI tool calling）
+## 工具调用（tool use / DSML 伪 OpenAI·Anthropic tool calling）
 
-se.zzmax.cn 是私有 schema（`/api/chat/stream` 只认 `model/subModel/messages/reasoningEffort/search`），**不透传 OpenAI `tools` 字段**——原生协议层 tool use 已断（模型会直说 "I don't have access to tools"）。maxapi 在代理层用**诱导式 / 解析式伪 tool calling**，让标准 agent（Codex、OpenClaw、Cherry Studio、openai SDK）传入 `tools` 后像正常 OpenAI API 一样工作：
+se.zzmax.cn 是私有 schema（`/api/chat/stream` 只认 `model/subModel/messages/reasoningEffort/search`），**不透传 OpenAI `tools` 字段**。maxapi 在代理层用 **DSML 诱导 + 解析** 做伪 tool calling，让 Codex / Claude Code / Cherry Studio / openai SDK 传入 `tools` 后像正常 API 一样工作：
 
-1. **注入 tools system prompt**：把客户端 `tools`（OpenAI function schema）编进 system 消息，教模型在需要时输出固定 XML-like 标签块 `<tool_call>{"name": "<function_name>", "arguments": {...}}</tool_call>`，并给一个完整 example 锚定格式；`tool_choice` auto/none/required/指定函数名 全支持。
-2. **展平历史**：把历史中的 `assistant.tool_calls` 渲染成同款文本块、`role:tool` 结果渲染成 `user` 观察消息（私有上游不认 `tool` role）。
-3. **ToolCallParser 状态机解析**：从模型文本流里剥出 tool_call 块，跨 SSE chunk 拆分也不泄漏 body；**多标签容错**（`<tool_call`/`<call`/`<tool_use`/`<function_call`/`<tool` 五种），应对模型对精确标签的随机性。
-4. **转标准 OpenAI**：非流式 `message.tool_calls` + `finish_reason=tool_calls`；流式 `delta.tool_calls` + 干净 `[DONE]`。
+1. **注入 DSML tools system prompt**（CONNECTED TOOLS）：把客户端 tools 编进 system，教模型输出 DSML `tool_calls` 块；`tool_choice` auto/none/required/指定函数名全支持。
+2. **展平历史**：`assistant.tool_calls` → DSML 文本块；`role:tool` / Anthropic `tool_result` → user 观察消息。
+3. **ToolCallParser**：流式 sieve 剥 DSML / 上游 `<function=NAME>` 等格式，跨 chunk 不泄漏闭合标签。
+4. **转标准协议**：OpenAI `message.tool_calls` / Anthropic `tool_use`；流式对齐原生分片。
 
-> 方案同向于业界通行做法（prompt 注入 + 文本块解析 + 转 OpenAI tool_calls，如 LiteLLM fallback / reAct 类框架的 tool_use 文本协议）；无原生 tool use 的上游均可据此补齐。
+### auto tool 可靠性阶梯（2026-08-15，gpt-5.6-sol 验收）
+
+sol 等模型在 `tool_choice=auto` 下会偶发只 think + `end_turn`（声称无终端）。代理层补强制阶梯，**不改 XFF / 2-OK identity / busy≠quota**：
+
+| 阶段 | 行为 |
+|---|---|
+| Prompt | CONNECTED TOOLS；动作必须发 DSML；howto / do-not-execute 允许纯文本 |
+| Escalate | 动作请求且无 `tool_call` → 升到 forced `function/Bash` 或 `required` 再打 1 次 |
+| Terminal-force | 仍无 tool：独立短上下文 + HARD REQUIREMENT，最多 2 次 |
+| 529 旁路 | 首轮/escalate 的 busy/529/502/503 可进 ladder；**quota/auth 永不进** |
+| 禁 tool | 用户明确 `do not call tools` → `tool_choice=none`，不 escalate |
+
+环境变量（默认开）：`MAXAPI_TOOL_ESCALATE=1`、`MAXAPI_TOOL_TERMINAL_FORCE=1`。
+
+**实证（8080 Docker，`gpt-5.6-sol`）**：`_accept_tool_suite.py` **28/28**（auto Bash **20/20**，howto/plain/agent 禁 tool/chat/stream/multi 全过）；`_accept_agent_long.py` **15/15** 轮 tool + 收尾 `ALL_DONE`（约 160s）。日志：`first_err=temporarily unavailable` → `terminal-force success`；`identity retire after 2 ok uses` 仍在。
+
+```bash
+python -u _accept_tool_suite.py    # 28/28
+python -u _accept_agent_long.py    # 17/17
+```
 
 ### 实测（Docker live runtime，2026-08-01）
 - Claude Sonnet 5：非流式 / 流式 / `tool_choice=required` 均 `finish_reason=tool_calls`，解析出 `get_weather(city=...)` ✅

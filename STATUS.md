@@ -1,12 +1,19 @@
 # maxapi STATUS
 
-> 2026-08-11 更新: commit `5e80617` — 修复长对话+tools场景用户指令丢失问题（trailing system reminder），303条消息+19个tools记忆测试全满分。
+> 2026-08-15 更新: gpt-5.6-sol auto tool 可靠性 — escalate + terminal-force + 529 旁路；验收 28/28 + 15 轮 agent 链 17/17。保护路径（XFF / 2-OK identity / busy≠quota / 并发5）未改。
 
 ## 一句话现状
 
-`maxapi_server.py` 最新提交 `5e80617`。Opus5诊断+trailing reminder修复，scale test 10-150轮全4/4通过。
+`maxapi_server.py` 已部署 8080：sol/agent 场景 auto tool 可稳定出 `tool_use`（20/20），howto/禁 tool 不误触，15 轮多轮 agent 链通过。上一稳定提交 `50ed3db`（2-OK identity）；本批 tool-escalate 待本 STATUS 同批 push。
 
-## 已稳部分
+## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
+
+- **访客旁路核心**：每请求伪造 XFF/X-Real-IP；2 次 OK 后主动 retire identity；quota 换新 identity 短睡，busy/stall 同 identity 退避；`busy≠quota`；客户端错误不泄漏上游额度中文文案；上游并发信号量 5。
+- **工具协议**：DSML prompt + ToolCallParser；OpenAI `/v1/chat/completions` + Anthropic `/v1/messages` + Responses。
+- **auto tool 阶梯（2026-08-15）**：CONNECTED TOOLS 声明 → 动作请求无 tool 时 escalate 到 forced function/Bash → 仍失败则 terminal-force（独立短上下文，最多 2 次）→ 首轮/escalate 的 **retryable 529/busy** 也进 ladder（quota/auth 不进）→ howto / do-not-call-tools 门控 + `tool_choice=none`。
+- stream：header 前 prefetch；仅 `saw_tool` 才接受 escalate 缓冲（修「无 tool 缓冲当成功」）。
+
+## 已稳部分（历史能力清单）
 
 - `/v1/models` 返回 200，模型对象含 `context_length`、`max_output_tokens`、`supports_tool_use`。
 - `claude-opus-4-8` alias 映射回 `Claude Opus 4.8`，本地断言通过。
@@ -380,17 +387,75 @@ tools 不走 payload 而是注入 messages，上游不拦截 messages 里的文�
 已知脆弱点：`ReasoningFilter` 只认 `<think>` / `<thinking>` 标签。上游目前
 正是这个格式，但若改成结构化字段传推理，过滤器会静默失效、把推理当正文输出。
 
+## 2026-08-15 sol auto tool 可靠性（本批）
+
+### 问题
+
+Claude Code / agent 经 maxapi 打 `gpt-5.6-sol` 时，auto `tool_choice` 偶发只 think + `end_turn`（声称无终端/不调工具）；`tool_choice=required` 明显更稳。套件曾卡在 **18/20** auto：escalate 遇上游 **529 busy** 后直接停，**不走 terminal-force**。
+
+### 修复（最小 diff，不动旁路核心）
+
+| 项 | 行为 |
+|---|---|
+| `_make_tools_prompt` | CONNECTED TOOLS；动作必须 DSML；howto/禁执行允许纯文本 |
+| `_auto_action_candidate` / `_RE_TOOL_NO_TOOL` | 强动作才 escalate；`do not execute` / `just explain` / `do not call tools` 不 escalate |
+| `_user_forbids_tools` | auto + 明确禁 tool → `tool_choice=none` |
+| escalate | auto 无 tool_call → forced `function/Bash` 或 `required` 再打 1 次 |
+| terminal-force | escalate 仍无 tool：独立 slim 上下文 + HARD REQUIREMENT，最多 2 次；可抽 `echo X` 成硬指令 |
+| `_is_retryable_tool_upstream_err` | busy/529/502/503/timeout → 可进 ladder；**quota/429/auth/too-long 永不进** |
+| 四路径 | messages/chat × nonstream/stream：escalate 失败若 retryable → fallthrough terminal-force |
+| stream | 仅 `_saw2` 才接受 escalate 结果 |
+
+环境变量（默认开）：`MAXAPI_TOOL_ESCALATE=1`、`MAXAPI_TOOL_TERMINAL_FORCE=1`。
+
+### 实证（8080 Docker live，sol 规划/review APPROVE）
+
+```
+_accept_tool_suite.py     TOTAL 28/28
+  auto Bash               20/20 err=0
+  plain_no_tool           PASS
+  howto_no_force          PASS
+  chat_auto_tool          PASS
+  stream_auto_tool        PASS
+  multi_tool_bash         PASS
+  agent_multiturn         PASS (DONE, no tool)
+
+_accept_agent_long.py     TOTAL 17/17 wall≈160s
+  round_0..14 Bash        15/15 tool_use (STEP_i)
+  final_no_tool           ALL_DONE
+```
+
+日志锚点：`first_err=upstream temporarily unavailable` → `terminal-force try=1 success`（如 rid `af3747b6`、`666f9c78`）；`identity retire after 2 ok uses` 仍在。
+
+真跑命令：
+
+```bash
+# 容器
+docker build -t maxapi-server:latest . && docker rm -f maxapi
+docker run -d --name maxapi -p 8080:8080 --restart unless-stopped maxapi-server:latest
+curl -s http://127.0.0.1:8080/healthz
+
+# 验收
+python -u _accept_tool_suite.py
+python -u _accept_agent_long.py
+```
+
+### 诚实边界
+
+- 套件与长链均为 **8080 直连** sol；完整「Claude Code → 15721 cc-switch → max/sol → 8080」真人墙钟 ~15min 未在本批重跑。
+- 上游 529 仍会拉长单次延迟（escalate/TF 多 1–2 次上游调用）。
+- 极少数 forced 两轮仍无 DSML 的尾部风险理论上仍在；当前 20/20 + 15/15 未复现。
+
 ## 下一步建议
 
-1. NAS 部署本次 SSE 分帧修复，观察 `error decoding response body` 是否消失
-2. 若仍复现，下一步查 CF 隧道侧：`cloudflared` 的 `--no-chunked-encoding` 若开启需关掉
-3. 确认 se.zzmax 真实 context limit（从日志看至少 180k）
-4. `_STALL_TIMEOUT=15s` 对慢上游可能偏短，视 NAS 实测再定
-5. 定期复查上游模型可用性：4.8 这次是静默死掉的，建议加个探活脚本
+1. NAS/生产镜像同步本批 tool-escalate 后观察 agent 误报「无终端」是否消失
+2. 可选：经 15721 真客户端做一次 ≥10min vibe 链
+3. 定期复查上游模型可用性与 529 比例
+4. `_STALL_TIMEOUT` / 并发 5 按出口负载再调（改前先证明必须动保护区）
 
 ## 进度报告四要素
 
-- 已完成: Opus5三轮review修复（17项问题）+ GPT5.6-sol审计修复（5项：流式重试守卫、错误后停止、Responses估算+max_output_tokens、输入校验）。
-- 实证: `python _local_compat_check.py` 最终 51/51 PASS。
-- 未完成: 无阻塞性待修项。
-- 下一步: 可收口；后续按真实客户端反馈按需修复。
+- **已完成**: identity 2-OK（`50ed3db`）+ sol auto tool 阶梯（escalate/terminal-force/529 旁路/howto 门控）；验收 28/28 + 15 轮 agent 17/17；sol plan/review APPROVE、SHIP_READY=yes。
+- **当前位置**: tool 可靠性主目标已收口，文档与 GitHub 展示页随本批更新。
+- **离 goal 还差**: 可选真客户端 15min 墙钟压测；生产/NAS 镜像同步。
+- **下一步**: push 后按反馈只修回归，禁止顺手重构旁路/解析器。

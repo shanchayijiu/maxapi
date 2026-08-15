@@ -25,3 +25,10 @@ scratch/
 
 # Local source backup before DSML port
 maxapi_server.py.bak-pre-dsml
+
+# Local one-shot patch scripts / accept run artifacts (keep suite sources)
+_patch_*.py
+_accept_*.pid
+_accept_*.json
+_accept_*.log
+__pycache__/
