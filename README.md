@@ -4,7 +4,7 @@
 封装成标准 **OpenAI Chat Completions** 与 **Anthropic Messages**（Claude Code / agent 可直连）。
 纯 Python 标准库、零依赖、单文件 Docker。
 
-**2026-08-16**：预压缩 `eff>limit*0.88`（估核算 inflate 1.20，分段 budget），修超 100% 不自动压。**2026-08-15**：sol auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy!=quota`。详见 [STATUS.md](STATUS.md)。
+**2026-08-16**：sol 专用 mid-flight 结构 escalate（tool 回传后「做/继续/ok」进阶梯；Claude 仍词法门控）+ 预压缩 `eff>limit*0.88`。**2026-08-15**：sol auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy!=quota`。详见 [STATUS.md](STATUS.md)。
 
 ## 上游机制（实证，2026-08-01）
 
@@ -126,6 +126,20 @@ se.zzmax.cn 是私有 schema（`/api/chat/stream` 只认 `model/subModel/message
 2. **展平历史**：`assistant.tool_calls` → DSML 文本块；`role:tool` / Anthropic `tool_result` → user 观察消息。
 3. **ToolCallParser**：流式 sieve 剥 DSML / 上游 `<function=NAME>` 等格式，跨 chunk 不泄漏闭合标签。
 4. **转标准协议**：OpenAI `message.tool_calls` / Anthropic `tool_use`；流式对齐原生分片。
+
+
+### sol mid-flight 结构门控（2026-08-16）
+
+短 nudge（「做」「继续」「ok」）原先不匹配动作词法且 `len<3` 直接跳过 escalate，agent 中途会只说话。
+
+| 项 | 行为 |
+|---|---|
+| 范围 | **仅** `gpt-5.6-sol` / `gpt-5.6-luna` allowlist（含 `max/` 前缀）；Claude 不走结构分支 |
+| 判定 | 跳过尾部纯文本 user，**紧邻前一条**须为 tool_use/tool_result/tool_calls |
+| 仍不 escalate | howto / `do not call tools` / 无 tools schema |
+| 客户端 | 请求必须带 `tools`；日志 `tools=0` 是客户端没传，代理不会发明工具 |
+
+**实证**：`_accept_tool_suite.py` **28/28**；live settings「做」→ `Edit` 删 `Write(**)`；Claude howto 0 tool。
 
 ### auto tool 可靠性阶梯（2026-08-15，gpt-5.6-sol 验收）
 

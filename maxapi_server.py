@@ -1411,6 +1411,71 @@ def _latest_user_text(messages):
     return ""
 
 
+def _message_has_tool_payload(m):
+    if not isinstance(m, dict):
+        return False
+    if m.get("tool_calls") or m.get("role") == "tool":
+        return True
+    content = m.get("content")
+    if isinstance(content, list):
+        for b in content:
+            if isinstance(b, dict) and b.get("type") in ("tool_use", "tool_result"):
+                return True
+    return False
+
+
+def _has_recent_tool_turn(messages, window=8):
+    """True when the turn immediately before the latest user nudge is still a tool exchange.
+
+    Walks backward from the end: skip trailing user text (the nudge), then require the
+    next message to carry tool_use / tool_result / tool_calls / role=tool. Only searches
+    within the last `window` messages so ancient tools do not pin escalate forever.
+    """
+    msgs = [m for m in (messages or []) if isinstance(m, dict)]
+    if not msgs:
+        return False
+    tail = msgs[-max(1, int(window)):]
+    i = len(tail) - 1
+    # Skip latest pure-text user nudge(s)
+    while i >= 0:
+        m = tail[i]
+        if m.get("role") == "user" and not _message_has_tool_payload(m):
+            i -= 1
+            continue
+        break
+    if i < 0:
+        return False
+    return _message_has_tool_payload(tail[i])
+
+
+_SOL_MODEL_IDS = frozenset({
+    "gpt-5.6-sol",
+    "gpt-5.6-luna",
+    "chatgpt-5.6-sol",
+    "max/gpt-5.6-sol",
+    "max/gpt-5.6-luna",
+    "gpt-5.6-sol-luna",
+})
+
+
+def _is_sol_model(model):
+    """Exact allowlist for sol coding path. Claude and other GPTs never match."""
+    if not model:
+        return False
+    s = str(model).lower().strip()
+    if "claude" in s:
+        return False
+    if s in _SOL_MODEL_IDS:
+        return True
+    # strip common provider prefixes once
+    for pfx in ("max/", "openai/", "chatgpt/", "azure/"):
+        if s.startswith(pfx):
+            s2 = s[len(pfx):]
+            if s2 in _SOL_MODEL_IDS or s2 in ("gpt-5.6-sol", "gpt-5.6-luna"):
+                return True
+    return False
+
+
 _RE_TOOL_STRONG = re.compile(
     r"(?i)(?:\b(?:run|execute|call|invoke|do\s+this|perform)\b)|"
     r"(?:\u6267\u884c|\u8fd0\u884c|\u8c03\u7528|\u7acb\u523b|\u9a6c\u4e0a|\u73b0\u5728\u5c31)"
@@ -1439,8 +1504,12 @@ _RE_TOOL_NO_TOOL = re.compile(
 
 
 
-def _auto_action_candidate(tool_choice, tools, messages):
-    """True when auto+tools request looks like it needs a real tool action (pre-upstream)."""
+def _auto_action_candidate(tool_choice, tools, messages, model=None):
+    """True when auto+tools needs a real tool action (pre-upstream).
+
+    Lexical gates for all models. Structural mid-flight (history has tool turns)
+    is sol-family only so short nudges (做/继续/ok) escalate; Claude stays lexical.
+    """
     if not _env_flag("MAXAPI_TOOL_ESCALATE", True):
         return False
     if not _is_auto_tool_choice(tool_choice):
@@ -1448,16 +1517,22 @@ def _auto_action_candidate(tool_choice, tools, messages):
     names = _tool_func_names(tools)
     if not names:
         return False
-    user = _latest_user_text(messages)
-    if not user or len(user.strip()) < 3:
+    if _user_forbids_tools(messages):
         return False
-    if _RE_TOOL_NO_TOOL.search(user):
+    user = _latest_user_text(messages)
+    mid = _has_recent_tool_turn(messages)
+    if mid and _is_sol_model(model):
+        # Mid-flight structural: short nudges escalate. Howto/explain stays prose-only
+        # even if the sentence also contains a strong verb like "run".
+        if user and _RE_TOOL_HOWTO.search(user):
+            return False
+        return True
+    if not user or len(user.strip()) < 3:
         return False
     named = any(re.search(r"(?i)\b" + re.escape(n) + r"\b", user) for n in names)
     strong = bool(_RE_TOOL_STRONG.search(user))
     action = bool(_RE_TOOL_ACTION.search(user)) or named
     howto = bool(_RE_TOOL_HOWTO.search(user))
-    # Educational / howto questions must not escalate unless user clearly demands execution now.
     if howto and not strong:
         return False
     return bool(strong or (action and named) or (action and not howto))
@@ -1487,7 +1562,7 @@ def _is_retryable_tool_upstream_err(err):
     ))
 
 
-def _should_escalate_auto_tools(tool_choice, tools, tools_enabled, tcs_out, err, messages, reason_text="", answer_text=""):
+def _should_escalate_auto_tools(tool_choice, tools, tools_enabled, tcs_out, err, messages, reason_text="", answer_text="", model=None):
     """Post-upstream gate: escalate auto turn that produced no tool_call but needed action.
     Retryable first-pass busy/529 may enter the ladder; quota/auth never do."""
     if not tools_enabled or tcs_out:
@@ -1498,7 +1573,9 @@ def _should_escalate_auto_tools(tool_choice, tools, tools_enabled, tcs_out, err,
         return False
     if not _is_auto_tool_choice(tool_choice):
         return False
-    if _auto_action_candidate(tool_choice, tools, messages):
+    if _user_forbids_tools(messages):
+        return False
+    if _auto_action_candidate(tool_choice, tools, messages, model=model):
         return True
     # no prose path when first pass was a hard error
     if err:
@@ -1508,6 +1585,9 @@ def _should_escalate_auto_tools(tool_choice, tools, tools_enabled, tcs_out, err,
     user = _latest_user_text(messages)
     blob = (reason_text or "") + "\n" + (answer_text or "")
     if names and user and _RE_TOOL_UNAVAIL.search(blob) and any(n.lower() in user.lower() for n in names):
+        return True
+    # sol mid-flight + model claimed tools unavailable even without naming a tool
+    if names and _is_sol_model(model) and _has_recent_tool_turn(messages) and _RE_TOOL_UNAVAIL.search(blob):
         return True
     return False
 
@@ -3802,7 +3882,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # also enter ladder on first-pass retryable busy/529 (not quota).
             if tools_enabled and (not tcs_out) and _should_escalate_auto_tools(
                     tool_choice, openai_tools, tools_enabled, tcs_out, err, openai_msgs,
-                    reason_text="".join(reason), answer_text="".join(answer)):
+                    reason_text="".join(reason), answer_text="".join(answer), model=disp):
                 _etc = _escalate_tool_choice(openai_tools, openai_msgs)
                 LOG.info("rid=%s [tool-escalate] messages nonstream auto->%s first_err=%s",
                          _rid, _etc, (str(err)[:80] if err else None))
@@ -3864,7 +3944,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         # Prefetch BEFORE writing SSE header so we can compact / escalate without client bytes.
         _stream_buf = None
-        _need_buf = tools_enabled and _auto_action_candidate(tool_choice, openai_tools, openai_msgs)
+        _need_buf = tools_enabled and _auto_action_candidate(tool_choice, openai_tools, openai_msgs, model=disp)
         if _need_buf:
             _stream_buf, _iter, _err, _saw_tool = _prefetch_until_tool_or_end(
                 model, msgs_up, include_reasoning, effort, search, tools_enabled, max_tokens=max_tokens)
@@ -3872,7 +3952,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if (not _saw_tool) and _should_escalate_auto_tools(
                     tool_choice, openai_tools, tools_enabled, [], _err, openai_msgs,
                     reason_text="".join(d for k, d in (_stream_buf or []) if k == "reasoning" and isinstance(d, str)),
-                    answer_text="".join(d for k, d in (_stream_buf or []) if k == "content" and isinstance(d, str))):
+                    answer_text="".join(d for k, d in (_stream_buf or []) if k == "content" and isinstance(d, str)), model=disp):
                 _etc = _escalate_tool_choice(openai_tools, openai_msgs)
                 LOG.info("rid=%s [tool-escalate] messages stream auto->%s first_err=%s",
                          _rid, _etc, (str(_err)[:80] if _err else None))
@@ -4163,7 +4243,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_retry=3, max_tokens=max_tokens)
             if tools_enabled and (not tcs_out) and _should_escalate_auto_tools(
                     tool_choice, tools, tools_enabled, tcs_out, err, messages,
-                    reason_text="".join(reason), answer_text="".join(answer)):
+                    reason_text="".join(reason), answer_text="".join(answer), model=disp):
                 _etc = _escalate_tool_choice(tools, messages)
                 LOG.info("rid=%s [tool-escalate] chat nonstream auto->%s first_err=%s",
                          _rid, _etc, (str(err)[:80] if err else None))
@@ -4217,7 +4297,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         # Prefetch BEFORE SSE headers; escalate auto action turns if no tool_call.
         _stream_buf = None
-        _need_buf = tools_enabled and _auto_action_candidate(tool_choice, tools, messages)
+        _need_buf = tools_enabled and _auto_action_candidate(tool_choice, tools, messages, model=disp)
         _eff = str(effort).lower()
         if _need_buf:
             _stream_buf, _iter, _err, _saw_tool = _prefetch_until_tool_or_end(
@@ -4225,7 +4305,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if (not _saw_tool) and _should_escalate_auto_tools(
                     tool_choice, tools, tools_enabled, [], _err, messages,
                     reason_text="".join(d for k, d in (_stream_buf or []) if k == "reasoning" and isinstance(d, str)),
-                    answer_text="".join(d for k, d in (_stream_buf or []) if k == "content" and isinstance(d, str))):
+                    answer_text="".join(d for k, d in (_stream_buf or []) if k == "content" and isinstance(d, str)), model=disp):
                 _etc = _escalate_tool_choice(tools, messages)
                 LOG.info("rid=%s [tool-escalate] chat stream auto->%s first_err=%s",
                          _rid, _etc, (str(_err)[:80] if _err else None))

@@ -1,10 +1,10 @@
 # maxapi STATUS
 
-> 2026-08-16 更新: 预压缩触发从 `est>limit*1.25` 改为 `eff>limit*0.88`（估算 inflate 1.20 + 分段 budget），修「超 100% 不自动压、手动压才正常」。tool escalate 仍为 c217562 基线。
+> 2026-08-16 更新: sol 专用 structural mid-flight escalate（紧邻 tool 回传后的短 nudge 如「做/继续/ok」会进阶梯）；Claude 仍走词法门控。预压缩仍为 eff>limit*0.88 + inflate 1.20。accept 28/28。
 
 ## 一句话现状
 
-`maxapi_server.py`：sol auto tool 阶梯（c217562）+ 预压缩安全余量（本批）。8080 已重建。
+`maxapi_server.py`：sol auto tool 阶梯（c217562）+ sol mid-flight 结构门控 + 预压缩安全余量。8080 已重建。
 
 ## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
 
@@ -473,6 +473,34 @@ python -u _accept_agent_long.py
 - 上游 529 仍会拉长单次延迟（escalate/TF 多 1–2 次上游调用）。
 - 极少数 forced 两轮仍无 DSML 的尾部风险理论上仍在；当前 20/20 + 15/15 未复现。
 
+
+
+## 2026-08-16 sol mid-flight structural escalate
+
+### 根因
+- auto 短 nudge（「做」「继续」「ok」）不匹配 `_RE_TOOL_ACTION`，且 `len(user)<3` 直接 False → 不进 escalate。
+- 真实 Codex/CC 会话里模型常 narrate「没有可用工具」后 end_turn；有 tools 时需结构门控逼进 ladder。
+- 日志里大量 `tools=0` 来自**客户端未带 tools**（maxapi 不丢 tools，已透传核验）；无 schema 时代理无法凭空造工具。
+
+### 修复（最小 diff，sol-only）
+| 项 | 行为 |
+|---|---|
+| `_is_sol_model` | 精确 allowlist：`gpt-5.6-sol` / `gpt-5.6-luna` / `max/` 前缀；Claude/其它 GPT 永不匹配 |
+| `_has_recent_tool_turn` | 跳过尾部纯文本 user nudge，要求**紧邻前一条**带 tool payload；window=8 |
+| `_auto_action_candidate(..., model=)` | sol + pending mid-flight → True；howto/forbid 仍 False；非 sol 保持词法门控 |
+| `_should_escalate_auto_tools(..., model=)` | 透传 model；sol mid + UNAVAIL 幻觉可 escalate |
+| 不动 | XFF、2-OK、busy≠quota、concurrency 5、terminal-force 算法、词表同义词 |
+
+### 实证
+- `_accept_tool_suite.py` **28/28**（最终 allowlist+pending 修订上）
+- live：settings「做」→ `Edit` 去掉 `Write(**)` 等；nudge 做/继续/ok → tool_use；Claude howto → n_tool=0
+- sol plan APPROVE_PLAN；review 多轮 REVISE 后收紧 allowlist/pending；终局 28/28 后要求 APPROVE_SHIP
+
+### 客户端注意
+- agent 路径必须带 tools schema；`tools=0` 时模型只会说话，maxapi 不会发明工具。
+- NAS：`git pull` + **docker rebuild**，勿只 pull。
+
+
 ## 下一步建议
 
 1. NAS/生产镜像同步本批 tool-escalate 后观察 agent 误报「无终端」是否消失
@@ -482,7 +510,8 @@ python -u _accept_agent_long.py
 
 ## 进度报告四要素
 
-- **已完成**: identity 2-OK（`50ed3db`）+ sol auto tool 阶梯（escalate/terminal-force/529 旁路/howto 门控）；验收 28/28 + 15 轮 agent 17/17；sol plan/review APPROVE、SHIP_READY=yes。
-- **当前位置**: tool 可靠性主目标已收口，文档与 GitHub 展示页随本批更新。
-- **离 goal 还差**: 可选真客户端 15min 墙钟压测；生产/NAS 镜像同步。
-- **下一步**: push 后按反馈只修回归，禁止顺手重构旁路/解析器。
+- **已完成**: identity 2-OK + tool escalate c217562 + compact 0.88/inflate + **sol mid-flight structural**；accept 28/28；live 做/继续/ok tool_use。
+- **当前位置**: GPT/sol agent 短 nudge 卡死主因已修；文档待随 commit 更新。
+- **离 goal 还差**: NAS 重建验证；可选 15721 真客户端长链；客户端必须带 tools。
+- **下一步**: commit+push；NAS rebuild；观察 Codex/CC sol 是否仍「无工具」独白（若 tools=0 则查客户端）。
+
