@@ -1,16 +1,17 @@
 # maxapi STATUS
 
-> 2026-08-16 更新: Codex++ 直连 8080 时 sol 不跑命令的根因是 **catalog `tool_mode=code_mode_only` 导致请求 tools=0**（已改 catalog）；maxapi 侧 sol mid-flight escalate（d1eb247）+ compact 0.88 仍有效。重启后日志 `tools=20` + escalate saw_tool。accept 28/28。
+> 2026-08-16 更新: **sol mid-flight completion 门控**（打断任务完成后的 Write-Output 空转 + 双发慢）；此前 catalog `code_mode_only`→tools=0 已修；mid-flight escalate（d1eb247）仍有效。accept 28/28；thrash 探针 3/3。
 
 ## 一句话现状
 
-`maxapi_server.py`：sol auto tool 阶梯 + mid-flight 结构门控 + 预压缩。**Codex++ 用 sol 还必须 catalog 不带 `code_mode_only`**，否则客户端不传 tools，代理再强也调不了命令。8080 已重建。
+`maxapi_server.py`：sol auto tool 阶梯 + mid-flight 结构门控 + **完成后允许 end_turn** + 预压缩。Codex++ catalog 不得 `code_mode_only`。8080 已重建。
 
 ## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
 
 - **访客旁路核心**：每请求伪造 XFF/X-Real-IP；2 次 OK 后主动 retire identity；quota 换新 identity 短睡，busy/stall 同 identity 退避；`busy≠quota`；客户端错误不泄漏上游额度中文文案；上游并发信号量 5。
 - **工具协议**：DSML prompt + ToolCallParser；OpenAI `/v1/chat/completions` + Anthropic `/v1/messages` + Responses。
 - **auto tool 阶梯（2026-08-15）**：CONNECTED TOOLS 声明 → 动作请求无 tool 时 escalate 到 forced function/Bash → 仍失败则 terminal-force（独立短上下文，最多 2 次）→ 首轮/escalate 的 **retryable 529/busy** 也进 ladder（quota/auth 不进）→ howto / do-not-call-tools 门控 + `tool_choice=none`。
+- **sol mid-flight completion 门控（2026-08-16）**：tool 历史存在时若 recent tool_result / 首轮 prose 已声明完成（「无需进一步操作」等），**不再** auto→required/terminal-force，允许 end_turn；未完成 + 短 nudge 仍 escalate。修 thrash 空转与双发延迟。
 - stream：header 前 prefetch；仅 `saw_tool` 才接受 escalate 缓冲（修「无 tool 缓冲当成功」）。
 
 ## 已稳部分（历史能力清单）
@@ -560,17 +561,46 @@ sol 审查 APPROVE：`code_mode_only` 主嫌疑（lite 可能连带）；**maxap
 - NAS：`git pull` + **docker rebuild**，勿只 pull。
 
 
+## 2026-08-16 sol mid-flight completion gate（反 thrash / 反双发慢）
+
+### 根因（日志铁证）
+- mid-flight 结构 escalate 修好「能跑命令」后，**任务已完成后仍每轮** `auto→required`（常再 terminal-force）。
+- Codex++ thrash 窗口：`msgs=380→430+`，几乎每轮 `tool-escalate`，单轮 15–50s（双上游）；模型被迫 `Write-Output "无需进一步操作"` / 反复核验 settings / `pwd` 几十轮。
+- 不是 tools=0；是 **maxapi 在「该 end_turn」时仍逼 tool**。
+
+### 修复（最小 diff，sol-only）
+| 项 | 行为 |
+|---|---|
+| `_RE_TASK_DONE` | 中英完成信号：无需进一步操作 / task complete / no further action / 最终核验通过 … |
+| `_recent_tool_result_texts` | 最近 tool_result / role=tool 文本 |
+| `_user_text_after_latest_tool` | **仅**最新 tool 之后的 user 文本算新请求（避免原任务句钉死 escalate） |
+| `_midflight_should_allow_end_turn` | 首轮 prose 已 done **或** 近 tool 输出 done 且无新强动作 → 允许 end_turn |
+| `_auto_action_candidate` | sol mid-flight：howto/完成门控 False；否则 True |
+| `_should_escalate_auto_tools` | 完成短路在 candidate 之前；UNAVAIL 幻觉仍 escalate，但 done 优先 |
+| 不动 | Claude 词法-only；XFF/2-OK/busy≠quota/concurrency5；terminal-force 算法 |
+
+### 实证
+- 单元：completion gate 全绿（done+nudge 不 escalate；未完成+做仍 escalate；Claude 不结构；forbid/howto；新强动作仍 tool）
+- live `_probe_completion_thrash.py` **3/3**：`thrash_done` **5.6s finish=stop n_tools=0**（无 escalate 日志）；`still_work` tool_calls；`fresh` tool
+- `_accept_tool_suite.py` **28/28**
+- docker rebuild `maxapi-server:latest` + 容器重建 8080
+
+### 排障补充
+- 任务完成后仍疯狂 shell 空转 → 先看是否旧镜像（无 completion gate）；再看日志是否每轮 `tool-escalate` 而无 done 短路。
+- 真未完成却过早 stop → 查 tool_result 是否误含「已完成」文案；门控只读 tool 后 user + 近结果。
+
+
 ## 下一步建议
 
-1. NAS/生产镜像同步本批 tool-escalate 后观察 agent 误报「无终端」是否消失
-2. 可选：经 15721 真客户端做一次 ≥10min vibe 链
-3. 定期复查上游模型可用性与 529 比例
+1. NAS/生产镜像同步本批 completion gate + 观察 Codex thrash 是否消失
+2. 可选：经 Codex++ 真客户端复跑「已完成任务」会话，确认不再 Write-Output 空转
+3. 定期复查上游 529 比例（仍会拉长单次，与 thrash 双发是两件事）
 4. `_STALL_TIMEOUT` / 并发 5 按出口负载再调（改前先证明必须动保护区）
 
 ## 进度报告四要素
 
-- **已完成**: tool escalate c217562 + compact 0.88 + sol mid-flight d1eb247；Codex++ catalog 去掉 sol `code_mode_only`；重启后 `tools=20` + escalate 实证。
-- **当前位置**: Codex++ → 8080 → gpt-5.6-sol 跑命令已通；文档本批固化。
-- **离 goal 还差**: NAS 镜像同步；可选 15min 长链；catalog 改在用户机 `~/.codex`，换机需重做或脚本化。
-- **下一步**: push 文档；换机/重装 Codex 时检查 catalog 无 `tool_mode=code_mode_only`。
+- **已完成**: tool escalate + compact 0.88 + sol mid-flight d1eb247 + catalog tools=20 + **completion gate 反 thrash**；accept 28/28；thrash 探针 3/3。
+- **当前位置**: Codex++ → 8080 → sol 能跑命令且任务完成后应能 end_turn；文档本批固化。
+- **离 goal 还差**: NAS 镜像同步；用户侧 Codex 真会话确认 thrash 消失。
+- **下一步**: commit+push；换机检查 catalog；观察 live thrash 日志是否归零。
 

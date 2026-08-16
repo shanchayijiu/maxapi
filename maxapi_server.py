@@ -1504,11 +1504,144 @@ _RE_TOOL_NO_TOOL = re.compile(
 
 
 
+
+# Completion / no-further-work signals. Stops sol mid-flight thrash when the
+# model wants end_turn after the task is done but structural mid-flight would
+# still force tool_choice=required → Write-Output "无需进一步操作" loops.
+_RE_TASK_DONE = re.compile(
+    r"(?i)(?:"
+    r"(?:no|without)\s+(?:further|more|additional)\s+(?:action|actions|operation|operations|work|changes?|modifications?|steps?|commands?)|"
+    r"(?:nothing|no(?:thing)?)\s+(?:else|more)\s+to\s+(?:do|change|fix|run|execute)|"
+    r"task\s+(?:is\s+)?(?:complete|completed|done|finished)|"
+    r"(?:already\s+)?(?:complete|completed|done|finished)[:.]?\s*(?:no|nothing)|"
+    r"all\s+(?:done|set|good)|"
+    r"ready(?:\s+to\s+stop)?|"
+    r"stop\s+(?:now|here|executing|running)|"
+    r"no\s+need\s+to\s+(?:continue|proceed|run|execute|modify|change)|"
+    r"无需进一步|"
+    r"不需要进一步|"
+    r"无需继续|"
+    r"不用进一步|"
+    r"无需再|"
+    r"不需要再|"
+    r"无需进一步操作|"
+    r"无需进一步修改|"
+    r"无需进一步执行|"
+    r"最终核验通过|"
+    r"状态已确认|"
+    r"停止执行|"
+    r"当前无需|"
+    r"任务已完成|"
+    r"修复已完成|"
+    r"配置修复已完成|"
+    r"已完成[，,]\s*当前无需|"
+    r"已确认[：:]\s*无需|"
+    r"无需进一步操作"
+    r")"
+)
+
+
+def _recent_tool_result_texts(messages, limit=6):
+    """Collect text from the most recent tool_result / role=tool payloads (newest first)."""
+    out = []
+    for m in reversed(messages or []):
+        if not isinstance(m, dict):
+            continue
+        if m.get("role") == "tool":
+            t = _message_text_blob(m.get("content"))
+            if t and t.strip():
+                out.append(t.strip())
+        content = m.get("content")
+        if isinstance(content, list):
+            for b in content:
+                if isinstance(b, dict) and b.get("type") == "tool_result":
+                    t = _message_text_blob(b.get("content"))
+                    if t and t.strip():
+                        out.append(t.strip())
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _looks_like_task_complete(text):
+    """True when blob clearly signals the agent task is finished / no further work."""
+    if not text or not str(text).strip():
+        return False
+    s = str(text).strip()
+    if len(s) > 4000:
+        s = s[:4000]
+    return bool(_RE_TASK_DONE.search(s))
+
+
+def _user_text_after_latest_tool(messages):
+    """User text strictly after the newest tool payload; '' if none (tool-result tail)."""
+    msgs = [m for m in (messages or []) if isinstance(m, dict)]
+    last_tool_i = -1
+    for i, m in enumerate(msgs):
+        if _message_has_tool_payload(m):
+            last_tool_i = i
+    if last_tool_i < 0:
+        return ""
+    parts = []
+    for m in msgs[last_tool_i + 1 :]:
+        if m.get("role") == "user" and not _message_has_tool_payload(m):
+            t = _message_text_blob(m.get("content"))
+            if t and t.strip():
+                parts.append(t.strip())
+    return "\n".join(parts)
+
+
+def _midflight_should_allow_end_turn(messages, answer_text="", reason_text=""):
+    """Sol mid-flight: let first-pass prose end_turn through when work is done.
+
+    Live evidence (Codex++ thrash): after settings fix succeeded, every turn still
+    hit structural mid-flight -> auto->required -> often terminal-force, forcing
+    Write-Output done phrases dozens of times (msgs 380->430+, 15-50s/turn).
+    Gate fires when:
+      A) first-pass answer claims done, OR
+      B) recent tool outputs claim done AND there is no new strong user action
+         after those tools (tool-result tail, short nudge, or done-claim user).
+    Does NOT fire on fresh strong action requests after the tool exchange.
+    """
+    ans = (answer_text or "").strip()
+    if ans and _looks_like_task_complete(ans):
+        return True
+    results = _recent_tool_result_texts(messages, limit=6)
+    if not results:
+        return False
+    recent_done = any(_looks_like_task_complete(t) for t in results[:4])
+    if not recent_done:
+        return False
+    # Only the user text AFTER the latest tool exchange counts as a new request.
+    # Original task text before tools must not keep escalate forever.
+    user = (_user_text_after_latest_tool(messages) or "").strip()
+    if not user:
+        return True  # pure tool-result continuation after done output
+    if _looks_like_task_complete(user):
+        return True
+    # Fresh strong action after done-results still escalates (real new work).
+    if _RE_TOOL_STRONG.search(user) and not _looks_like_task_complete(user):
+        if len(user) >= 8 and not _RE_TOOL_HOWTO.search(user):
+            return False
+    # Short continue / ok / 做 after done-results -> allow stop (break thrash)
+    if len(user) < 24:
+        return True
+    if len(user) <= 200 and _RE_TASK_DONE.search(user):
+        return True
+    # Longer non-done, non-strong user after tools: still allow stop when results
+    # already said done (model is looping status chatter, not new work).
+    if not _RE_TOOL_ACTION.search(user):
+        return True
+    return False
+
+
 def _auto_action_candidate(tool_choice, tools, messages, model=None):
     """True when auto+tools needs a real tool action (pre-upstream).
 
     Lexical gates for all models. Structural mid-flight (history has tool turns)
     is sol-family only so short nudges (做/继续/ok) escalate; Claude stays lexical.
+    Completion gate: sol mid-flight skips escalate when recent tool results
+    already signal task-complete (breaks Write-Output done-loop thrash).
     """
     if not _env_flag("MAXAPI_TOOL_ESCALATE", True):
         return False
@@ -1525,6 +1658,9 @@ def _auto_action_candidate(tool_choice, tools, messages, model=None):
         # Mid-flight structural: short nudges escalate. Howto/explain stays prose-only
         # even if the sentence also contains a strong verb like "run".
         if user and _RE_TOOL_HOWTO.search(user):
+            return False
+        # Pre-upstream completion: recent tool results already say done -> do not force tools.
+        if _midflight_should_allow_end_turn(messages):
             return False
         return True
     if not user or len(user.strip()) < 3:
@@ -1564,7 +1700,9 @@ def _is_retryable_tool_upstream_err(err):
 
 def _should_escalate_auto_tools(tool_choice, tools, tools_enabled, tcs_out, err, messages, reason_text="", answer_text="", model=None):
     """Post-upstream gate: escalate auto turn that produced no tool_call but needed action.
-    Retryable first-pass busy/529 may enter the ladder; quota/auth never do."""
+    Retryable first-pass busy/529 may enter the ladder; quota/auth never do.
+    Sol mid-flight completion: if first-pass prose or recent tool results say done,
+    do NOT escalate (allow end_turn) — stops double-upstream thrash."""
     if not tools_enabled or tcs_out:
         return False
     if err and not _is_retryable_tool_upstream_err(err):
@@ -1575,6 +1713,12 @@ def _should_escalate_auto_tools(tool_choice, tools, tools_enabled, tcs_out, err,
         return False
     if _user_forbids_tools(messages):
         return False
+    # Completion short-circuit BEFORE candidate (mid-flight candidate alone would force True)
+    if _is_sol_model(model) and _has_recent_tool_turn(messages):
+        if _midflight_should_allow_end_turn(messages, answer_text=answer_text, reason_text=reason_text):
+            return False
+        if answer_text and _looks_like_task_complete(answer_text):
+            return False
     if _auto_action_candidate(tool_choice, tools, messages, model=model):
         return True
     # no prose path when first pass was a hard error
@@ -1587,7 +1731,11 @@ def _should_escalate_auto_tools(tool_choice, tools, tools_enabled, tcs_out, err,
     if names and user and _RE_TOOL_UNAVAIL.search(blob) and any(n.lower() in user.lower() for n in names):
         return True
     # sol mid-flight + model claimed tools unavailable even without naming a tool
+    # BUT not when the same blob is a completion claim (done > fake unavail thrash)
     if names and _is_sol_model(model) and _has_recent_tool_turn(messages) and _RE_TOOL_UNAVAIL.search(blob):
+        if _looks_like_task_complete(blob) or _midflight_should_allow_end_turn(
+                messages, answer_text=answer_text, reason_text=reason_text):
+            return False
         return True
     return False
 

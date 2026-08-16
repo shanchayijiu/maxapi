@@ -4,7 +4,7 @@
 封装成标准 **OpenAI Chat Completions** 与 **Anthropic Messages**（Claude Code / agent 可直连）。
 纯 Python 标准库、零依赖、单文件 Docker。
 
-**2026-08-16**：Codex++ sol 不跑命令根因 catalog `tool_mode=code_mode_only`→`tools=0`（改 catalog+重启）；maxapi sol mid-flight escalate + 预压缩 `eff>limit*0.88`。**2026-08-15**：auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy≠quota`。详见 [STATUS.md](STATUS.md)。
+**2026-08-16**：sol mid-flight **completion 门控**（任务完成后允许 end_turn，打断 Write-Output 空转/双发慢）；catalog `code_mode_only`→tools=0 已修；mid-flight escalate + 预压缩 `eff>limit*0.88`。**2026-08-15**：auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy≠quota`。详见 [STATUS.md](STATUS.md)。
 
 ## 上游机制（实证，2026-08-01）
 
@@ -128,18 +128,19 @@ se.zzmax.cn 是私有 schema（`/api/chat/stream` 只认 `model/subModel/message
 4. **转标准协议**：OpenAI `message.tool_calls` / Anthropic `tool_use`；流式对齐原生分片。
 
 
-### sol mid-flight 结构门控（2026-08-16）
+### sol mid-flight 结构门控 + completion 门控（2026-08-16）
 
-短 nudge（「做」「继续」「ok」）原先不匹配动作词法且 `len<3` 直接跳过 escalate，agent 中途会只说话。
+短 nudge（「做」「继续」「ok」）原先不匹配动作词法且 `len<3` 直接跳过 escalate，agent 中途会只说话。修好能跑命令后，若**任务已完成**仍无条件 escalate，会逼出几十轮 `Write-Output "无需进一步操作"`（双上游 → 又慢又错）。
 
 | 项 | 行为 |
 |---|---|
 | 范围 | **仅** `gpt-5.6-sol` / `gpt-5.6-luna` allowlist（含 `max/` 前缀）；Claude 不走结构分支 |
 | 判定 | 跳过尾部纯文本 user，**紧邻前一条**须为 tool_use/tool_result/tool_calls |
-| 仍不 escalate | howto / `do not call tools` / 无 tools schema |
+| **completion** | 近 tool_result / 首轮 prose 含「无需进一步操作」等 → **不 escalate**，允许 end_turn；仅看 **tool 之后**的新 user（原任务句不钉死） |
+| 仍不 escalate | howto / `do not call tools` / 无 tools schema / 已完成 |
 | 客户端 | 请求必须带 `tools`；日志 `tools=0` 是客户端没传，代理不会发明工具 |
 
-**实证**：`_accept_tool_suite.py` **28/28**；live settings「做」→ `Edit` 删 `Write(**)`；Claude howto 0 tool。
+**实证**：`_accept_tool_suite.py` **28/28**；`_probe_completion_thrash.py` **3/3**（done→stop 5.6s 无 tool；未完成+做仍 tool）；Claude howto 0 tool。
 
 
 ### Codex++ / catalog：sol 必须能发出 tools（2026-08-16）
