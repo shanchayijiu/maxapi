@@ -1,10 +1,10 @@
 # maxapi STATUS
 
-> 2026-08-16 更新: sol 专用 structural mid-flight escalate（紧邻 tool 回传后的短 nudge 如「做/继续/ok」会进阶梯）；Claude 仍走词法门控。预压缩仍为 eff>limit*0.88 + inflate 1.20。accept 28/28。
+> 2026-08-16 更新: Codex++ 直连 8080 时 sol 不跑命令的根因是 **catalog `tool_mode=code_mode_only` 导致请求 tools=0**（已改 catalog）；maxapi 侧 sol mid-flight escalate（d1eb247）+ compact 0.88 仍有效。重启后日志 `tools=20` + escalate saw_tool。accept 28/28。
 
 ## 一句话现状
 
-`maxapi_server.py`：sol auto tool 阶梯（c217562）+ sol mid-flight 结构门控 + 预压缩安全余量。8080 已重建。
+`maxapi_server.py`：sol auto tool 阶梯 + mid-flight 结构门控 + 预压缩。**Codex++ 用 sol 还必须 catalog 不带 `code_mode_only`**，否则客户端不传 tools，代理再强也调不了命令。8080 已重建。
 
 ## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
 
@@ -475,6 +475,65 @@ python -u _accept_agent_long.py
 
 
 
+
+
+## 2026-08-16 Codex++ sol tools=0（catalog，非 maxapi 吞 tools）
+
+### 现象
+- Codex++ 直连 `http://127.0.0.1:8080`，Claude Opus 同线程可 `exec_command`/`apply_patch`。
+- 切到 `gpt-5.6-sol` 后用户说「做」→ 模型独白「当前没有 shell/文件工具」。
+- 用户误判为 maxapi GPT 路径坏了；实为 **请求未带 tools**。
+
+### 铁证
+| 来源 | 内容 |
+|---|---|
+| maxapi 日志 | 失败轮 `rid=70402004 [chat] gpt-5.6-sol msgs=36 **tools=0**`；Claude 同路径曾 `tools=20` |
+| 会话 rollout | `01a007fb-...`：Opus 多轮 function_call；sol 轮仅 message，无 tool |
+| `/v1/models` | `gpt-5.6-sol supports_tool_use=true`（代理已声明支持） |
+| 复现 | chat 故意不传 tools + 历史有 tool_calls → 必独白；responses/`tools` 在则 function_call 正常 |
+| accept | `_accept_tool_suite.py` **28/28**（客户端发送 tools 时） |
+
+### 根因（Codex model catalog）
+文件：`~/.codex/model-catalogs/relay-ms0exe08.json`（`config.toml` → `model_catalog_json`）
+
+| 字段 | Claude Opus/Sonnet | gpt-5.6-sol / terra（修前） |
+|---|---|---|
+| `tool_mode` | 无 | **`code_mode_only`** |
+| `use_responses_lite` | 无 | `true` |
+| `multi_agent_version` | 无 | `v2` |
+| `shell_type` | `shell_command` | 同 |
+| `apply_patch_tool_type` | `freeform` | 同 |
+
+sol 审查 APPROVE：`code_mode_only` 主嫌疑（lite 可能连带）；**maxapi 无需为 tools=0 再改功能**。
+
+### 修复（本机 Codex catalog，不在 maxapi 仓库内）
+对 sol/terra：
+- 删除 `tool_mode`
+- `use_responses_lite: false`
+- 删除 `multi_agent_version`
+- 保留 `shell_type=shell_command`、`apply_patch_tool_type=freeform`
+- 备份：`relay-ms0exe08.json.bak-toolmode-20260816-133014`
+- **必须重启 Codex++ + 新开线程** 加载 catalog
+
+### 修复后实证
+| rid | 日志 |
+|---|---|
+| `fc51d8b2` | 重启前仍 `tools=0` |
+| `11c61bc7` | **`tools=20`** stream 200 |
+| `b188c569` | `tools=20` |
+| `1b00def4` | `tools=20` + **`tool-escalate` chat stream → reroll saw_tool=True** |
+
+### 两层分工（勿混）
+1. **Catalog**：决定 Codex 是否在 HTTP 里带上 tools（0 vs 20）。
+2. **maxapi mid-flight escalate（d1eb247）**：tools 已在时，短 nudge / 偷懒 narrate 再逼进 ladder。
+3. 只改 maxapi 不改 catalog → 永远 tools=0 独白；只改 catalog 无 escalate → 多数能跑，sol 偶发空转仍可能。
+
+### 排障口诀
+看 `docker logs maxapi`：
+- `tools=0` → catalog / 客户端 / 未重启；别先改代理。
+- `tools≥1` 仍无 tool_call → 查 escalate / 529 busy / forbid-howto 门控。
+
+
 ## 2026-08-16 sol mid-flight structural escalate
 
 ### 根因
@@ -510,8 +569,8 @@ python -u _accept_agent_long.py
 
 ## 进度报告四要素
 
-- **已完成**: identity 2-OK + tool escalate c217562 + compact 0.88/inflate + **sol mid-flight structural**；accept 28/28；live 做/继续/ok tool_use。
-- **当前位置**: GPT/sol agent 短 nudge 卡死主因已修；文档待随 commit 更新。
-- **离 goal 还差**: NAS 重建验证；可选 15721 真客户端长链；客户端必须带 tools。
-- **下一步**: commit+push；NAS rebuild；观察 Codex/CC sol 是否仍「无工具」独白（若 tools=0 则查客户端）。
+- **已完成**: tool escalate c217562 + compact 0.88 + sol mid-flight d1eb247；Codex++ catalog 去掉 sol `code_mode_only`；重启后 `tools=20` + escalate 实证。
+- **当前位置**: Codex++ → 8080 → gpt-5.6-sol 跑命令已通；文档本批固化。
+- **离 goal 还差**: NAS 镜像同步；可选 15min 长链；catalog 改在用户机 `~/.codex`，换机需重做或脚本化。
+- **下一步**: push 文档；换机/重装 Codex 时检查 catalog 无 `tool_mode=code_mode_only`。
 

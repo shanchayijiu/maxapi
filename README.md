@@ -4,7 +4,7 @@
 封装成标准 **OpenAI Chat Completions** 与 **Anthropic Messages**（Claude Code / agent 可直连）。
 纯 Python 标准库、零依赖、单文件 Docker。
 
-**2026-08-16**：sol 专用 mid-flight 结构 escalate（tool 回传后「做/继续/ok」进阶梯；Claude 仍词法门控）+ 预压缩 `eff>limit*0.88`。**2026-08-15**：sol auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy!=quota`。详见 [STATUS.md](STATUS.md)。
+**2026-08-16**：Codex++ sol 不跑命令根因 catalog `tool_mode=code_mode_only`→`tools=0`（改 catalog+重启）；maxapi sol mid-flight escalate + 预压缩 `eff>limit*0.88`。**2026-08-15**：auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy≠quota`。详见 [STATUS.md](STATUS.md)。
 
 ## 上游机制（实证，2026-08-01）
 
@@ -140,6 +140,19 @@ se.zzmax.cn 是私有 schema（`/api/chat/stream` 只认 `model/subModel/message
 | 客户端 | 请求必须带 `tools`；日志 `tools=0` 是客户端没传，代理不会发明工具 |
 
 **实证**：`_accept_tool_suite.py` **28/28**；live settings「做」→ `Edit` 删 `Write(**)`；Claude howto 0 tool。
+
+
+### Codex++ / catalog：sol 必须能发出 tools（2026-08-16）
+
+Codex++ 直连 maxapi 时，**若 model catalog 给 `gpt-5.6-sol` 标了 `tool_mode=code_mode_only`**，客户端会走 chat 且 **`tools=0`**，模型只能独白「没有终端/文件工具」。这不是 maxapi 吞 tools。
+
+| 检查 | 正常 | 异常 |
+|---|---|---|
+| `docker logs` | `gpt-5.6-sol ... tools=20` | `tools=0` |
+| catalog（`~/.codex/model-catalogs/*.json`） | sol **无** `tool_mode`，与 Claude 条目一致 | `tool_mode=code_mode_only` |
+| 处理后 | 删除该字段；`use_responses_lite=false`；去掉多余 `multi_agent_version=v2`；**重启 Codex++ 并新开线程** | 只 pull maxapi 不改 catalog |
+
+maxapi 在 `tools≥1` 时：DSML + escalate/terminal-force（含 sol mid-flight 短 nudge）负责真正调工具。两层都要：catalog 负责「带上 tools」，代理负责「有 tools 也要调用」。
 
 ### auto tool 可靠性阶梯（2026-08-15，gpt-5.6-sol 验收）
 
