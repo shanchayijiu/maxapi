@@ -1999,13 +1999,17 @@ def _find_partial(s):
     if ">" in tail:
         return -1
     low = tail.lower()
+    hold = -1
     for prefix in _TOOL_TAG_PREFIXES:
         if prefix.startswith(low):
             return last_lt
         # hold when low extends BEYOND a known prefix: e.g. "<function=" ,
         # "<function=write" still belongs to the <function=NAME> opener in progress
         if low.startswith(prefix):
-            return last_lt
+            hold = last_lt
+            break
+    if hold >= 0:
+        return hold
     return -1
 
 
