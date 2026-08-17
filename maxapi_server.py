@@ -2010,6 +2010,9 @@ def _find_partial(s):
             break
     if hold >= 0:
         return hold
+    # bare <function=NAME> opener from se.zzmax upstream
+    if low.startswith("<function=") or low.startswith("<function =\""):
+        return last_lt
     return -1
 
 
