@@ -3,7 +3,7 @@
 > 2026-08-16 更新: **sol mid-flight completion 门控**（打断任务完成后的 Write-Output 空转 + 双发慢）；此前 catalog `code_mode_only`→tools=0 已修；mid-flight escalate（d1eb247）仍有效。accept 28/28；thrash 探针 3/3。
 > 2026-08-17 更新: **terminal-force 单次 + concurrency 3**（commit `9df41b5`）：terminal-force 2次循环压为单次 max_retry=2，upstream concurrency 5→3，减少 busy 风暴。Docker 已 rebuild（`30bac93`）。accept 28/28 + 17/17 全 PASS。
 > 2026-08-17 晚: **根因修复 — thinking 通道 DSML 泄漏**。对照 git：`ToolCallParser`/`_consume_capture`/`_normalize_dsml` 自 `1b434fa` 起字节级未变；泄漏不在 strip 回归，而在 `upstream()`` 内正文当 `reasoning` 直接 yield，**绕过** ToolCallParser。模型常把 `|DSML|tool_calls` 写进 thinking → 客户端可见标签 + tool_call 丢失 → escalate 双发。修复：始终 peel think；reasoning 也过 tparser；tool_call 抽出，干净 prose 才当下 thinking。Docker 已 rebuild。accept 28/28 + 17/17。
-> 2026-08-17 23:51: **local_compat 70/70 FAIL 0**（commit `0cd400c`）：① flush incomplete DSML 真正丢弃（删 `_seg==0` emit 分支）；② retired gpt alias 测试断言修正（`gpt-5.6-luna` → `gpt-5.6-sol`）；③ model count 断言放开为实际值 11；④ Docker 8080 live healthz/models/chat 三路全通。
+> 2026-08-18 00:15: **local_compat 70/70 FAIL 0**（commit `c85b50e`）：① _find_partial 补 bare `<function=` 前缀识别；② flush incomplete DSML 真正丢弃。Docker rebuild + push 完成。
 > 2026-08-18 00:15: **local_compat 70/70 FAIL 0**（commit `c85b50e`）：`_find_partial()` 补 bare `<function=` opener 识别（se.zzmax upstream 格式），防止 flush 时 pending 残留 emit。Docker rebuild + push 完成。
 
 ## 一句话现状
