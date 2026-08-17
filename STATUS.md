@@ -2,15 +2,16 @@
 
 > 2026-08-16 更新: **sol mid-flight completion 门控**（打断任务完成后的 Write-Output 空转 + 双发慢）；此前 catalog `code_mode_only`→tools=0 已修；mid-flight escalate（d1eb247）仍有效。accept 28/28；thrash 探针 3/3。
 > 2026-08-17 更新: **terminal-force 单次 + concurrency 3**（commit `9df41b5`）：terminal-force 2次循环压为单次 max_retry=2，upstream concurrency 5→3，减少 busy 风暴。Docker 已 rebuild（`30bac93`）。accept 28/28 + 17/17 全 PASS。
+> 2026-08-17 晚: **根因修复 — thinking 通道 DSML 泄漏**。对照 git：`ToolCallParser`/`_consume_capture`/`_normalize_dsml` 自 `1b434fa` 起字节级未变；泄漏不在 strip 回归，而在 `upstream()` 把 `<think>` 内正文当 `reasoning` 直接 yield，**绕过** ToolCallParser。模型常把 `|DSML|tool_calls` 写进 thinking → 客户端可见标签 + tool_call 丢失 → escalate 双发。修复：始终 peel think；reasoning 也过 tparser；tool_call 抽出，干净 prose 才当下 thinking。Docker 已 rebuild。accept 28/28 + 17/17。
 
 ## 一句话现状
 
-`maxapi_server.py`：sol auto tool 阶梯 + mid-flight 结构门控 + **完成后允许 end_turn** + 预压缩。Codex++ catalog 不得 `code_mode_only`。8080 已重建。
+`maxapi_server.py`：sol auto tool 阶梯 + mid-flight 结构门控 + **完成后允许 end_turn** + **thinking 内 DSML 同步剥离/提 tool** + 预压缩。Codex++ catalog 不得 `code_mode_only`。8080 已重建。
 
 ## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
 
 - **访客旁路核心**：每请求伪造 XFF/X-Real-IP；2 次 OK 后主动 retire identity；quota 换新 identity 短睡，busy/stall 同 identity 退避；`busy≠quota`；客户端错误不泄漏上游额度中文文案；上游并发信号量 5。
-- **工具协议**：DSML prompt + ToolCallParser；OpenAI `/v1/chat/completions` + Anthropic `/v1/messages` + Responses。
+- **工具协议**：DSML prompt + ToolCallParser；OpenAI `/v1/chat/completions` + Anthropic `/v1/messages` + Responses。**content 与 reasoning 双通道都过 tparser**（防 think 内 DSML 泄漏 / 漏提 tool）。
 - **auto tool 阶梯（2026-08-15）**：CONNECTED TOOLS 声明 → 动作请求无 tool 时 escalate 到 forced function/Bash → 仍失败则 terminal-force（独立短上下文，单次 max_retry=2，不再循环重试）→ 首轮/escalate 的 **retryable 529/busy** 也进 ladder（quota/auth 不进）→ howto / do-not-call-tools 门控 + `tool_choice=none`。2026-08-17: 上游并发从 5 降到 3，减少 busy 风暴。
 - **sol mid-flight completion 门控（2026-08-16）**：tool 历史存在时若 recent tool_result / 首轮 prose 已声明完成（「无需进一步操作」等），**不再** auto→required/terminal-force，允许 end_turn；未完成 + 短 nudge 仍 escalate。修 thrash 空转与双发延迟。
 - stream：header 前 prefetch；仅 `saw_tool` 才接受 escalate 缓冲（修「无 tool 缓冲当成功」）。

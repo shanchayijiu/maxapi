@@ -2987,7 +2987,9 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 yield ("error", {"error": "upstream model busy/stalled (deadline); retry shortly"})
                 return
         # 重建解析器，避免重试时残留上次的部分状态导致输出错乱
-        filt = ReasoningFilter(include_reasoning=include_reasoning)
+        # Always peel <think> so DSML inside thinking can be sieved; client emission
+        # of reasoning is gated at yield sites via include_reasoning.
+        filt = ReasoningFilter(include_reasoning=True)
         tparser = ToolCallParser()  # always active: strips tool tags even when tools_enabled=False
         if retry_class == "quota":
             identity_retire(xff, "quota")
@@ -3167,9 +3169,22 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     ct = obj.get("content")
                     if ct is not None and ct != "":
                         for kind, piece in filt.feed(ct):
-                            if kind == "reasoning" and include_reasoning:
-                                content_yielded = True
-                                yield ("reasoning", piece)
+                            # Reasoning MUST also go through ToolCallParser: models often
+                            # emit DSML/tool_calls inside <think> (despite prompt). Without
+                            # this sieve, raw |DSML|/tool_calls leak as thinking text and
+                            # tool_call is missed → false escalate + double upstream RTT.
+                            if kind == "reasoning":
+                                if tparser is not None:
+                                    for tk, tp in tparser.feed(piece):
+                                        if tk == "tool_call":
+                                            content_yielded = True
+                                            yield (tk, tp)
+                                        elif tk == "content" and include_reasoning and tp:
+                                            content_yielded = True
+                                            yield ("reasoning", tp)
+                                elif include_reasoning and piece:
+                                    content_yielded = True
+                                    yield ("reasoning", piece)
                             elif kind == "content":
                                 if tparser is not None:
                                     for tk, tp in tparser.feed(piece):
@@ -3185,9 +3200,18 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                         got_done = True
             # stream ended — always flush remaining buffers
             for kind, piece in filt.flush():
-                if kind == "reasoning" and include_reasoning:
-                    content_yielded = True
-                    yield ("reasoning", piece)
+                if kind == "reasoning":
+                    if tparser is not None:
+                        for tk, tp in tparser.feed(piece):
+                            if tk == "tool_call":
+                                content_yielded = True
+                                yield (tk, tp)
+                            elif tk == "content" and include_reasoning and tp:
+                                content_yielded = True
+                                yield ("reasoning", tp)
+                    elif include_reasoning and piece:
+                        content_yielded = True
+                        yield ("reasoning", piece)
                 elif kind == "content":
                     if tparser is not None:
                         for tk, tp in tparser.feed(piece):
@@ -3199,7 +3223,12 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             if tparser is not None:
                 for tk, tp in tparser.flush():
                     content_yielded = True
-                    yield (tk, tp)
+                    # flush may surface stripped prose that originated inside <think>;
+                    # only promote leftover text as content (tool_call always forwarded).
+                    if tk == "tool_call":
+                        yield (tk, tp)
+                    elif tk == "content" and tp:
+                        yield (tk, tp)
             if got_done and not volatile:
                 identity_mark_ok(xff)
                 return
