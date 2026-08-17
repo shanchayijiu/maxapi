@@ -4,7 +4,7 @@
 封装成标准 **OpenAI Chat Completions** 与 **Anthropic Messages**（Claude Code / agent 可直连）。
 纯 Python 标准库、零依赖、单文件 Docker。
 
-**2026-08-16**：sol mid-flight **completion 门控**（任务完成后允许 end_turn，打断 Write-Output 空转/双发慢）；catalog `code_mode_only`→tools=0 已修；mid-flight escalate + 预压缩 `eff>limit*0.88`。**2026-08-15**：auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy≠quota`。详见 [STATUS.md](STATUS.md)。
+**2026-08-17**：thinking 通道 DSML 泄漏根因修复（`e97d000`）——`<think>` 内 `|DSML|tool_calls` 同步过 ToolCallParser，不再当 reasoning 原文下发；terminal-force 单次 + concurrency 3。**2026-08-16**：sol mid-flight **completion 门控**；catalog `code_mode_only`→tools=0 已修；预压缩 `eff>limit*0.88`。**2026-08-15**：auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy≠quota`。详见 [STATUS.md](STATUS.md)。
 
 ## 上游机制（实证，2026-08-01）
 
@@ -126,7 +126,7 @@ se.zzmax.cn 是私有 schema（`/api/chat/stream` 只认 `model/subModel/message
 2. **展平历史**：`assistant.tool_calls` → DSML 文本块；`role:tool` / Anthropic `tool_result` → user 观察消息。
 3. **ToolCallParser**：流式 sieve 剥 DSML / 上游 `<function=NAME>` 等格式，跨 chunk 不泄漏闭合标签。
 4. **转标准协议**：OpenAI `message.tool_calls` / Anthropic `tool_use`；流式对齐原生分片。
-
+5. **thinking 双通道 sieve（2026-08-17）**：始终 peel `<think>`；**content 与 reasoning 都过 ToolCallParser**。模型把 `|DSML|tool_calls` 写进 think 时抽出 `tool_call`、剥标签，干净 prose 才当下 thinking（`include_reasoning` 只控制是否发给客户端）。根因：parser 自 `1b434fa` 未回归，是 `upstream()` 曾把 think 原文当 reasoning 直通客户端。
 
 ### sol mid-flight 结构门控 + completion 门控（2026-08-16）
 
@@ -163,13 +163,14 @@ sol 等模型在 `tool_choice=auto` 下会偶发只 think + `end_turn`（声称�
 |---|---|
 | Prompt | CONNECTED TOOLS；动作必须发 DSML；howto / do-not-execute 允许纯文本 |
 | Escalate | 动作请求且无 `tool_call` → 升到 forced `function/Bash` 或 `required` 再打 1 次 |
-| Terminal-force | 仍无 tool：独立短上下文 + HARD REQUIREMENT，最多 2 次 |
+| Terminal-force | 仍无 tool：独立短上下文 + HARD REQUIREMENT，**单次**（内部 max_retry=2，不再外层循环） |
 | 529 旁路 | 首轮/escalate 的 busy/529/502/503 可进 ladder；**quota/auth 永不进** |
 | 禁 tool | 用户明确 `do not call tools` → `tool_choice=none`，不 escalate |
+| Think 内 DSML | reasoning 与 content 同过 sieve；漏提 tool → 假 escalate 的路径已堵 |
 
-环境变量（默认开）：`MAXAPI_TOOL_ESCALATE=1`、`MAXAPI_TOOL_TERMINAL_FORCE=1`。
+环境变量（默认开）：`MAXAPI_TOOL_ESCALATE=1`、`MAXAPI_TOOL_TERMINAL_FORCE=1`。上游并发默认 `MAXAPI_UPSTREAM_CONCURRENCY=3`。
 
-**实证（8080 Docker，`gpt-5.6-sol`）**：`_accept_tool_suite.py` **28/28**（auto Bash **20/20**，howto/plain/agent 禁 tool/chat/stream/multi 全过）；`_accept_agent_long.py` **15/15** 轮 tool + 收尾 `ALL_DONE`（约 160s）。日志：`first_err=temporarily unavailable` → `terminal-force success`；`identity retire after 2 ok uses` 仍在。
+**实证（8080 Docker，`gpt-5.6-sol`，2026-08-17）**：`_accept_tool_suite.py` **28/28**；`_accept_agent_long.py` **15/15** 轮 tool + 收尾 `ALL_DONE`（约 98s）。think 内 DSML 离线复现 LEAK→0 + tool 可抽。
 
 ```bash
 python -u _accept_tool_suite.py    # 28/28

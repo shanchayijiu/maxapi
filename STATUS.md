@@ -10,7 +10,7 @@
 
 ## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
 
-- **访客旁路核心**：每请求伪造 XFF/X-Real-IP；2 次 OK 后主动 retire identity；quota 换新 identity 短睡，busy/stall 同 identity 退避；`busy≠quota`；客户端错误不泄漏上游额度中文文案；上游并发信号量 5。
+- **访客旁路核心**：每请求伪造 XFF/X-Real-IP；2 次 OK 后主动 retire identity；quota 换新 identity 短睡，busy/stall 同 identity 退避；`busy≠quota`；客户端错误不泄漏上游额度中文文案；上游并发信号量默认 **3**（`MAXAPI_UPSTREAM_CONCURRENCY`）。
 - **工具协议**：DSML prompt + ToolCallParser；OpenAI `/v1/chat/completions` + Anthropic `/v1/messages` + Responses。**content 与 reasoning 双通道都过 tparser**（防 think 内 DSML 泄漏 / 漏提 tool）。
 - **auto tool 阶梯（2026-08-15）**：CONNECTED TOOLS 声明 → 动作请求无 tool 时 escalate 到 forced function/Bash → 仍失败则 terminal-force（独立短上下文，单次 max_retry=2，不再循环重试）→ 首轮/escalate 的 **retryable 529/busy** 也进 ladder（quota/auth 不进）→ howto / do-not-call-tools 门控 + `tool_choice=none`。2026-08-17: 上游并发从 5 降到 3，减少 busy 风暴。
 - **sol mid-flight completion 门控（2026-08-16）**：tool 历史存在时若 recent tool_result / 首轮 prose 已声明完成（「无需进一步操作」等），**不再** auto→required/terminal-force，允许 end_turn；未完成 + 短 nudge 仍 escalate。修 thrash 空转与双发延迟。
@@ -431,7 +431,7 @@ Claude Code / agent 经 maxapi 打 `gpt-5.6-sol` 时，auto `tool_choice` 偶发
 | `_auto_action_candidate` / `_RE_TOOL_NO_TOOL` | 强动作才 escalate；`do not execute` / `just explain` / `do not call tools` 不 escalate |
 | `_user_forbids_tools` | auto + 明确禁 tool → `tool_choice=none` |
 | escalate | auto 无 tool_call → forced `function/Bash` 或 `required` 再打 1 次 |
-| terminal-force | escalate 仍无 tool：独立 slim 上下文 + HARD REQUIREMENT，最多 2 次；可抽 `echo X` 成硬指令 |
+| terminal-force | escalate 仍无 tool：独立 slim 上下文 + HARD REQUIREMENT，**单次**（内部 max_retry=2）；可抽 `echo X` 成硬指令 |
 | `_is_retryable_tool_upstream_err` | busy/529/502/503/timeout → 可进 ladder；**quota/429/auth/too-long 永不进** |
 | 四路径 | messages/chat × nonstream/stream：escalate 失败若 retryable → fallthrough terminal-force |
 | stream | 仅 `_saw2` 才接受 escalate 结果 |
@@ -551,7 +551,7 @@ sol 审查 APPROVE：`code_mode_only` 主嫌疑（lite 可能连带）；**maxap
 | `_has_recent_tool_turn` | 跳过尾部纯文本 user nudge，要求**紧邻前一条**带 tool payload；window=8 |
 | `_auto_action_candidate(..., model=)` | sol + pending mid-flight → True；howto/forbid 仍 False；非 sol 保持词法门控 |
 | `_should_escalate_auto_tools(..., model=)` | 透传 model；sol mid + UNAVAIL 幻觉可 escalate |
-| 不动 | XFF、2-OK、busy≠quota、concurrency 5、terminal-force 算法、词表同义词 |
+| 不动 | XFF、2-OK、busy≠quota、terminal-force 算法主干、词表同义词（concurrency 默认已改为 3，见 2026-08-17） |
 
 ### 实证
 - `_accept_tool_suite.py` **28/28**（最终 allowlist+pending 修订上）
