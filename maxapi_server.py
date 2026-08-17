@@ -2212,13 +2212,8 @@ class ToolCallParser:
                     if _fm:
                         _seg = _fm.start()
                 if _seg >= 0:
-                    # has text before (or at) the incomplete tag — keep that prefix
+                    # has text before the incomplete tag — keep that prefix, discard the tag fragment
                     out.append(self._emit(content[:_seg]))
-                    # if the incomplete tag starts at position 0, the whole
-                    # content IS the incomplete tag — emit it verbatim so it
-                    # is not silently lost (regression test: fn incomplete content not lost)
-                    if _seg == 0:
-                        out.append(self._emit(content))
                 # else: entire content is the incomplete DSML fragment → discard
                 sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete DSML\n" % len(content));
         if self.pending:
