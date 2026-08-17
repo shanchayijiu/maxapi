@@ -11,7 +11,7 @@
 
 - **访客旁路核心**：每请求伪造 XFF/X-Real-IP；2 次 OK 后主动 retire identity；quota 换新 identity 短睡，busy/stall 同 identity 退避；`busy≠quota`；客户端错误不泄漏上游额度中文文案；上游并发信号量 5。
 - **工具协议**：DSML prompt + ToolCallParser；OpenAI `/v1/chat/completions` + Anthropic `/v1/messages` + Responses。
-- **auto tool 阶梯（2026-08-15）**：CONNECTED TOOLS 声明 → 动作请求无 tool 时 escalate 到 forced function/Bash → 仍失败则 terminal-force（独立短上下文，最多 2 次）→ 首轮/escalate 的 **retryable 529/busy** 也进 ladder（quota/auth 不进）→ howto / do-not-call-tools 门控 + `tool_choice=none`。
+- **auto tool 阶梯（2026-08-15）**：CONNECTED TOOLS 声明 → 动作请求无 tool 时 escalate 到 forced function/Bash → 仍失败则 terminal-force（独立短上下文，单次 max_retry=2，不再循环重试）→ 首轮/escalate 的 **retryable 529/busy** 也进 ladder（quota/auth 不进）→ howto / do-not-call-tools 门控 + `tool_choice=none`。2026-08-17: 上游并发从 5 降到 3，减少 busy 风暴。
 - **sol mid-flight completion 门控（2026-08-16）**：tool 历史存在时若 recent tool_result / 首轮 prose 已声明完成（「无需进一步操作」等），**不再** auto→required/terminal-force，允许 end_turn；未完成 + 短 nudge 仍 escalate。修 thrash 空转与双发延迟。
 - stream：header 前 prefetch；仅 `saw_tool` 才接受 escalate 缓冲（修「无 tool 缓冲当成功」）。
 
