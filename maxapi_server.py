@@ -1344,7 +1344,7 @@ def _build_messages_with_tools(tools, tool_choice, messages):
         else:
             out.append({"role": "system", "content": "Reminder: you must call exactly one tool in this turn. Do not answer in prose."})
     else:
-        out.append({"role": "system", "content": "Reminder: the tools listed above are CONNECTED and callable now. If the latest user message asks you to PERFORM an action now, emit a single " + tco + "..." + tcc + " block in THIS turn using ONLY those tools. If the latest user message is explanation-only or says do not execute / do not call tools / just explain / reply with text only, answer in prose and do NOT call tools. Do NOT say a tool is unavailable when an action is required."})
+        out.append({"role": "system", "content": "Reminder: the tools listed above are CONNECTED and callable now. If the latest user message asks you to PERFORM an action now, EXECUTE the action with a tool call in THIS turn using ONLY those tools — emit a single " + tco + "..." + tcc + " block. Prose narration is NEVER a substitute for a tool call when an action is required. If the latest user message is explanation-only or says do not execute / do not call tools / just explain / reply with text only, answer in prose and do NOT call tools. Do NOT say a tool is unavailable when an action is required."})
     # Trailing reminder: repeat the user's original instruction at the end
     # so it survives long tool-heavy conversations where early messages lose attention
     _first_user = None
@@ -2207,9 +2207,14 @@ class ToolCallParser:
                     _fm = re.search(r'<function\s*=\s*"?[A-Za-z_]', content, re.IGNORECASE)
                     if _fm:
                         _seg = _fm.start()
-                if _seg > 0:
-                    # has text before the incomplete tag — keep that prefix
+                if _seg >= 0:
+                    # has text before (or at) the incomplete tag — keep that prefix
                     out.append(self._emit(content[:_seg]))
+                    # if the incomplete tag starts at position 0, the whole
+                    # content IS the incomplete tag — emit it verbatim so it
+                    # is not silently lost (regression test: fn incomplete content not lost)
+                    if _seg == 0:
+                        out.append(self._emit(content))
                 # else: entire content is the incomplete DSML fragment → discard
                 sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete DSML\n" % len(content));
         if self.pending:

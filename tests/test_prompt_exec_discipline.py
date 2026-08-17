@@ -21,6 +21,6 @@ last = msgs[-1]
 assert isinstance(last, dict) and last.get("role") == "system", "tail reminder must be system"
 c = last.get("content", "")
 assert "EXECUTE the action with a tool call in THIS turn" in c, "strengthened reminder missing execute clause"
-assert "narration is not a substitute" in c.lower(), "strengthened reminder missing narration clause"
+assert "narration is never a substitute" in c.lower() or "narration is not a substitute" in c.lower() or "narration.*substitute" in c.lower(), "strengthened reminder missing narration clause"
 print("PASS: rule 13 + strengthened reminder in place")
 sys.exit(0)
