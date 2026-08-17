@@ -1660,6 +1660,7 @@ def _auto_action_candidate(tool_choice, tools, messages, model=None):
         if user and _RE_TOOL_HOWTO.search(user):
             return False
         # Pre-upstream completion: recent tool results already say done -> do not force tools.
+        # Aligns with _should_escalate_auto_tools post-upstream gate (both must agree).
         if _midflight_should_allow_end_turn(messages):
             return False
         return True
