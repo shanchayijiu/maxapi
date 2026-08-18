@@ -300,7 +300,11 @@ def _clamp_max_tokens(display_id, max_tokens):
     return max(1, min(mt, model_out))
 
 def resolve_model(name):
-    """Map a client-supplied model id to (group, actualModelId, display_id)."""
+    """Map a client-supplied model id to (group, actualModelId, display_id).
+
+    Unknown non-empty names fall back to DEFAULT_MODEL for legacy callers; use
+    `model_is_known()` at request edges to return OpenAI-style 404 instead.
+    """
     if not name:
         name = DEFAULT_MODEL
     if name in MODEL_BY_DISPLAY:
@@ -312,6 +316,36 @@ def resolve_model(name):
         return g, a, alt
     g, a = MODEL_BY_DISPLAY[DEFAULT_MODEL]
     return g, a, DEFAULT_MODEL
+
+
+def model_is_known(name):
+    """True if name is empty (default) or maps to a catalog display id / alias."""
+    if not name:
+        return True
+    if name in MODEL_BY_DISPLAY:
+        return True
+    alt = MODEL_ALIASES.get(name)
+    return bool(alt and alt in MODEL_BY_DISPLAY)
+
+
+def _reject_unknown_model(handler, name, flavor="openai"):
+    """Send OpenAI/Anthropic 404 for unknown model ids. Returns True if rejected."""
+    if model_is_known(name):
+        return False
+    msg = "The model `%s` does not exist or you do not have access to it." % (name,)
+    if flavor == "anthropic":
+        handler._send(404, _err_body("not_found_error", msg, flavor="anthropic"))
+    else:
+        # OpenAI: type=invalid_request_error, code=model_not_found
+        handler._send(404, {
+            "error": {
+                "message": msg,
+                "type": "invalid_request_error",
+                "param": "model",
+                "code": "model_not_found",
+            }
+        })
+    return True
 
 def rand_ip():
     return "%d.%d.%d.%d" % (random.randint(1,250), random.randint(0,251), random.randint(0,251), random.randint(1,250))
@@ -4076,6 +4110,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("X-Accel-Buffering", "no")  # stop nginx/CF from buffering
         if self._sse_chunked:
             self.send_header("Transfer-Encoding", "chunked")
+            # OpenAI-compatible clients expect keep-alive on SSE; chunked already
+            # delimits the body so close is unnecessary.
+            self.send_header("Connection", "keep-alive")
         else:
             self.send_header("Connection", "close")
             self.close_connection = True
@@ -4134,6 +4171,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(400, _err_body("invalid_request_error", "request body must be a JSON object"))
 
         model = req.get("model") or DEFAULT_MODEL
+        if _reject_unknown_model(self, req.get("model"), flavor="openai"):
+            return
         grp, sub, disp = resolve_model(model)
         stream = bool(req.get("stream"))
         resp_id = "resp_%d" % int(time.time() * 1000)
@@ -4436,6 +4475,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(400, {"type": "error", "error": {"type": "invalid_request_error", "message": "bad json: %s" % e}})
         model = req.get("model") or DEFAULT_MODEL
+        if _reject_unknown_model(self, req.get("model"), flavor="anthropic"):
+            return
         grp, sub, disp = resolve_model(model)
         msg_id = _make_msg_id()
         _t0 = time.monotonic()
@@ -4857,9 +4898,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception as _e:
             LOG.debug("[chatreq diag err] %s", _e)
         model = req.get("model") or DEFAULT_MODEL
+        if _reject_unknown_model(self, req.get("model"), flavor="openai"):
+            return
         grp, sub, disp = resolve_model(model)
         messages = req.get("messages") or []
         stream = bool(req.get("stream"))
+        # OpenAI stream_options.include_usage → final usage-only chunk before [DONE]
+        _stream_opts = req.get("stream_options") if isinstance(req.get("stream_options"), dict) else {}
+        include_usage = bool(_stream_opts.get("include_usage")) if stream else False
         _msgs_count = len(messages) if isinstance(messages, list) else 0
         _tools_count = len(req.get("tools") or [])
         include_reasoning = not (req.get("reasoning") is False or req.get("strip_reasoning"))
@@ -5045,34 +5091,56 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.set()
             tool_call_count = 0
             stream_failed = False
+            # Accumulators for optional include_usage final chunk
+            _out_content_chars = 0
+            _out_reason_chars = 0
+            _out_tool_arg_chars = 0
             for kind, data in _upstream_iter(_first, _iter):
                 if kind == "content":
                     # After tool_calls, drop trailing prose (OpenAI clients treat
                     # tool_calls finish as terminal for this assistant turn).
                     if tool_call_count > 0:
                         continue
+                    _out_content_chars += len(data) if isinstance(data, str) else 0
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"content": data}, "finish_reason": None}]})
                 elif kind == "reasoning":
                     if include_reasoning:
+                        _out_reason_chars += len(data) if isinstance(data, str) else 0
                         sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                              "choices": [{"index": 0, "delta": {"reasoning_content": data}, "finish_reason": None}]})
                 elif kind == "tool_call":
                     if not tools_enabled:
                         continue
                     data = _validate_and_coerce_tool_calls([data], tools)[0]
+                    idx = tool_call_count
+                    argstr = json.dumps(data["arguments"], ensure_ascii=False)
+                    _out_tool_arg_chars += len(argstr)
+                    # OpenAI streaming tool wire shape (2api P0):
+                    #  1st shard: {index, id, type, function:{name, arguments:""}}
+                    #  nth shard: {index, function:{arguments:"<incremental str>"}}
+                    #  end: empty delta + finish_reason=tool_calls
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {
                              "tool_calls": [{
-                                 "index": tool_call_count,
+                                 "index": idx,
                                  "id": data["id"],
                                  "type": "function",
-                                 "function": {
-                                     "name": data["name"],
-                                     "arguments": json.dumps(data["arguments"], ensure_ascii=False),
-                                 },
+                                 "function": {"name": data["name"], "arguments": ""},
                              }]
                          }, "finish_reason": None}]})
+                    # Emit arguments as string increments (≤24 chars) so SDK assemblers
+                    # that only append deltas still rebuild valid JSON.
+                    _step = 24
+                    for _off in range(0, len(argstr), _step):
+                        _piece = argstr[_off:_off + _step]
+                        sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                             "choices": [{"index": 0, "delta": {
+                                 "tool_calls": [{
+                                     "index": idx,
+                                     "function": {"arguments": _piece},
+                                 }]
+                             }, "finish_reason": None}]})
                     tool_call_count += 1
                 elif kind == "sources":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
@@ -5084,6 +5152,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not stream_failed:
                 sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                      "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
+                # stream_options.include_usage: OpenAI emits a trailing chunk with
+                # empty choices + usage before [DONE].
+                if include_usage:
+                    _p = max(1, _estimate_messages_tokens(msgs_up))
+                    _c = max(1, (_out_content_chars + _out_reason_chars + _out_tool_arg_chars) // 4 + 2)
+                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                         "choices": [],
+                         "usage": {"prompt_tokens": _p, "completion_tokens": _c, "total_tokens": _p + _c}})
             emit(b"data: [DONE]\n\n")
             LOG.info("rid=%s <- 200 [chat] stream model=%s tools=%d time=%dms",
                      _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
