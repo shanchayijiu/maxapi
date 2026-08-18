@@ -3310,26 +3310,30 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             yield ("error", {"error": "upstream failed: %r" % e})
             return
         finally:
-            # http.client connections are not reliably reusable after SSE streams;
-            # always close to avoid hung sockets under concurrency.
-            try:
-                conn.close()
-            except Exception:
-                pass
+            # Clean streams may be recycled; aborted/half-read sockets must be
+            # closed and NEVER returned to the pool. Important: do not close
+            # before _pool_put — that would park dead conns and break later
+            # requests (Codex "completely dead" after 3763e84).
+            _can_recycle = bool(locals().get("got_done")) and not bool(locals().get("volatile"))
+            if _can_recycle:
+                try:
+                    _pool_put(conn)
+                except Exception:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+            else:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
             if locals().get("_slot_held"):
                 try:
                     _upstream_sema.release()
                 except Exception:
                     pass
                 _slot_held = False
-            # Recycle connection only if stream ended cleanly (got_done).
-            # After a stall/volatile abort, the socket may be in an inconsistent
-            # state (half-read chunk buffer), so close instead of recycling.
-            if got_done and not volatile:
-                try:
-                    _pool_put(conn)
-                except Exception:
-                    pass
 
 
 def classify_error(err, default=529):
