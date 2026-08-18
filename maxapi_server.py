@@ -768,6 +768,9 @@ _TOOL_TAG_PREFIXES = [
     "<dstml|tool_calls", "<dstml|invoke", "<dstml|parameter",
     # DeepSeek special tokens (fullwidth pipe variants)
     "<｜tool▁calls▁begin｜", "<｜tool▁call▁begin｜",
+    # ASCII DeepSeek-style begin/end tokens (some gateways)
+    "<|tool_calls_begin", "<|tool_call_begin", "<|tool_calls_end",
+    "<|tool_call_end", "<|tool_sep",
     # se.zzmax <function=NAME> AND Claude-native <function_calls>
     # Prefer longer prefixes first so <function_calls holds correctly;
     # bare <function= is matched explicitly in _find_partial.
@@ -803,6 +806,9 @@ _TOOL_TAG_FULLS = [
     "<dstml|parameter>", "<dstml|parameter ", "<dstml|parameter\t", "<dstml|parameter\n", "<dstml|parameter\r",
     # DeepSeek special tokens (fullwidth)
     "<｜tool▁calls▁begin｜>", "<｜tool▁call▁begin｜>",
+    # ASCII DeepSeek-style begin tokens
+    "<|tool_calls_begin|>", "<|tool_call_begin|>",
+    "<|tool_calls_begin|", "<|tool_call_begin|",
 ]
 
 
@@ -982,20 +988,146 @@ _RE_SINGLE_CALL = re.compile(
 
 def _normalize_dsml(text):
     # DeepSeek special tokens (fullwidth pipe + underscore glyphs) → standard tags.
-    if text and ("｜" in text or "▁" in text):
+    # Also ASCII <|tool_calls_begin|> / <|tool_sep|> variants used by some gateways.
+    if text and ("｜" in text or "▁" in text or "tool_calls_begin" in text
+                 or "tool_call_begin" in text or "tool_sep" in text):
         text = (text
                 .replace("<｜tool▁calls▁begin｜>", "<tool_calls>")
                 .replace("<｜tool▁calls▁end｜>", "</tool_calls>")
                 .replace("<｜tool▁call▁begin｜>", "<tool_call>")
                 .replace("<｜tool▁call▁end｜>", "</tool_call>")
+                .replace("<｜tool▁sep｜>", "\n")
                 .replace("<|tool▁calls▁begin|>", "<tool_calls>")
                 .replace("<|tool▁calls▁end|>", "</tool_calls>")
                 .replace("<|tool▁call▁begin|>", "<tool_call>")
-                .replace("<|tool▁call▁end|>", "</tool_call>"))
+                .replace("<|tool▁call▁end|>", "</tool_call>")
+                .replace("<|tool▁sep|>", "\n")
+                .replace("<|tool_calls_begin|>", "<tool_calls>")
+                .replace("<|tool_calls_end|>", "</tool_calls>")
+                .replace("<|tool_call_begin|>", "<tool_call>")
+                .replace("<|tool_call_end|>", "</tool_call>")
+                .replace("<|tool_sep|>", "\n"))
     # Claude-native antml format uses <function_calls> as the wrapper;
     # normalize to <tool_calls> so all downstream parsing handles it uniformly.
     text = _RE_FUNCTION_CALLS.sub(lambda m: '<' + m.group(1) + 'tool_calls>', text)
     return _RE_DSML_STRIP.sub(r'\1', text)
+
+
+def _parse_tool_call_inner(inner):
+    """Parse body inside a singular <tool_call>...</tool_call> (or legacy equivalent).
+
+    Supported shapes:
+      - JSON: {"name": "...", "arguments": {...}}
+      - DeepSeek token body after normalize:
+          NAME\\n```json\\n{...}\\n```
+          function\\nNAME\\n```json\\n{...}\\n```
+          NAME\\n{...}
+      - bare invoke XML already handled elsewhere
+    Returns list of {id,name,arguments} or [].
+    """
+    if inner is None:
+        return []
+    body = _strip_fences(str(inner)).strip()
+    if not body:
+        return []
+    # 1) whole-body JSON object
+    if body.startswith("{"):
+        for js_str in (body, _repair_loose_json(body), _repair_backslash(body)):
+            try:
+                val = json.loads(js_str)
+            except Exception:
+                continue
+            if not isinstance(val, dict):
+                continue
+            nm = val.get("name") or val.get("tool") or ""
+            args = val.get("arguments") or val.get("parameters") or val.get("input")
+            if args is None:
+                # bare args object without name wrapper
+                if nm:
+                    args = {}
+                elif val and not any(k in val for k in ("name", "tool", "type")):
+                    return [{"id": _make_tool_id(), "name": "", "arguments": val}]
+                else:
+                    args = {}
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except Exception:
+                    args = {"_raw": args}
+            if not isinstance(args, dict):
+                args = {"value": args}
+            if nm:
+                return [{"id": _make_tool_id(), "name": nm, "arguments": args}]
+            break
+    # 2) DeepSeek: [function\\n]NAME\\n{json}   or NAME then fenced json already stripped
+    # Drop a leading language/role marker line ("function") if present.
+    lines = body.split("\n")
+    name = ""
+    rest_lines = []
+    i = 0
+    while i < len(lines):
+        ln = lines[i].strip()
+        if not ln:
+            i += 1
+            continue
+        low = ln.lower()
+        if low in ("function", "tool", "functions", "tool_call") and i + 1 < len(lines):
+            i += 1
+            continue
+        # first non-marker token is the tool name (may be followed by json on same/later lines)
+        # allow "name{...}" glued
+        m = re.match(r'^([A-Za-z_][\w\.\:-]*)\s*(\{.*)?$', ln, re.DOTALL)
+        if m and not name:
+            name = m.group(1)
+            if m.group(2):
+                rest_lines.append(m.group(2))
+            rest_lines.extend(lines[i + 1:])
+            break
+        # fallback: entire remainder is args blob
+        if not name:
+            rest_lines = lines[i:]
+        break
+    if not name:
+        # last chance: legacy json extractor on original
+        legacy = _try_legacy_json("<tool_call>" + body + "</tool_call>")
+        return legacy or []
+    rest = "\n".join(rest_lines).strip()
+    args = {}
+    if rest:
+        # strip residual fences if any
+        rest2 = _strip_fences(rest).strip()
+        parsed = None
+        for js_str in (rest2, _repair_loose_json(rest2), _repair_backslash(rest2)):
+            if not js_str:
+                continue
+            # locate first {...} object if prose surrounds it
+            if not js_str.lstrip().startswith("{"):
+                bm = re.search(r'\{.*\}', js_str, re.DOTALL)
+                if bm:
+                    js_str = bm.group(0)
+            try:
+                parsed = json.loads(js_str)
+                break
+            except Exception:
+                continue
+        if isinstance(parsed, dict):
+            # if model nested arguments
+            if any(k in parsed for k in ("arguments", "parameters", "input")) and not any(
+                    k in parsed for k in ("command", "path", "query", "content")):
+                inner_args = parsed.get("arguments") or parsed.get("parameters") or parsed.get("input") or {}
+                if isinstance(inner_args, str):
+                    try:
+                        inner_args = json.loads(inner_args)
+                    except Exception:
+                        inner_args = {"_raw": inner_args}
+                args = inner_args if isinstance(inner_args, dict) else {"value": inner_args}
+            else:
+                args = parsed
+        elif rest2:
+            args = {"_raw": rest2}
+    if not name:
+        return []
+    return [{"id": _make_tool_id(), "name": name, "arguments": args if isinstance(args, dict) else {}}]
 
 
 def _strip_fences(text):
@@ -1114,22 +1246,32 @@ def _dsml_extract_calls(text):
     normalized = _normalize_dsml(stripped)
     calls = []
     for m in re.finditer(r'<tool_calls\b[^>]*>(.*?)</tool_calls>', normalized, re.DOTALL | re.IGNORECASE):
-        for im in _RE_INVOKE.finditer(m.group(1)):
+        body = m.group(1)
+        for im in _RE_INVOKE.finditer(body):
             calls.append(_parse_invoke(im.group(1), im.group(2)))
-        for im in _RE_INVOKE_SQ.finditer(m.group(1)):
+        for im in _RE_INVOKE_SQ.finditer(body):
             calls.append(_parse_invoke(im.group(1), im.group(2)))
-        if not calls:
-            for im in _RE_INVOKE_ANY.finditer(m.group(1)):
+        if not any(c.get("name") for c in calls):
+            for im in _RE_INVOKE_ANY.finditer(body):
                 name = ""
                 am = re.search(r'\bname\s*=\s*"([^"]*)"', im.group(0), re.IGNORECASE)
                 if am:
                     name = am.group(1)
                 calls.append(_parse_invoke(name, im.group(1)))
+        # DeepSeek token body: nested <tool_call>NAME\n{json}</tool_call>
+        if not any(c.get("name") for c in calls):
+            for sm in _RE_SINGLE_CALL.finditer(body):
+                calls.extend(_parse_tool_call_inner(sm.group(1)))
+        if not any(c.get("name") for c in calls):
+            calls.extend(_parse_tool_call_inner(body))
     if not calls:
         for im in _RE_INVOKE.finditer(normalized):
             calls.append(_parse_invoke(im.group(1), im.group(2)))
         for im in _RE_INVOKE_SQ.finditer(normalized):
             calls.append(_parse_invoke(im.group(1), im.group(2)))
+    if not calls:
+        for sm in _RE_SINGLE_CALL.finditer(normalized):
+            calls.extend(_parse_tool_call_inner(sm.group(1)))
     # se.zzmax 上游 <function=NAME>...</function> 注入格式 (无 tool_calls 包裹)
     if not calls:
         for im in _RE_FN_INVOKE.finditer(normalized):
@@ -1842,17 +1984,17 @@ def _consume_upstream(model, msgs_up, include_reasoning, effort, search, tools_e
 
 
 def _prefetch_until_tool_or_end(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5, max_tokens=None,
-                                max_events=400, max_chars=262144, max_wait=1.5):
+                                max_events=400, max_chars=262144, max_wait=8.0):
     """Buffer upstream events before client headers. Stops early on tool_call/error/end/limits.
-    max_wait caps how long we block waiting for a tool_call before falling through to
-    true streaming (plain-text turns must not buffer the whole reply).
+    max_wait only starts AFTER the first non-reasoning content/tool event — pure thinking
+    must not burn the escalate window (deepseek often thinks 3-10s then emits the tool block).
     Returns (buf_events, remainder_iter, error, saw_tool)."""
     it = upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=max_retry, max_tokens=max_tokens)
     buf = []
     err = None
     saw_tool = False
     chars = 0
-    t0 = time.monotonic()
+    t_content0 = None  # wall clock after first content/tool (not reasoning)
     while True:
         try:
             ev = next(it)
@@ -1871,12 +2013,18 @@ def _prefetch_until_tool_or_end(model, msgs_up, include_reasoning, effort, searc
         if kind == "tool_call":
             saw_tool = True
             break
-        if kind in ("content", "reasoning") and isinstance(data, str):
+        if kind == "content" and isinstance(data, str):
+            if t_content0 is None:
+                t_content0 = time.monotonic()
             chars += len(data)
+        elif kind == "reasoning" and isinstance(data, str):
+            chars += len(data)
+            # reasoning alone never starts the max_wait clock
         if len(buf) >= max_events or chars >= max_chars:
             break
-        if max_wait is not None and (time.monotonic() - t0) >= float(max_wait):
-            # Give up escalate-buffering; let the client start receiving bytes.
+        if (max_wait is not None and t_content0 is not None
+                and (time.monotonic() - t_content0) >= float(max_wait)):
+            # Give up escalate-buffering after real answer bytes stall without a tool.
             break
     return buf, it, err, saw_tool
 
@@ -2149,26 +2297,16 @@ def _consume_capture(captured):
         if singles:
             calls = []
             for m in singles:
-                body = m.group(0)
-                legacy = _try_legacy_json(body)
-                if legacy:
-                    calls.extend(legacy)
+                parsed = _parse_tool_call_inner(m.group(1))
+                if parsed:
+                    calls.extend(parsed)
                 else:
-                    # bare JSON body without XML name attr
-                    inner = m.group(1).strip()
-                    val, ok = _try_json(inner)
-                    if ok and isinstance(val, dict):
-                        nm = val.get("name") or val.get("tool") or ""
-                        args = val.get("arguments") or val.get("parameters") or val.get("input") or {}
-                        if isinstance(args, str):
-                            try:
-                                args = json.loads(args)
-                            except Exception:
-                                args = {"_raw": args}
-                        if not isinstance(args, dict):
-                            args = {"value": args}
-                        if nm:
-                            calls.append({"id": _make_tool_id(), "name": nm, "arguments": args})
+                    legacy = _try_legacy_json(m.group(0))
+                    if legacy:
+                        calls.extend(legacy)
+            if calls:
+                # drop entries missing a name (failed partial parses)
+                calls = [c for c in calls if c and c.get("name")]
             if calls:
                 prefix = norm[:singles[0].start()] if singles[0].start() > 0 else ""
                 suffix = norm[singles[-1].end():]
@@ -2181,7 +2319,8 @@ def _consume_capture(captured):
         # Check for incomplete open prefix -> keep buffering
         low = norm.lower()
         if any(p in low for p in ("<tool_calls", "<tool_call", "<tool_use", "<function_call",
-                                   "<invoke ", "<parameter ", "<｜tool")):
+                                   "<invoke ", "<parameter ", "<｜tool", "<|tool_call",
+                                   "<|tool_calls")):
             return None
         return captured, [], "", True
     close_tag = re.search(r'</tool_calls\s*>', norm, re.IGNORECASE)
@@ -2208,13 +2347,29 @@ def _consume_capture(captured):
         legacy = _try_legacy_json(full)
         if legacy:
             calls = legacy
-    # Also pick singular <tool_call> nested inside plural wrapper
+    # Also pick singular <tool_call> nested inside plural wrapper (DeepSeek tokens
+    # normalize to <tool_calls><tool_call>NAME\n{json}</tool_call></tool_calls>).
     if not calls:
         for m in _RE_SINGLE_CALL.finditer(full):
-            legacy = _try_legacy_json(m.group(0))
-            if legacy:
-                calls.extend(legacy)
+            parsed = _parse_tool_call_inner(m.group(1))
+            if parsed:
+                calls.extend(parsed)
+            else:
+                legacy = _try_legacy_json(m.group(0))
+                if legacy:
+                    calls.extend(legacy)
+    # Last resort: treat the plural body itself as a DeepSeek-style single call body
+    # (no inner <tool_call>, just NAME + json between <tool_calls>...</tool_calls>).
+    if not calls:
+        inner_plural = full[open_tag.end() - open_tag.start(): close_tag.start() - open_tag.start()]
+        # open_tag/close_tag are on norm; full is a slice — recompute body simply:
+        inner_plural = re.sub(r'^<tool_calls\b[^>]*>|</tool_calls\s*>$', '', full,
+                              flags=re.IGNORECASE | re.DOTALL).strip()
+        parsed = _parse_tool_call_inner(inner_plural)
+        if parsed:
+            calls.extend(parsed)
     suffix = norm[close_tag.end():]
+    calls = [c for c in calls if c and c.get("name")]
     if not calls:
         return None
     return prefix, calls, suffix, True
@@ -3520,14 +3675,16 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                             yield ("reasoning", tp)
                         elif _tp_inst is tparser_ans:
                             yield (tk, tp)
-                if getattr(_tp_inst, "incomplete_tool", False):
+                # Only the ANSWER channel's incomplete tool block is fatal.
+                # Thinking often contains bare "<" / pseudo-tags that mark incomplete_tool
+                # without meaning the user-visible turn failed.
+                if _tp_inst is tparser_ans and getattr(_tp_inst, "incomplete_tool", False):
                     incomplete_tool = True
+            # Incomplete tool block with ZERO usable output → error so client retries.
+            # If we already streamed text/tools, do NOT kill the turn with a late error
+            # (that is the "one sentence then cut" failure mode).
             if incomplete_tool and not content_yielded:
-                # nothing usable emitted; tell client to retry rather than empty end_turn
                 yield ("error", {"error": "upstream stream ended with incomplete tool block"})
-                return
-            if incomplete_tool and content_yielded:
-                yield ("error", {"error": "upstream stream interrupted mid-tool-block"})
                 return
             if got_done and not volatile:
                 identity_mark_ok(xff)
@@ -3566,9 +3723,11 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 LOG.info("[retry %d/%d class=%s] sleep=%.2fs", attempt, max_retry, rc, _sleep)
                 time.sleep(_sleep)
                 continue
-            # Partial output then stall/overflow/cut: never silent-return as end_turn.
+            # Partial output then stall: keep what was already streamed and end cleanly.
+            # Emitting a hard error AFTER content makes Codex/CC drop the whole turn
+            # ("one sentence then cut"). Empty turns still error below.
             if volatile and content_yielded:
-                yield ("error", {"error": "upstream stream interrupted mid-output (stall/overflow)"})
+                LOG.warning("[partial] mid-output stall/overflow after yield; finishing cleanly")
                 return
             if volatile and (attempt >= max_retry or (not content_yielded and time.monotonic() >= _deadline)):
                 if not content_yielded:
@@ -3587,24 +3746,13 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             yield ("error", {"error": "upstream failed: %r" % e})
             return
         finally:
-            # Clean streams may be recycled; aborted/half-read sockets must be
-            # closed and NEVER returned to the pool. Important: do not close
-            # before _pool_put — that would park dead conns and break later
-            # requests (Codex "completely dead" after 3763e84).
-            _can_recycle = bool(locals().get("got_done")) and not bool(locals().get("volatile"))
-            if _can_recycle:
-                try:
-                    _pool_put(conn)
-                except Exception:
-                    try:
-                        conn.close()
-                    except Exception:
-                        pass
-            else:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
+            # Do NOT recycle SSE sockets. http.client after stream read leaves the
+            # connection unusable more often than not (BrokenPipe on next borrow).
+            # Always close; pool stays available for future opt-in once proven safe.
+            try:
+                conn.close()
+            except Exception:
+                pass
             if locals().get("_slot_held"):
                 try:
                     _upstream_sema.release()
@@ -4899,19 +5047,46 @@ class Handler(http.server.BaseHTTPRequestHandler):
             stream_failed = False
             for kind, data in _upstream_iter(_first, _iter):
                 if kind == "content":
+                    # After tool_calls, drop trailing prose (OpenAI clients treat
+                    # tool_calls finish as terminal for this assistant turn).
+                    if tool_call_count > 0:
+                        continue
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [{"index": 0, "delta": {"content": data}, "finish_reason": None}]})
                 elif kind == "reasoning":
+                    if include_reasoning:
+                        sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
+                             "choices": [{"index": 0, "delta": {"reasoning_content": data}, "finish_reason": None}]})
+                elif kind == "tool_call":
+                    if not tools_enabled:
+                        continue
+                    data = _validate_and_coerce_tool_calls([data], tools)[0]
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                         "choices": [{"index": 0, "delta": {"reasoning_content": data}, "finish_reason": None}]})
+                         "choices": [{"index": 0, "delta": {
+                             "tool_calls": [{
+                                 "index": tool_call_count,
+                                 "id": data["id"],
+                                 "type": "function",
+                                 "function": {
+                                     "name": data["name"],
+                                     "arguments": json.dumps(data["arguments"], ensure_ascii=False),
+                                 },
+                             }]
+                         }, "finish_reason": None}]})
+                    tool_call_count += 1
                 elif kind == "sources":
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [], "sources": data})
+                elif kind == "error":
+                    stream_failed = True
+                    sse({"error": {"message": (data.get("error") if isinstance(data, dict) else str(data)),
+                                   "type": "api_error", "code": None}})
             if not stream_failed:
                 sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                      "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
             emit(b"data: [DONE]\n\n")
-            LOG.info("rid=%s <- 200 [chat] stream model=%s time=%dms", _rid, disp, int((time.monotonic()-_t0)*1000))
+            LOG.info("rid=%s <- 200 [chat] stream model=%s tools=%d time=%dms",
+                     _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
         except Exception as e:
             try:
                 sse({"error": {"message": "server: %s" % e, "type": "api_error", "code": None}})
