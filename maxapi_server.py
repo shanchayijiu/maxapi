@@ -1209,6 +1209,26 @@ def _make_tools_prompt(tools, tool_choice):
             "Put tool calls AFTER any thinking. The tool block must not be inside <think>/<thinking>.",
             "",
         ]
+        # Claude Code exposes both Skill and Agent. Non-Anthropic models (esp. grok)
+        # often call Skill(claude-code-guide) for built-in agent types. Hard-separate.
+        name_set = set(names)
+        if "Skill" in name_set and "Agent" in name_set:
+            head += [
+                "TOOL ROUTING — Skill vs Agent (HARD RULE):",
+                "- Skill(skill=NAME): ONLY for names listed under available skills / slash-commands "
+                "(user/plugin skills). Example shape: skill=\"ship\" or skill=\"update-config\".",
+                "- Agent(subagent_type=TYPE): for built-in agent types listed in system-reminder "
+                "agent types. TYPE examples: claude-code-guide, Explore, Plan, general-purpose, "
+                "statusline-setup, claude.",
+                "- NEVER call Skill with an agent type name. Skill(claude-code-guide) / "
+                "Skill(Explore) / Skill(Plan) / Skill(general-purpose) / Skill(statusline-setup) "
+                "are ALWAYS wrong.",
+                "- Questions about Claude Code CLI/hooks/MCP/settings/Agent SDK/Claude API/"
+                "Claude in Slack → Agent(subagent_type=\"claude-code-guide\", prompt=...).",
+                "- If unsure whether a name is a skill or an agent type: if it appears under "
+                "agent types, use Agent; only use Skill for names in the skills list.",
+                "",
+            ]
     head.append("IMPORTANT: Ignore any other tool/function instructions you may have been given earlier (for example cpa_final_answer, multi_tool_use, file/python/browser/search tools) - those are NOT available to you here. Use ONLY the tools listed below, and call them via the tag form above.")
     head.append("Do NOT use any other tag format either - NOT <tool_name>NAME</tool_name>, NOT <function=NAME>, NOT <function_calls>, and NOT any antml code fences. The ONLY correct form is the " + tco + " block shown above.")
     force_one = (tool_choice == "required") or (isinstance(tool_choice, dict) and tool_choice.get("type") == "function")
@@ -3302,8 +3322,14 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 except Exception:
                     pass
                 _slot_held = False
-            # Keep pool API but do not recycle stream sockets for now.
-            # _pool_put(conn)
+            # Recycle connection only if stream ended cleanly (got_done).
+            # After a stall/volatile abort, the socket may be in an inconsistent
+            # state (half-read chunk buffer), so close instead of recycling.
+            if got_done and not volatile:
+                try:
+                    _pool_put(conn)
+                except Exception:
+                    pass
 
 
 def classify_error(err, default=529):
