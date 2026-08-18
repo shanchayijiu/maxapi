@@ -758,15 +758,20 @@ _STRING_PRESERVE = frozenset([
     "old_string", "new_string", "pattern", "path", "file_path",
 ])
 _TOOL_TAG_PREFIXES = [
-    "<tool_calls", "<invoke", "<parameter",
+    "<tool_calls", "<tool_call", "<tool_use", "<function_call",
+    "<invoke", "<parameter",
     # DSML variant (|DSML| prefix)
     "<|dsml|tool_calls", "<|dsml|invoke", "<|dsml|parameter",
     # DSTML variant (upstream occasionally emits an extra T)
     "<|dstml|tool_calls", "<|dstml|invoke", "<|dstml|parameter",
     "<|tool_calls", "<|invoke", "<|parameter",
-    "<|tool_calls", "<|invoke", "<|parameter",
     "<dstml|tool_calls", "<dstml|invoke", "<dstml|parameter",
-    "<function",  # se.zzmax <function=NAME> AND Claude-native <function_calls>
+    # DeepSeek special tokens (fullwidth pipe variants)
+    "<｜tool▁calls▁begin｜", "<｜tool▁call▁begin｜",
+    # se.zzmax <function=NAME> AND Claude-native <function_calls>
+    # Prefer longer prefixes first so <function_calls holds correctly;
+    # bare <function= is matched explicitly in _find_partial.
+    "<function_calls", "<function=",
 ]
 
 # Full opening tags (with > or space) for segment detection.
@@ -774,6 +779,10 @@ _TOOL_TAG_PREFIXES = [
 _TOOL_TAG_FULLS = [
     "<function_calls>", "<function_calls ", "<function_calls\t", "<function_calls\n", "<function_calls\r",
     "<tool_calls>", "<tool_calls ", "<tool_calls\t", "<tool_calls\n", "<tool_calls\r",
+    # Singular native formats (Qwen / DeepSeek / GLM)
+    "<tool_call>", "<tool_call ", "<tool_call\t", "<tool_call\n", "<tool_call\r",
+    "<tool_use>", "<tool_use ", "<tool_use\t", "<tool_use\n", "<tool_use\r",
+    "<function_call>", "<function_call ", "<function_call\t", "<function_call\n", "<function_call\r",
     "<invoke>", "<invoke ", "<invoke\t", "<invoke\n", "<invoke\r",
     "<parameter>", "<parameter ", "<parameter\t", "<parameter\n", "<parameter\r",
     # DSML variant (|DSML| prefix)
@@ -788,14 +797,12 @@ _TOOL_TAG_FULLS = [
     "<|tool_calls>", "<|tool_calls ", "<|tool_calls\t", "<|tool_calls\n", "<|tool_calls\r",
     "<|invoke>", "<|invoke ", "<|invoke\t", "<|invoke\n", "<|invoke\r",
     "<|parameter>", "<|parameter ", "<|parameter\t", "<|parameter\n", "<|parameter\r",
-    # dsml| without leading pipe
-    "<|tool_calls>", "<|tool_calls ", "<|tool_calls\t", "<|tool_calls\n", "<|tool_calls\r",
-    "<|invoke>", "<|invoke ", "<|invoke\t", "<|invoke\n", "<|invoke\r",
-    "<|parameter>", "<|parameter ", "<|parameter\t", "<|parameter\n", "<|parameter\r",
     # dstml| without leading pipe
     "<dstml|tool_calls>", "<dstml|tool_calls ", "<dstml|tool_calls\t", "<dstml|tool_calls\n", "<dstml|tool_calls\r",
     "<dstml|invoke>", "<dstml|invoke ", "<dstml|invoke\t", "<dstml|invoke\n", "<dstml|invoke\r",
     "<dstml|parameter>", "<dstml|parameter ", "<dstml|parameter\t", "<dstml|parameter\n", "<dstml|parameter\r",
+    # DeepSeek special tokens (fullwidth)
+    "<｜tool▁calls▁begin｜>", "<｜tool▁call▁begin｜>",
 ]
 
 
@@ -922,7 +929,8 @@ def _parse_xml_val(text):
         return items
     children = {}
     for m in _RE_CHILD.finditer(text):
-        cn = m.group(1).lower()
+        # Preserve original key case — nested filePath must stay filePath, not filepath.
+        cn = m.group(1)
         cv = _parse_xml_val(m.group(2))
         if cn in children:
             if isinstance(children[cn], list):
@@ -967,11 +975,26 @@ def _parse_param(name, raw):
 
 
 _RE_FUNCTION_CALLS = re.compile(r'<(/?)function_calls\b[^>]*>', re.IGNORECASE)
+_RE_SINGLE_CALL = re.compile(
+    r'<(?:tool_call|tool_use|function_call)\b[^>]*>(.*?)</(?:tool_call|tool_use|function_call)\s*>',
+    re.DOTALL | re.IGNORECASE,
+)
 
 def _normalize_dsml(text):
+    # DeepSeek special tokens (fullwidth pipe + underscore glyphs) → standard tags.
+    if text and ("｜" in text or "▁" in text):
+        text = (text
+                .replace("<｜tool▁calls▁begin｜>", "<tool_calls>")
+                .replace("<｜tool▁calls▁end｜>", "</tool_calls>")
+                .replace("<｜tool▁call▁begin｜>", "<tool_call>")
+                .replace("<｜tool▁call▁end｜>", "</tool_call>")
+                .replace("<|tool▁calls▁begin|>", "<tool_calls>")
+                .replace("<|tool▁calls▁end|>", "</tool_calls>")
+                .replace("<|tool▁call▁begin|>", "<tool_call>")
+                .replace("<|tool▁call▁end|>", "</tool_call>"))
     # Claude-native antml format uses <function_calls> as the wrapper;
     # normalize to <tool_calls> so all downstream parsing handles it uniformly.
-    text = _RE_FUNCTION_CALLS.sub(lambda m: '<' + m.group(1) +'tool_calls>', text)
+    text = _RE_FUNCTION_CALLS.sub(lambda m: '<' + m.group(1) + 'tool_calls>', text)
     return _RE_DSML_STRIP.sub(r'\1', text)
 
 
@@ -1182,7 +1205,9 @@ def _make_tools_prompt(tools, tool_choice):
         "9) Do NOT wrap XML in markdown fences. Do NOT output explanations, role markers, or internal monologue.",
         "10) If you call a tool, the first non-whitespace characters of that tool block must be exactly " + tco + ".",
         "11) Never omit the opening " + tco + " tag.",
-        "12) Compatibility note: the runtime also accepts the legacy XML tags <tool_calls> / <invoke> / <parameter>, but prefer the DSML-prefixed form above.",
+        "12) Compatibility note: the runtime ALSO accepts these native formats (prefer DSML above when possible): "
+        "<tool_calls>/<invoke>/<parameter>, singular <tool_call>{JSON}</tool_call>, "
+        "<tool_use>/<function_call>, and <function=NAME><parameter=KEY>VAL</parameter></function>.",
         "13) EXECUTE, DO NOT NARRATE: if you intend to perform an action (write/edit/run/read a file, run a command, query, etc.), emit the " + tco + " block and call the tool in THIS turn. Do NOT describe the action in prose and then stop. Do NOT end your turn with only a plan/explanation/summary if a tool action is still needed to make progress. Prose narration is NEVER a substitute for a tool call: if work remains and the next step is an action, you MUST call the tool now, not say what you will do.",
         "", "PARAMETER SHAPES:",
         "- string => " + po + "<![CDATA[value]]>" + pc,
@@ -1229,8 +1254,8 @@ def _make_tools_prompt(tools, tool_choice):
                 "agent types, use Agent; only use Skill for names in the skills list.",
                 "",
             ]
-    head.append("IMPORTANT: Ignore any other tool/function instructions you may have been given earlier (for example cpa_final_answer, multi_tool_use, file/python/browser/search tools) - those are NOT available to you here. Use ONLY the tools listed below, and call them via the tag form above.")
-    head.append("Do NOT use any other tag format either - NOT <tool_name>NAME</tool_name>, NOT <function=NAME>, NOT <function_calls>, and NOT any antml code fences. The ONLY correct form is the " + tco + " block shown above.")
+    head.append("IMPORTANT: Ignore any other tool/function instructions you may have been given earlier (for example cpa_final_answer, multi_tool_use, file/python/browser/search tools) - those are NOT available to you here. Use ONLY the tools listed below.")
+    head.append("Preferred call form is the " + tco + " block shown above. Other native tool-call tag forms listed in the compatibility note are also accepted by the runtime.")
     force_one = (tool_choice == "required") or (isinstance(tool_choice, dict) and tool_choice.get("type") == "function")
     force_name = None
     if isinstance(tool_choice, dict) and tool_choice.get("type") == "function" and isinstance(tool_choice.get("function"), dict):
@@ -1351,30 +1376,56 @@ def _build_messages_with_tools(tools, tool_choice, messages):
             out.append({"role": "user", "content": "Observation from tool " + chr(34) + name + chr(34) + " (call_id " + str(cid) + "):" + nl + inner})
         else:
             out.append(m)
+    # Fold trailing reminders into the LAST user message (not a new system turn).
+    # Extra trailing system messages break role alternation and bias some models
+    # into "summarize and stop" instead of continuing the tool loop.
     fo = (tool_choice == "required") or (isinstance(tool_choice, dict) and tool_choice.get("type") == "function")
+    _tail_bits = []
     if fo:
         if isinstance(tool_choice, dict) and tool_choice.get("type") == "function":
             fname = ""
             if isinstance(tool_choice.get("function"), dict):
                 fname = tool_choice["function"].get("name", "")
             if fname:
-                out.append({"role": "system", "content": "Reminder: you must call the tool named \"" + fname + "\" in this turn. Do not answer in prose."})
+                _tail_bits.append("Reminder: you must call the tool named \"" + fname + "\" in this turn. Do not answer in prose.")
             else:
-                out.append({"role": "system", "content": "Reminder: you must call exactly one tool in this turn. Do not answer in prose."})
+                _tail_bits.append("Reminder: you must call exactly one tool in this turn. Do not answer in prose.")
         else:
-            out.append({"role": "system", "content": "Reminder: you must call exactly one tool in this turn. Do not answer in prose."})
+            _tail_bits.append("Reminder: you must call exactly one tool in this turn. Do not answer in prose.")
     else:
-        out.append({"role": "system", "content": "Reminder: the tools listed above are CONNECTED and callable now. If the latest user message asks you to PERFORM an action now, EXECUTE the action with a tool call in THIS turn using ONLY those tools — emit a single " + tco + "..." + tcc + " block. Prose narration is NEVER a substitute for a tool call when an action is required. If the latest user message is explanation-only or says do not execute / do not call tools / just explain / reply with text only, answer in prose and do NOT call tools. Do NOT say a tool is unavailable when an action is required."})
-    # Trailing reminder: repeat the user's original instruction at the end
-    # so it survives long tool-heavy conversations where early messages lose attention
-    _first_user = None
-    for m in messages:
-        if isinstance(m, dict) and m.get("role") == "user" and m.get("content"):
-            _first_user = m["content"]
-            break
-    if _first_user and isinstance(_first_user, str) and len(_first_user) > 5:
-        _reminder = _first_user[:500]  # cap to avoid bloating
-        out.append({"role": "system", "content": "Context reminder — the user's original request: " + _reminder})
+        _tail_bits.append(
+            "Reminder: the tools listed above are CONNECTED and callable now. "
+            "If the latest user message asks you to PERFORM an action now, EXECUTE it with a tool call "
+            "in THIS turn using ONLY those tools — prefer a single " + tco + "..." + tcc + " block "
+            "(native <tool_call> JSON is also accepted). Prose narration is NEVER a substitute for a "
+            "tool call when an action is required. If the latest user message is explanation-only or "
+            "says do not execute / do not call tools / just explain / reply with text only, answer in "
+            "prose and do NOT call tools."
+        )
+    # Context reminder only on long histories (avoids re-opening the original task early).
+    if len(messages) > 40:
+        _first_user = None
+        for m in messages:
+            if isinstance(m, dict) and m.get("role") == "user" and m.get("content"):
+                _first_user = m["content"]
+                break
+        if _first_user and isinstance(_first_user, str) and len(_first_user) > 5:
+            _tail_bits.append("Context reminder — the user's original request: " + _first_user[:500])
+    if _tail_bits:
+        _tail = "\n\n".join(_tail_bits)
+        # Attach to last user message; if none, fall back to a user turn (not system).
+        _attached = False
+        for i in range(len(out) - 1, -1, -1):
+            if isinstance(out[i], dict) and out[i].get("role") == "user":
+                _c = out[i].get("content")
+                if isinstance(_c, str):
+                    out[i] = dict(out[i], content=_c + "\n\n" + _tail)
+                else:
+                    out[i] = dict(out[i], content=_tail)
+                _attached = True
+                break
+        if not _attached:
+            out.append({"role": "user", "content": _tail})
     return out, True
 
 
@@ -1791,14 +1842,17 @@ def _consume_upstream(model, msgs_up, include_reasoning, effort, search, tools_e
 
 
 def _prefetch_until_tool_or_end(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=5, max_tokens=None,
-                                max_events=400, max_chars=262144):
+                                max_events=400, max_chars=262144, max_wait=1.5):
     """Buffer upstream events before client headers. Stops early on tool_call/error/end/limits.
+    max_wait caps how long we block waiting for a tool_call before falling through to
+    true streaming (plain-text turns must not buffer the whole reply).
     Returns (buf_events, remainder_iter, error, saw_tool)."""
     it = upstream(model, msgs_up, include_reasoning, effort, search, tools_enabled, max_retry=max_retry, max_tokens=max_tokens)
     buf = []
     err = None
     saw_tool = False
     chars = 0
+    t0 = time.monotonic()
     while True:
         try:
             ev = next(it)
@@ -1820,6 +1874,9 @@ def _prefetch_until_tool_or_end(model, msgs_up, include_reasoning, effort, searc
         if kind in ("content", "reasoning") and isinstance(data, str):
             chars += len(data)
         if len(buf) >= max_events or chars >= max_chars:
+            break
+        if max_wait is not None and (time.monotonic() - t0) >= float(max_wait):
+            # Give up escalate-buffering; let the client start receiving bytes.
             break
     return buf, it, err, saw_tool
 
@@ -2071,7 +2128,7 @@ def _consume_capture(captured):
     # Bare <function=NAME>...</function> blocks (se.zzmax upstream injection, no tool_calls wrapper).
     # Guard against <tool_calls> wrappers whose content mentions "<function" in code/values.
     nlow = norm.lower()
-    if "<function" in nlow and "<tool_calls" not in nlow:
+    if "<function" in nlow and "<tool_calls" not in nlow and not re.search(r'<tool_call\b', nlow):
         first = nlow.find("<function")
         calls_fn, search, last_end = [], first, first
         while True:
@@ -2085,11 +2142,46 @@ def _consume_capture(captured):
             prefix_fn = captured[:first] if first > 0 else ""
             return prefix_fn, calls_fn, captured[last_end:], True
         return None  # <function present but no complete block yet -> keep buffering
+    # Singular native formats (Qwen/DeepSeek/GLM): <tool_call>...</tool_call>
+    # Prefer these when there is no plural <tool_calls> wrapper.
+    if "<tool_calls" not in nlow:
+        singles = list(_RE_SINGLE_CALL.finditer(norm))
+        if singles:
+            calls = []
+            for m in singles:
+                body = m.group(0)
+                legacy = _try_legacy_json(body)
+                if legacy:
+                    calls.extend(legacy)
+                else:
+                    # bare JSON body without XML name attr
+                    inner = m.group(1).strip()
+                    val, ok = _try_json(inner)
+                    if ok and isinstance(val, dict):
+                        nm = val.get("name") or val.get("tool") or ""
+                        args = val.get("arguments") or val.get("parameters") or val.get("input") or {}
+                        if isinstance(args, str):
+                            try:
+                                args = json.loads(args)
+                            except Exception:
+                                args = {"_raw": args}
+                        if not isinstance(args, dict):
+                            args = {"value": args}
+                        if nm:
+                            calls.append({"id": _make_tool_id(), "name": nm, "arguments": args})
+            if calls:
+                prefix = norm[:singles[0].start()] if singles[0].start() > 0 else ""
+                suffix = norm[singles[-1].end():]
+                return prefix, calls, suffix, True
+            # opener present but incomplete body → keep buffering
+            if re.search(r'<(?:tool_call|tool_use|function_call)\b', nlow):
+                return None
     open_tag = re.search(r'<tool_calls\b[^>]*>', norm, re.IGNORECASE)
     if not open_tag:
         # Check for incomplete open prefix -> keep buffering
         low = norm.lower()
-        if any(low.find(p) >= 0 for p in ("<tool_calls", "<invoke ", "<parameter ")):
+        if any(p in low for p in ("<tool_calls", "<tool_call", "<tool_use", "<function_call",
+                                   "<invoke ", "<parameter ", "<｜tool")):
             return None
         return captured, [], "", True
     close_tag = re.search(r'</tool_calls\s*>', norm, re.IGNORECASE)
@@ -2116,6 +2208,12 @@ def _consume_capture(captured):
         legacy = _try_legacy_json(full)
         if legacy:
             calls = legacy
+    # Also pick singular <tool_call> nested inside plural wrapper
+    if not calls:
+        for m in _RE_SINGLE_CALL.finditer(full):
+            legacy = _try_legacy_json(m.group(0))
+            if legacy:
+                calls.extend(legacy)
     suffix = norm[close_tag.end():]
     if not calls:
         return None
@@ -2132,6 +2230,118 @@ class ToolCallParser:
         self.pending = ""
         self.capture = ""
         self.capturing = False
+        # Fence state must survive across chunks: _find_seg only sees pending,
+        # so a ``` opened in a previous chunk would otherwise be invisible.
+        self._in_fence = False
+        self._fence_ch = ""
+        self._fence_run = 0
+        self.incomplete_tool = False  # set when flush drops an unfinished tool block
+
+    def _update_fence_state(self, text):
+        """Advance instance fence state by scanning `text` (CommonMark subset)."""
+        if not text:
+            return
+        i = 0
+        n = len(text)
+        while i < n:
+            ch = text[i]
+            if ch in "\r\n":
+                i += 1
+                if ch == "\r" and i < n and text[i] == "\n":
+                    i += 1
+                continue
+            spaces = 0
+            j = i
+            while j < n and text[j] == " " and spaces < 4:
+                spaces += 1
+                j += 1
+            if spaces >= 4:
+                while i < n and text[i] not in "\r\n":
+                    i += 1
+                continue
+            i = j
+            if i < n and text[i] in "`~":
+                fc = text[i]
+                run = 0
+                k = i
+                while k < n and text[k] == fc:
+                    run += 1
+                    k += 1
+                if run >= 3:
+                    if not self._in_fence:
+                        self._in_fence = True
+                        self._fence_ch = fc
+                        self._fence_run = run
+                        i = k
+                        while i < n and text[i] not in "\r\n":
+                            i += 1
+                        continue
+                    elif fc == self._fence_ch and run >= self._fence_run:
+                        self._in_fence = False
+                        self._fence_ch = ""
+                        self._fence_run = 0
+                        i = k
+                        continue
+            while i < n and text[i] not in "\r\n":
+                i += 1
+
+    def _seg_outside_fence(self, s, idx):
+        """True if position idx is outside a fenced code block, accounting for
+        both prior-chunk fence state and fences inside `s` before idx."""
+        if idx <= 0:
+            return not self._in_fence
+        # Cheap path: no fence markers anywhere and not already in a fence.
+        if not self._in_fence and "```" not in s[:idx] and "~~~" not in s[:idx]:
+            return True
+        # Replay fence state over s[:idx] without mutating instance.
+        in_f = self._in_fence
+        fch = self._fence_ch
+        frun = self._fence_run
+        i = 0
+        n = idx
+        text = s
+        while i < n:
+            ch = text[i]
+            if ch in "\r\n":
+                i += 1
+                if ch == "\r" and i < n and text[i] == "\n":
+                    i += 1
+                continue
+            spaces = 0
+            j = i
+            while j < n and text[j] == " " and spaces < 4:
+                spaces += 1
+                j += 1
+            if spaces >= 4:
+                while i < n and text[i] not in "\r\n":
+                    i += 1
+                continue
+            i = j
+            if i < n and text[i] in "`~":
+                fc = text[i]
+                run = 0
+                k = i
+                while k < n and text[k] == fc:
+                    run += 1
+                    k += 1
+                if run >= 3:
+                    if not in_f:
+                        in_f = True
+                        fch = fc
+                        frun = run
+                        i = k
+                        while i < n and text[i] not in "\r\n":
+                            i += 1
+                        continue
+                    elif fc == fch and run >= frun:
+                        in_f = False
+                        fch = ""
+                        frun = 0
+                        i = k
+                        continue
+            while i < n and text[i] not in "\r\n":
+                i += 1
+        return not in_f
 
     @staticmethod
     def _emit(text):
@@ -2147,6 +2357,7 @@ class ToolCallParser:
                 self.pending = ""
                 if len(self.capture) > self._MAX_CAPTURE_CHARS:
                     LOG.warning("[tcp] dropping oversized incomplete tool capture (%d chars)", len(self.capture))
+                    self.incomplete_tool = True
                     self.capture = ""
                     self.capturing = False
                     continue
@@ -2160,6 +2371,7 @@ class ToolCallParser:
                 self.capture = ""
                 if prefix:
                     out.append(self._emit(prefix))
+                    self._update_fence_state(prefix)
                 for c in calls:
                     out.append(("tool_call", c))
                 if suffix:
@@ -2167,25 +2379,53 @@ class ToolCallParser:
                 continue
             if not self.pending:
                 break
-            seg = _find_seg(self.pending)
+            # Find earliest tag outside fences (instance fence + pending-local).
+            low = self.pending.lower()
+            seg = -1
+            for prefix in _TOOL_TAG_FULLS:
+                pos = 0
+                while True:
+                    idx = low.find(prefix, pos)
+                    if idx < 0:
+                        break
+                    if self._seg_outside_fence(self.pending, idx):
+                        if seg < 0 or idx < seg:
+                            seg = idx
+                        break
+                    pos = idx + 1
+            for fn in re.finditer(r'<function\s*=\s*"?[A-Za-z_]', self.pending, re.IGNORECASE):
+                fidx = fn.start()
+                if self._seg_outside_fence(self.pending, fidx):
+                    if seg < 0 or fidx < seg:
+                        seg = fidx
+                    break
             if seg >= 0:
                 prefix = self.pending[:seg]
                 if prefix:
                     out.append(self._emit(prefix))
+                    self._update_fence_state(prefix)
                 self.capture = self.pending[seg:]
                 self.pending = ""
                 self.capturing = True
                 continue
             partial = _find_partial(self.pending)
             if partial >= 0:
+                # Don't hold a partial tag that sits inside a fence.
+                if not self._seg_outside_fence(self.pending, partial):
+                    out.append(self._emit(self.pending))
+                    self._update_fence_state(self.pending)
+                    self.pending = ""
+                    break
                 safe = self.pending[:partial]
                 hold = self.pending[partial:]
                 if safe:
                     out.append(self._emit(safe))
+                    self._update_fence_state(safe)
                 self.pending = hold
                 break
             else:
                 out.append(self._emit(self.pending))
+                self._update_fence_state(self.pending)
                 self.pending = ""
                 break
         return out
@@ -2197,6 +2437,7 @@ class ToolCallParser:
             self.pending = ""
             if len(self.capture) > self._MAX_CAPTURE_CHARS:
                 LOG.warning("[tcp] dropping oversized incomplete tool capture (%d chars)", len(self.capture))
+                self.incomplete_tool = True
                 self.capture = ""
                 self.capturing = False
                 return out
@@ -2220,9 +2461,10 @@ class ToolCallParser:
                 for c in tries:
                     out.append(("tool_call", c))
             else:
-                # P0-fix: incomplete DSML block at stream end — discard the
-                # fragment that contains raw tags to avoid leaking them as
-                # visible text.  Keep any clean prefix before the opening tag.
+                # Incomplete tool block at stream end — discard tagged fragment
+                # (avoid leaking raw tags) but mark incomplete so handlers can
+                # surface an error instead of silent end_turn.
+                self.incomplete_tool = True
                 _clow = content.lower()
                 _seg = -1
                 for _tp in _TOOL_TAG_FULLS:
@@ -2230,15 +2472,17 @@ class ToolCallParser:
                     if _i >= 0 and (_seg < 0 or _i < _seg):
                         _seg = _i
                 if _seg < 0:
-                    # also check bare <function= opener
                     _fm = re.search(r'<function\s*=\s*"?[A-Za-z_]', content, re.IGNORECASE)
                     if _fm:
                         _seg = _fm.start()
+                if _seg < 0:
+                    for _tp in ("<tool_call", "<tool_use", "<function_call"):
+                        _i = _clow.find(_tp)
+                        if _i >= 0 and (_seg < 0 or _i < _seg):
+                            _seg = _i
                 if _seg >= 0:
-                    # has text before the incomplete tag — keep that prefix, discard the tag fragment
                     out.append(self._emit(content[:_seg]))
-                # else: entire content is the incomplete DSML fragment → discard
-                sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete DSML\n" % len(content));
+                sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete tool block\n" % len(content))
         if self.pending:
             out.append(self._emit(self.pending))
             self.pending = ""
@@ -2807,11 +3051,12 @@ def _validate_compacted_messages(messages):
     orphans = tool_use_ids - tool_result_ids
     orphan_results = tool_result_ids - tool_use_ids
     if orphans:
-        LOG.info("compact validator: %d orphan tool_use ids (tolerated ≤3): %s", len(orphans), list(orphans)[:5])
+        LOG.info("compact validator: %d orphan tool_use ids: %s", len(orphans), list(orphans)[:5])
     if orphan_results:
         LOG.info("compact validator: %d orphan tool_result ids (expected from dropped segments): %s", len(orphan_results), list(orphan_results)[:5])
-    if len(orphans) > 3:  # allow up to 3 orphans (e.g., from truncation of tail)
-        LOG.warning("compact validator: %d orphan tool_use ids EXCEEDS threshold: %s", len(orphans), list(orphans)[:5])
+    # Threshold 0: any tool_use without a result causes the model to re-call the same tool.
+    if len(orphans) > 0:
+        LOG.warning("compact validator: %d orphan tool_use ids EXCEEDS threshold=0: %s", len(orphans), list(orphans)[:5])
         return False
     return True
 
@@ -2869,8 +3114,15 @@ def _flatten_anthropic_messages(messages, system_text):
                         inner = "".join(b.get("text", "") for b in inner if isinstance(b, dict) and b.get("type") == "text")
                     elif not isinstance(inner, str):
                         inner = json.dumps(inner, ensure_ascii=False)
+                    # Preserve is_error so the model knows the tool failed.
+                    if blk.get("is_error"):
+                        inner = ("[tool error] " + (inner or "")).strip()
                     tool_results.append({"tool_call_id": blk.get("tool_use_id", ""), "content": inner or ""})
-                # image blocks: ignored for now (upstream text-only chat)
+                elif bt in ("image", "document"):
+                    # Upstream is text-only; keep a placeholder so the model knows
+                    # a multimodal attachment existed instead of silently dropping it.
+                    text_parts.append("[attached %s omitted: upstream text-only]" % bt)
+                # other block types ignored
         if role == "assistant":
             if tool_calls:
                 tc_render = [{"id": c["id"], "function": c["function"]} for c in tool_calls]
@@ -2941,9 +3193,14 @@ _FIRST_BYTE_TIMEOUT = 45     # allow slow first content under ping keepalives
 # disabled — only inter-chunk stall applies. Otherwise long thinking (~1min+)
 # gets hard-killed mid-stream (Cherry shows thinking then forced stop).
 _UPSTREAM_DEADLINE = 75.0
-_UPSTREAM_CONCURRENCY = int(os.getenv("MAXAPI_UPSTREAM_CONCURRENCY", "3"))
-_UPSTREAM_QUEUE_WAIT = float(os.getenv("MAXAPI_UPSTREAM_QUEUE_WAIT", "3.0"))
+_UPSTREAM_CONCURRENCY = int(os.getenv("MAXAPI_UPSTREAM_CONCURRENCY", "8"))
+_UPSTREAM_QUEUE_WAIT = float(os.getenv("MAXAPI_UPSTREAM_QUEUE_WAIT", "6.0"))
 _upstream_sema = threading.BoundedSemaphore(max(1, _UPSTREAM_CONCURRENCY))
+# Default reasoning effort when client omits it. "max" made every call run top-tier
+# thinking and was the main "web is instant, API is slow" cause.
+_DEFAULT_EFFORT = (os.getenv("MAXAPI_DEFAULT_EFFORT") or "medium").strip().lower()
+if _DEFAULT_EFFORT not in ("off", "low", "medium", "high", "max"):
+    _DEFAULT_EFFORT = "medium"
 _conn_pool_lock = threading.Lock()
 _conn_pool = []  # list of idle http.client.HTTPSConnection
 
@@ -3004,7 +3261,9 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
     retry_class = None  # quota|busy|stall
     for attempt in range(1, max_retry + 1):
         # Never retry after bytes were already sent to the client — would duplicate.
+        # Surface an explicit error so clients don't treat a stall mid-output as end_turn.
         if content_yielded and attempt > 1:
+            yield ("error", {"error": "upstream stream interrupted mid-output; not retrying after partial yield"})
             return
         if not content_yielded:
             _remain = _deadline - time.monotonic()
@@ -3016,10 +3275,26 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         # 重建解析器，避免重试时残留上次的部分状态导致输出错乱
         # Always peel <think> so DSML inside thinking can be sieved; client emission
         # of reasoning is gated at yield sites via include_reasoning.
+        # Separate ToolCallParsers for think vs answer so a hold at the end of a
+        # thinking chunk cannot bleed into the answer channel (and vice versa).
         filt = ReasoningFilter(include_reasoning=True)
-        tparser = ToolCallParser()  # always active: strips tool tags even when tools_enabled=False
+        tparser_think = ToolCallParser()
+        tparser_ans = ToolCallParser()
         if retry_class == "quota":
             identity_retire(xff, "quota")
+            # Guest quota is usually cookie/session-scoped; rotating XFF alone is not enough.
+            try:
+                COOKIE_JAR.clear(bump=True)
+            except Exception:
+                try:
+                    # fallback if clear signature differs
+                    COOKIE_JAR.clear()
+                except Exception:
+                    pass
+            try:
+                _kick_warm_singleflight()
+            except Exception:
+                pass
             xff = identity_acquire(force_new=True)
         retry_class = None
         h = dict(BROWSER_STREAM_HEADERS)
@@ -3040,6 +3315,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         conn = _pool_get()
         volatile = False
         got_done = False  # initialize before try so finally can reference it safely
+        incomplete_tool = False
         try:
             # Bound connect+headers by remaining deadline (never exceed budget).
             _remaining = _deadline - time.monotonic()
@@ -3201,25 +3477,17 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                             # this sieve, raw |DSML|/tool_calls leak as thinking text and
                             # tool_call is missed → false escalate + double upstream RTT.
                             if kind == "reasoning":
-                                if tparser is not None:
-                                    for tk, tp in tparser.feed(piece):
-                                        if tk == "tool_call":
-                                            content_yielded = True
-                                            yield (tk, tp)
-                                        elif tk == "content" and include_reasoning and tp:
-                                            content_yielded = True
-                                            yield ("reasoning", tp)
-                                elif include_reasoning and piece:
-                                    content_yielded = True
-                                    yield ("reasoning", piece)
-                            elif kind == "content":
-                                if tparser is not None:
-                                    for tk, tp in tparser.feed(piece):
+                                for tk, tp in tparser_think.feed(piece):
+                                    if tk == "tool_call":
                                         content_yielded = True
                                         yield (tk, tp)
-                                else:
+                                    elif tk == "content" and include_reasoning and tp:
+                                        content_yielded = True
+                                        yield ("reasoning", tp)
+                            elif kind == "content":
+                                for tk, tp in tparser_ans.feed(piece):
                                     content_yielded = True
-                                    yield ("content", piece)
+                                    yield (tk, tp)
                     if obj.get("sources") is not None and not sources_sent:
                         sources_sent = True
                         yield ("sources", obj.get("sources"))
@@ -3228,34 +3496,39 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
             # stream ended — always flush remaining buffers
             for kind, piece in filt.flush():
                 if kind == "reasoning":
-                    if tparser is not None:
-                        for tk, tp in tparser.feed(piece):
-                            if tk == "tool_call":
-                                content_yielded = True
-                                yield (tk, tp)
-                            elif tk == "content" and include_reasoning and tp:
-                                content_yielded = True
-                                yield ("reasoning", tp)
-                    elif include_reasoning and piece:
-                        content_yielded = True
-                        yield ("reasoning", piece)
-                elif kind == "content":
-                    if tparser is not None:
-                        for tk, tp in tparser.feed(piece):
+                    for tk, tp in tparser_think.feed(piece):
+                        if tk == "tool_call":
                             content_yielded = True
                             yield (tk, tp)
-                    else:
+                        elif tk == "content" and include_reasoning and tp:
+                            content_yielded = True
+                            yield ("reasoning", tp)
+                elif kind == "content":
+                    for tk, tp in tparser_ans.feed(piece):
                         content_yielded = True
-                        yield ("content", piece)
-            if tparser is not None:
-                for tk, tp in tparser.flush():
+                        yield (tk, tp)
+            for _tp_inst in (tparser_think, tparser_ans):
+                for tk, tp in _tp_inst.flush():
                     content_yielded = True
                     # flush may surface stripped prose that originated inside <think>;
                     # only promote leftover text as content (tool_call always forwarded).
                     if tk == "tool_call":
                         yield (tk, tp)
                     elif tk == "content" and tp:
-                        yield (tk, tp)
+                        # think-channel leftovers stay reasoning when client asked for it
+                        if _tp_inst is tparser_think and include_reasoning:
+                            yield ("reasoning", tp)
+                        elif _tp_inst is tparser_ans:
+                            yield (tk, tp)
+                if getattr(_tp_inst, "incomplete_tool", False):
+                    incomplete_tool = True
+            if incomplete_tool and not content_yielded:
+                # nothing usable emitted; tell client to retry rather than empty end_turn
+                yield ("error", {"error": "upstream stream ended with incomplete tool block"})
+                return
+            if incomplete_tool and content_yielded:
+                yield ("error", {"error": "upstream stream interrupted mid-tool-block"})
+                return
             if got_done and not volatile:
                 identity_mark_ok(xff)
                 return
@@ -3293,6 +3566,10 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 LOG.info("[retry %d/%d class=%s] sleep=%.2fs", attempt, max_retry, rc, _sleep)
                 time.sleep(_sleep)
                 continue
+            # Partial output then stall/overflow/cut: never silent-return as end_turn.
+            if volatile and content_yielded:
+                yield ("error", {"error": "upstream stream interrupted mid-output (stall/overflow)"})
+                return
             if volatile and (attempt >= max_retry or (not content_yielded and time.monotonic() >= _deadline)):
                 if not content_yielded:
                     # Generic client message — never leak 额度/登录 Chinese copy
@@ -3518,12 +3795,10 @@ def _validate_schema(val, schema, path="", errors=None):
             return errors
         if typ == "string" and not isinstance(val, str):
             errors.append("expected string at %s, got %s" % (path or "(root)", type(val).__name__))
-        elif typ == "integer" and not isinstance(val, (int,)) or (isinstance(val, bool)):
-            if typ == "integer" and (isinstance(val, bool) or not isinstance(val, int)):
-                errors.append("expected integer at %s, got %s" % (path or "(root)", type(val).__name__))
-        elif typ == "number" and not isinstance(val, (int, float)) or (isinstance(val, bool)):
-            if typ == "number" and (isinstance(val, bool) or not isinstance(val, (int, float))):
-                errors.append("expected number at %s, got %s" % (path or "(root)", type(val).__name__))
+        elif typ == "integer" and (isinstance(val, bool) or not isinstance(val, int)):
+            errors.append("expected integer at %s, got %s" % (path or "(root)", type(val).__name__))
+        elif typ == "number" and (isinstance(val, bool) or not isinstance(val, (int, float))):
+            errors.append("expected number at %s, got %s" % (path or "(root)", type(val).__name__))
         elif typ == "boolean" and not isinstance(val, bool):
             errors.append("expected boolean at %s, got %s" % (path or "(root)", type(val).__name__))
         elif typ == "array" and not isinstance(val, list):
@@ -3803,12 +4078,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if tool_choice is None and tools:
             tool_choice = "auto"
         msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, msgs)
+        # Honor client reasoning flags; default effort is medium (not max).
         include_reasoning = not (req.get("reasoning") is False or req.get("strip_reasoning"))
-        effort = req.get("reasoning_effort") or req.get("reasoningEffort") or "max"
-        if isinstance(req.get("reasoning"), dict) and req["reasoning"].get("effort"):
-            effort = req["reasoning"].get("effort")
+        effort = req.get("reasoning_effort") or req.get("reasoningEffort") or _DEFAULT_EFFORT
+        if isinstance(req.get("reasoning"), dict):
+            if req["reasoning"].get("effort"):
+                effort = req["reasoning"].get("effort")
+            # Responses API: reasoning.effort absent + summary off → treat as off
+            if req["reasoning"].get("effort") is None and req["reasoning"].get("summary") in (None, "off", False):
+                pass  # keep default unless explicitly set above
         if str(effort).lower() not in ("off", "low", "medium", "high", "max"):
-            effort = "max"
+            effort = _DEFAULT_EFFORT
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         _rid = _uuid.uuid4().hex[:8]
         max_tokens = req.get("max_tokens") if "max_tokens" in req else (req.get("max_output_tokens") if "max_output_tokens" in req else 8192)
@@ -3870,7 +4150,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         tcs_out.append(data)
             if err:
                 _code, _type = classify_error(err)
-                return self._send(_code, _err_body(_type, err, flavor="anthropic"))
+                return self._send(_code, _err_body(_type, err, flavor="openai"))
             if tools_enabled and tcs_out:
                 tcs_out = _validate_and_coerce_tool_calls(tcs_out, tools)
             output = []
@@ -3890,7 +4170,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "usage": {"input_tokens": p_toks, "output_tokens": o_toks, "total_tokens": p_toks + o_toks},
             }, extra=_compact_headers(_compact_meta) or None)
 
-        # Open SSE immediately, then stream upstream directly so the client
         # Prefetch first event BEFORE writing SSE header to client.
         _first, _iter, _err = _prefetch_first_upstream(model, msgs_up, include_reasoning, str(effort).lower(), search, tools_enabled, max_tokens=max_tokens)
         # Retry with compaction on "too long" upstream error
@@ -3937,7 +4216,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             msg_item = None
             text_index = None
             out_index = 0
-            tool_index = 0
+            completed_items = []
+            stream_failed = False
             for kind, data in _upstream_iter(_first, _iter):
                 if kind == "content":
                     if msg_item is None:
@@ -3955,15 +4235,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         emit_event("response.content_part.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "part": {"type": "output_text", "text": "", "annotations": []}})
                         msg_item["status"] = "completed"
                         emit_event("response.output_item.done", {"output_index": out_index, "item": msg_item})
+                        completed_items.append(msg_item)
                         out_index += 1
                         msg_item = None
                     item = {"id": data["id"], "type": "function_call", "status": "completed", "call_id": data["id"], "name": data["name"],
                             "arguments": json.dumps(data["arguments"], ensure_ascii=False)}
-                    emit_event("response.output_item.added", {"output_index": out_index + tool_index, "item": item})
-                    emit_event("response.function_call_arguments.done", {"item_id": data["id"], "output_index": out_index + tool_index, "arguments": item["arguments"]})
-                    emit_event("response.output_item.done", {"output_index": out_index + tool_index, "item": item})
-                    tool_index += 1
+                    emit_event("response.output_item.added", {"output_index": out_index, "item": item})
+                    emit_event("response.function_call_arguments.done", {"item_id": data["id"], "output_index": out_index, "arguments": item["arguments"]})
+                    emit_event("response.output_item.done", {"output_index": out_index, "item": item})
+                    completed_items.append(item)
+                    out_index += 1
                 elif kind == "error":
+                    stream_failed = True
                     emit_event("response.failed", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "failed", "model": disp, "error": {"type": "api_error", "message": data.get("error") if isinstance(data, dict) else str(data)}}})
                     return
             if msg_item is not None:
@@ -3971,7 +4254,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 emit_event("response.content_part.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "part": {"type": "output_text", "text": "", "annotations": []}})
                 msg_item["status"] = "completed"
                 emit_event("response.output_item.done", {"output_index": out_index, "item": msg_item})
-            emit_event("response.completed", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "completed", "model": disp, "output": []}})
+                completed_items.append(msg_item)
+            if not stream_failed:
+                emit_event("response.completed", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "completed", "model": disp, "output": completed_items}})
         except Exception as e:
             try:
                 emit_event("response.failed", {"response": {"id": resp_id, "object": "response", "created_at": created, "status": "failed", "model": disp, "error": {"type": "api_error", "message": "server: %s" % e}}})
@@ -4054,20 +4339,34 @@ class Handler(http.server.BaseHTTPRequestHandler):
             LOG.info("rid=%s -> %s %s msgs=%d tools=%d est=%d limit=%d max_tokens=%s stream=%s",
                      _rid, self.path, disp, _msgs_count, _tools_count, _inp_toks, _pf, max_tokens, _stream)
         stream = bool(req.get("stream"))
-        # thinking: anthropic 'thinking' param; we pass medium by default unless
-        # client sent a budget — keep reasoning on for claude (upstream always thinks).
+        # thinking: only forward thinking blocks when the client asked for them.
+        # Upstream still peels <think> so tool tags inside thinking are sieved;
+        # we simply don't emit reasoning to the client when disabled.
         thinking_cfg = req.get("thinking")
-        include_reasoning = True
-        effort = "max"
+        include_reasoning = False
+        effort = _DEFAULT_EFFORT
         if isinstance(thinking_cfg, dict):
-            if thinking_cfg.get("type") == "disabled":
-                # Upstream always thinks regardless of disabled — keep reasoning
-                # on so the client receives it instead of burning tokens for nothing.
-                pass
+            if thinking_cfg.get("type") == "enabled":
+                include_reasoning = True
+                budget = thinking_cfg.get("budget_tokens")
+                if isinstance(budget, (int, float)):
+                    if budget < 4000:
+                        effort = "low"
+                    elif budget < 16000:
+                        effort = "medium"
+                    else:
+                        effort = "high"
+            elif thinking_cfg.get("type") == "disabled":
+                include_reasoning = False
+                effort = "off"
+        if _env_flag("MAXAPI_FORCE_THINKING", False):
+            include_reasoning = True
         # CC sometimes sends reasoning_effort via extension; honor it too.
         eff_in = req.get("reasoning_effort") or req.get("reasoningEffort")
         if eff_in and str(eff_in).lower() in ("off", "low", "medium", "high", "max"):
             effort = str(eff_in).lower()
+            if effort != "off":
+                include_reasoning = True
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         max_tokens = _clamp_max_tokens(disp, req.get("max_tokens") or 4096)
         if not stream:
@@ -4126,14 +4425,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             content = []
             if include_reasoning and "".join(reason):
                 content.append({"type": "thinking", "thinking": "".join(reason), "signature": _thinking_signature("".join(reason))})
+            # Anthropic order: text (preamble) then tool_use; last block must be tool_use when stop_reason=tool_use.
+            if "".join(answer):
+                content.append({"type": "text", "text": "".join(answer)})
             if tcs_out:
                 for c in tcs_out:
                     content.append({"type": "tool_use", "id": c["id"], "name": c["name"], "input": c["arguments"]})
-                if "".join(answer):
-                    content.append({"type": "text", "text": "".join(answer)})
                 stop_reason = "tool_use"
             else:
-                content.append({"type": "text", "text": "".join(answer)})
                 stop_reason = "end_turn"
             # remove empty text blocks
             content = [b for b in content if not (b.get("type") == "text" and not b.get("text"))]
@@ -4291,6 +4590,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     if "thinking" in blocks:
                         close_block("thinking")
                         del blocks["thinking"]
+                    # Once a tool_use block has been emitted, do not open a new text
+                    # block after it (Anthropic requires tool_use to be last when
+                    # stop_reason=tool_use). Drop trailing prose.
+                    if tool_count > 0:
+                        continue
                     if "tool_use" in blocks:
                         close_block("tool_use")
                         del blocks["tool_use"]
@@ -4302,6 +4606,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "tool_call":
                     if not tools_enabled:
                         continue
+                    if "thinking" in blocks:
+                        close_block("thinking")
+                        del blocks["thinking"]
                     if "text" in blocks:
                         close_block("text")
                         del blocks["text"]
@@ -4408,9 +4715,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _msgs_count = len(messages) if isinstance(messages, list) else 0
         _tools_count = len(req.get("tools") or [])
         include_reasoning = not (req.get("reasoning") is False or req.get("strip_reasoning"))
-        effort = req.get("reasoning_effort") or req.get("reasoningEffort") or "max"
+        effort = req.get("reasoning_effort") or req.get("reasoningEffort") or _DEFAULT_EFFORT
         if str(effort).lower() not in ("off", "low", "medium", "high", "max"):
-            effort = "max"
+            effort = _DEFAULT_EFFORT
         search = bool(req.get("search") or req.get("web_search") or req.get("websearch"))
         turn_id = "chatcmpl-%d" % int(time.time() * 1000)
         created = int(time.time())
@@ -4640,8 +4947,13 @@ def main():
             LOG.warning("startup companion failed: %r", e)
         threading.Thread(target=background_companion_refresh, daemon=True).start()
     srv = http.server.ThreadingHTTPServer((args.host, args.port), Handler)
-    print("maxapi listening on %s:%d  models=%d  rpm=%s  companion=%s" % (
-        args.host, args.port, len(MODEL_DISPLAY_IDS), args.rpm, not args.no_companion))
+    try:
+        # Disable Nagle so SSE token-sized writes aren't delayed ~40ms/packet.
+        srv.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    except Exception:
+        pass
+    print("maxapi listening on %s:%d  models=%d  rpm=%s  companion=%s  effort=%s  concurrency=%s" % (
+        args.host, args.port, len(MODEL_DISPLAY_IDS), args.rpm, not args.no_companion, _DEFAULT_EFFORT, _UPSTREAM_CONCURRENCY))
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
