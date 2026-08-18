@@ -226,6 +226,10 @@ def case_stream_tool():
         first_tool_had_id = False
         args_are_str = True
         n_tool_deltas = 0
+        # Strict OpenAI stream shape (2api P0): first shard for an index carries
+        # id+name with arguments=="" (or absent); later shards append arguments only.
+        first_shard_empty_args = True
+        saw_args_increment = False
         for ch in stream:
             if not ch.choices:
                 continue
@@ -238,7 +242,9 @@ def case_stream_tool():
             for tc in tcs:
                 n_tool_deltas += 1
                 idx = tc.index if tc.index is not None else 0
-                slot = acc.setdefault(idx, {"id": None, "name": "", "arguments": "", "type": None})
+                slot = acc.setdefault(idx, {"id": None, "name": "", "arguments": "", "type": None, "n": 0})
+                slot["n"] += 1
+                is_first_for_idx = slot["n"] == 1
                 if tc.id:
                     slot["id"] = tc.id
                     first_tool_had_id = True
@@ -251,9 +257,31 @@ def case_stream_tool():
                     if fn.arguments is not None:
                         if not isinstance(fn.arguments, str):
                             args_are_str = False
-                        slot["arguments"] += fn.arguments if isinstance(fn.arguments, str) else json.dumps(fn.arguments)
-        ok = finish == "tool_calls" and role_seen and len(acc) >= 1 and args_are_str and first_tool_had_id
-        detail_parts = [f"fr={finish}", f"role={role_seen}", f"deltas={n_tool_deltas}", f"n_idx={len(acc)}"]
+                        piece = fn.arguments if isinstance(fn.arguments, str) else json.dumps(fn.arguments)
+                        if is_first_for_idx and piece != "":
+                            # first shard dumped full args — wire-compat fail
+                            first_shard_empty_args = False
+                        if (not is_first_for_idx) and piece:
+                            saw_args_increment = True
+                        slot["arguments"] += piece
+        ok = (
+            finish == "tool_calls"
+            and role_seen
+            and len(acc) >= 1
+            and args_are_str
+            and first_tool_had_id
+            and first_shard_empty_args
+            and (saw_args_increment or all(not s["arguments"] for s in acc.values()))
+            and n_tool_deltas >= 2  # at least header + one args piece when args non-empty
+        )
+        detail_parts = [
+            f"fr={finish}",
+            f"role={role_seen}",
+            f"deltas={n_tool_deltas}",
+            f"n_idx={len(acc)}",
+            f"first_args_empty={first_shard_empty_args}",
+            f"args_incr={saw_args_increment}",
+        ]
         for idx, slot in acc.items():
             try:
                 parsed = json.loads(slot["arguments"] or "{}")
@@ -270,6 +298,8 @@ def case_stream_tool():
         if not args_are_str:
             ok = False
             detail_parts.append("ARGS_NOT_STR")
+        if not first_shard_empty_args:
+            detail_parts.append("FIRST_SHARD_DUMPED_ARGS")
         rec("stream.tool", ok, " | ".join(detail_parts), time.time() - t0)
         return acc if ok else None
     except Exception as e:
@@ -621,17 +651,29 @@ def case_raw_sse_headers_and_done():
                 d = ch.get("delta") or {}
                 if d.get("tool_calls"):
                     tool_shards.append(d["tool_calls"])
-        # OpenAI-style: first shard should include id+name; later may be args-only
+        # OpenAI-style: first shard id+name with arguments==""; later args-only increments
         shape_ok = False
         if tool_shards:
             first = tool_shards[0][0]
-            shape_ok = bool(first.get("id")) and bool((first.get("function") or {}).get("name"))
-            # arguments always str when present
-            for shard in tool_shards:
+            first_fn = first.get("function") or {}
+            first_args = first_fn.get("arguments")
+            shape_ok = (
+                bool(first.get("id"))
+                and bool(first_fn.get("name"))
+                and (first_args in (None, ""))
+                and len(tool_shards) >= 2
+            )
+            # arguments always str when present; at least one later shard has non-empty args piece
+            later_args = False
+            for si, shard in enumerate(tool_shards):
                 for tc in shard:
                     args = (tc.get("function") or {}).get("arguments")
                     if args is not None and not isinstance(args, str):
                         shape_ok = False
+                    if si > 0 and isinstance(args, str) and args:
+                        later_args = True
+            if not later_args:
+                shape_ok = False
         hdr_ok = ("text/event-stream" in ct) and ("no-cache" in cache.lower()) and (xab.lower() == "no" or xab == "")
         # Connection keep-alive preferred; chunked without close is acceptable
         conn_ok = ("keep-alive" in conn_h.lower()) or (te.lower() == "chunked") or (conn_h == "")
