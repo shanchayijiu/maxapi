@@ -4,6 +4,16 @@
 封装成标准 **OpenAI Chat Completions** 与 **Anthropic Messages**（Claude Code / agent 可直连）。
 纯 Python 标准库、零依赖、单文件 Docker。
 
+**目标（wire-compat）**：调用方只换 `base_url` + `api_key`，以官方 OpenAI SDK 为验收客户端。
+细则见桌面 `2api必读文档.txt` 与仓库 `GOALS.md`。
+
+**参数策略**：`n` 仅支持 1（其它 400）；`temperature/top_p/stop/seed/presence_penalty/frequency_penalty` 静默忽略；
+`response_format` json_object/json_schema 软注入 system；`/v1/embeddings` 与 `/v1/completions` → 501 `not_implemented`。
+超上下文：`MAXAPI_COMPACT=0` 时 400 `context_length_exceeded`；默认 compact 开启。流式客户端断连会中止上游 drain。
+
+验收：`python _openai_sdk_gold.py` / `_local_compat_check.py` / `_accept_tool_suite.py` / `_accept_agent_long.py`。
+
+**2026-08-19**：OpenAI chat wire-compat P0（404 model / tool 分片 / include_usage / SSE keep-alive / n!=1 / response_format / context_length code / disconnect cancel / embeddings 501）。
 **2026-08-17**：thinking 通道 DSML 泄漏根因修复（`e97d000`）——`<think>` 内 `|DSML|tool_calls` 同步过 ToolCallParser，不再当 reasoning 原文下发；terminal-force 单次 + concurrency 3。**2026-08-16**：sol mid-flight **completion 门控**；catalog `code_mode_only`→tools=0 已修；预压缩 `eff>limit*0.88`。**2026-08-15**：auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy≠quota`。详见 [STATUS.md](STATUS.md)。
 
 ## 上游机制（实证，2026-08-01）

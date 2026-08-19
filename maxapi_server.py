@@ -3801,8 +3801,10 @@ def classify_error(err, default=529):
     etxt = str(err)
     low = etxt.lower()
     if any(k in low for k in ("too long", "context length", "token limit",
-                              "maximum context", "input too long", "exceeds the max")):
-        return 400, "invalid_request_error"
+                              "maximum context", "input too long", "exceeds the max",
+                              "context_length_exceeded")):
+        # OpenAI SDK looks for code=context_length_exceeded on 400.
+        return 400, "context_length_exceeded"
     if any(k in low for k in ("rate limit", "rate_limit", "too many request",
                               "quota", "429")):
         return 429, "rate_limit_error"
@@ -3827,21 +3829,118 @@ _OAI_ERROR_TYPE = {
     "overloaded_error": "server_error",
     "api_error": "server_error",
     "not_found_error": "invalid_request_error",
+    "context_length_exceeded": "invalid_request_error",
 }
 
-def _err_body(etype, message, flavor="openai"):
+def _err_body(etype, message, flavor="openai", param=None, code=None):
     """Build error response body in the correct envelope for the endpoint.
 
     flavor="anthropic" → {"type":"error","error":{"type":...,"message":...}}
-    flavor="openai"    → {"error":{"message":...,"type":...,"code":...}}
+    flavor="openai"    → {"error":{"message":...,"type":...,"param":...,"code":...}}
     """
     if flavor == "anthropic":
         return {"type": "error", "error": {"type": etype, "message": message}}
     return {"error": {
         "message": message,
         "type": _OAI_ERROR_TYPE.get(etype, "invalid_request_error"),
-        "code": etype,
+        "param": param,
+        "code": code if code is not None else etype,
     }}
+
+
+def _context_length_err(est, limit, flavor="openai"):
+    """Standard OpenAI-style context_length_exceeded body (2api P0)."""
+    msg = (
+        "This model's maximum context length is %d tokens. However, your messages "
+        "resulted in approximately %d tokens. Please reduce the length of the messages."
+        % (int(limit), int(est))
+    )
+    if flavor == "anthropic":
+        return 400, _err_body("invalid_request_error", msg, flavor="anthropic")
+    return 400, _err_body(
+        "context_length_exceeded", msg, flavor="openai",
+        param="messages", code="context_length_exceeded",
+    )
+
+
+# OpenAI Chat Completions params we accept. Unknown keys are ignored.
+# Semantics that would break single-upstream wire are rejected explicitly.
+_CHAT_SILENT_PARAMS = (
+    "temperature", "top_p", "top_k", "stop", "seed",
+    "presence_penalty", "frequency_penalty", "logit_bias", "user",
+    "logprobs", "top_logprobs", "service_tier", "store", "metadata",
+)
+
+
+def _apply_response_format(messages, response_format):
+    """Inject JSON-mode guidance for response_format. Returns (messages, err_msg|None).
+
+    json_object → soft system nudge (upstream has no native JSON mode).
+    json_schema → soft schema text; strict=true still best-effort (documented).
+    text/None → no-op. Other types → error string.
+    """
+    if not response_format:
+        return messages, None
+    if not isinstance(response_format, dict):
+        return messages, "response_format must be an object"
+    rft = response_format.get("type") or "text"
+    if rft in ("text", None, ""):
+        return messages, None
+    msgs = list(messages) if isinstance(messages, list) else []
+    if rft == "json_object":
+        guide = (
+            "You must respond with a single valid JSON object only. "
+            "Do not wrap it in markdown code fences. Do not add prose outside the JSON."
+        )
+        msgs = [{"role": "system", "content": guide}] + msgs
+        return msgs, None
+    if rft == "json_schema":
+        js = response_format.get("json_schema") or {}
+        name = js.get("name") or "response"
+        schema = js.get("schema") if isinstance(js, dict) else None
+        try:
+            schema_txt = json.dumps(schema, ensure_ascii=False) if schema is not None else "{}"
+        except Exception:
+            schema_txt = "{}"
+        strict = bool(js.get("strict")) if isinstance(js, dict) else False
+        guide = (
+            "You must respond with a single valid JSON object only, matching this JSON Schema"
+            + (" strictly" if strict else "")
+            + " (name=%s): %s. No markdown fences, no prose outside the JSON."
+            % (name, schema_txt)
+        )
+        msgs = [{"role": "system", "content": guide}] + msgs
+        return msgs, None
+    return messages, "Unsupported response_format.type %r (supported: text, json_object, json_schema)" % (rft,)
+
+
+def _validate_chat_params(req):
+    """Return OpenAI error body dict if request violates hard param policy, else None."""
+    n = req.get("n")
+    if n is not None:
+        try:
+            n_i = int(n)
+        except (TypeError, ValueError):
+            return _err_body("invalid_request_error", "n must be an integer", param="n")
+        if n_i != 1:
+            return _err_body(
+                "invalid_request_error",
+                "Only n=1 is supported (upstream is a single stream).",
+                param="n",
+            )
+    rf = req.get("response_format")
+    if rf is not None and not isinstance(rf, dict):
+        return _err_body("invalid_request_error", "response_format must be an object", param="response_format")
+    if isinstance(rf, dict):
+        rft = rf.get("type")
+        if rft not in (None, "text", "json_object", "json_schema"):
+            return _err_body(
+                "invalid_request_error",
+                "Unsupported response_format.type %r" % (rft,),
+                param="response_format",
+            )
+    # Silent-ignore list is intentional; no error. Documented in README.
+    return None
 
 
 def _tool_schemas_map(tools, anthropic=False):
@@ -4018,30 +4117,54 @@ def _validate_schema(val, schema, path="", errors=None):
 def _validate_and_coerce_tool_calls(tcs_out, tools, anthropic=False):
     """Coerce then validate tool call arguments against the tool JSON schema.
     Prevents 'true'/'123'/container strings from reaching the client as
-    wrong-typed values.  Logs validation errors to stderr."""
+    wrong-typed values.  Logs validation errors to stderr.
+
+    Drops calls whose name is not in the declared tools list (e.g. DSML
+    template leftovers like TOOL_NAME_HERE) so clients never see fake tools.
+    """
     schemas = _tool_schemas_map(tools, anthropic=anthropic)
+    known = set(schemas.keys()) if schemas else set()
+    # Also accept bare function names from OpenAI-style tools list
+    if not known and tools:
+        for t in tools:
+            if not isinstance(t, dict):
+                continue
+            fn = t.get("function") if t.get("type") == "function" else t
+            if isinstance(fn, dict) and fn.get("name"):
+                known.add(fn["name"])
+    _PLACEHOLDER_NAMES = {
+        "TOOL_NAME_HERE", "tool_name_here", "FUNCTION_NAME", "function_name",
+        "NAME", "name_here", "your_tool", "example_tool",
+    }
+    cleaned = []
     for tc in tcs_out:
         name = tc.get("name") or tc.get("function", {}).get("name")
-        schema = schemas.get(name)
-        if not schema:
+        if not name or name in _PLACEHOLDER_NAMES:
+            sys.stderr.write("[tool-validate] drop placeholder/empty name=%r\n" % (name,))
             continue
-        args = tc.get("arguments") or {}
-        # step 1: coerce types (incl. array items + nested objects)
-        args = _coerce_tool_params(args, schema)
-        # step 1b: fill defaults for optional fields that have a default
-        props = schema.get("properties") or {}
-        for k, ps in props.items():
-            if k not in args and isinstance(ps, dict) and "default" in ps:
-                args[k] = ps["default"]
-        # step 2: validate (required/enum/items/nested)
-        errors = _validate_schema(args, schema)
-        if errors:
-            sys.stderr.write("[tool-validate] name=%s error=%s\n" % (name, "; ".join(errors)));
-        # step 3: ensure arguments is a dict (Anthropic input must be object)
-        if not isinstance(args, dict):
-            args = {} if anthropic else {"_raw": args}
-        tc["arguments"] = args
-    return tcs_out
+        if known and name not in known:
+            sys.stderr.write("[tool-validate] drop unknown tool name=%r known=%s\n" % (name, sorted(known)[:12]))
+            continue
+        schema = schemas.get(name)
+        if schema:
+            args = tc.get("arguments") or {}
+            # step 1: coerce types (incl. array items + nested objects)
+            args = _coerce_tool_params(args, schema)
+            # step 1b: fill defaults for optional fields that have a default
+            props = schema.get("properties") or {}
+            for k, ps in props.items():
+                if k not in args and isinstance(ps, dict) and "default" in ps:
+                    args[k] = ps["default"]
+            # step 2: validate (required/enum/items/nested)
+            errors = _validate_schema(args, schema)
+            if errors:
+                sys.stderr.write("[tool-validate] name=%s error=%s\n" % (name, "; ".join(errors)));
+            # step 3: ensure arguments is a dict (Anthropic input must be object)
+            if not isinstance(args, dict):
+                args = {} if anthropic else {"_raw": args}
+            tc["arguments"] = args
+        cleaned.append(tc)
+    return cleaned
 
 
 def _upstream_iter(first, remainder_iter):
@@ -4146,6 +4269,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.flush()
         except Exception:
             pass
+
+    def _client_gone(self):
+        """True if the client socket is already closed (best-effort)."""
+        try:
+            sock = self.connection
+            if sock is None:
+                return True
+            # 0-byte recv with MSG_PEEK|MSG_DONTWAIT: empty => FIN, data stays in buffer.
+            import errno as _errno
+            try:
+                data = sock.recv(1, socket.MSG_PEEK | getattr(socket, "MSG_DONTWAIT", 0x40))
+            except BlockingIOError:
+                return False
+            except OSError as e:
+                if getattr(e, "errno", None) in (
+                    getattr(_errno, "EAGAIN", 11),
+                    getattr(_errno, "EWOULDBLOCK", 11),
+                    getattr(_errno, "EINTR", 4),
+                ):
+                    return False
+                return True
+            return data == b""
+        except Exception:
+            return False
     def _handle_responses(self):
         """OpenAI Responses API bridge for coding clients.
 
@@ -4416,7 +4563,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "tool_call":
                     if not tools_enabled:
                         continue
-                    data = _validate_and_coerce_tool_calls([data], tools)[0]
+                    _v = _validate_and_coerce_tool_calls([data], tools)
+                    if not _v:
+                        continue
+                    data = _v[0]
                     if msg_item is not None:
                         emit_event("response.output_text.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "text": ""})
                         emit_event("response.content_part.done", {"item_id": msg_item["id"], "output_index": out_index, "content_index": text_index, "part": {"type": "output_text", "text": "", "annotations": []}})
@@ -4804,7 +4954,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     if "tool_use" in blocks:
                         close_block("tool_use")
                         del blocks["tool_use"]
-                    data = _validate_and_coerce_tool_calls([data], anth_tools, anthropic=True)[0]
+                    _v = _validate_and_coerce_tool_calls([data], anth_tools, anthropic=True)
+                    if not _v:
+                        continue
+                    data = _v[0]
                     idx = open_block("tool_use", {"id": data["id"], "name": data["name"], "input": {}})
                     argstr = json.dumps(data["arguments"], ensure_ascii=False)
                     for off in range(0, len(argstr), 20):
@@ -4868,6 +5021,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._handle_messages()
         if self.path.startswith("/v1/responses"):
             return self._handle_responses()
+        # P1 endpoints not implemented: return 501 with clear OpenAI error (not silent 404).
+        if self.path.startswith("/v1/embeddings") or self.path.startswith("/v1/completions"):
+            return self._send(501, _err_body(
+                "invalid_request_error",
+                "This endpoint is not implemented by maxapi (chat-only proxy). "
+                "Use POST /v1/chat/completions.",
+                code="not_implemented",
+            ))
         if not self.path.startswith("/v1/chat/completions"):
             self._send(404, _err_body("not_found_error", "not found"))
             return
@@ -4900,8 +5061,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
         model = req.get("model") or DEFAULT_MODEL
         if _reject_unknown_model(self, req.get("model"), flavor="openai"):
             return
+        # Hard param policy (2api P0): n!=1 / bad response_format → 400; sampling knobs silent-ignore.
+        _param_err = _validate_chat_params(req)
+        if _param_err:
+            return self._send(400, _param_err)
         grp, sub, disp = resolve_model(model)
         messages = req.get("messages") or []
+        if not isinstance(messages, list):
+            return self._send(400, _err_body("invalid_request_error", "messages must be an array", param="messages"))
+        # response_format → system nudge (best-effort; no native JSON mode upstream)
+        messages, _rf_err = _apply_response_format(messages, req.get("response_format"))
+        if _rf_err:
+            return self._send(400, _err_body("invalid_request_error", _rf_err, param="response_format"))
+        req = dict(req)
+        req["messages"] = messages
         stream = bool(req.get("stream"))
         # OpenAI stream_options.include_usage → final usage-only chunk before [DONE]
         _stream_opts = req.get("stream_options") if isinstance(req.get("stream_options"), dict) else {}
@@ -4929,6 +5102,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _compact_meta = {}
         if _inp_toks > _pf:
             LOG.warning("rid=%s [chat] over budget est=%d limit=%d model=%s", _rid, _inp_toks, _pf, disp)
+        # 2api P0: when compact is disabled, hard-reject over-limit instead of silent truncate.
+        if (not _COMPACT_ENABLED) and _inp_toks > _pf:
+            _code, _body = _context_length_err(_inp_toks, _pf, flavor="openai")
+            return self._send(_code, _body)
         if _preflight_should_compact(_inp_toks, _pf, model=disp):
             _eff = _est_for_preflight(_inp_toks, disp)
             _cb = _preflight_compact_budget(_inp_toks, _pf, disp)
@@ -4938,6 +5115,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             LOG.info("rid=%s compacted %s", _rid, _cprep)
             messages = req.get("messages") or []
             msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
+            # After compact still hopeless → standard context_length_exceeded
+            _inp2 = _estimate_request_tokens(req, model=disp)
+            if _inp2 > _pf * 1.5:
+                _code, _body = _context_length_err(_inp2, _pf, flavor="openai")
+                return self._send(_code, _body)
         LOG.info("rid=%s [chat] -> %s model=%s msgs=%d tools=%d est=%d limit=%d stream=%s",
                  _rid, self.path, disp, _msgs_count, _tools_count, _inp_toks, _pf, stream)
         if not stream:
@@ -4980,7 +5162,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             msgs_up, tools_enabled = _tf[5], _tf[6]
             if err:
                 _code, _type = classify_error(err)
-                return self._send(_code, _err_body(_type, err))
+                _extra = {"Retry-After": "5"} if _code in (429, 529) else None
+                if _type == "context_length_exceeded":
+                    return self._send(_code, _err_body(
+                        "context_length_exceeded", str(err),
+                        param="messages", code="context_length_exceeded"), extra=_extra)
+                return self._send(_code, _err_body(_type, err), extra=_extra)
             if tools_enabled and tcs_out:
                 tcs_out = _validate_and_coerce_tool_calls(tcs_out, tools)
             content = "".join(answer)
@@ -5061,6 +5248,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if _err:
             _code, _type = classify_error(_err)
             _extra = {"Retry-After": "5"} if _code in (429, 529) else None
+            if _type == "context_length_exceeded":
+                return self._send(_code, _err_body(
+                    "context_length_exceeded", str(_err),
+                    param="messages", code="context_length_exceeded"), extra=_extra)
             return self._send(_code, _err_body(_type, str(_err)), extra=_extra)
         if _stream_buf is not None:
             _iter = _chain_buf_and_iter(_stream_buf, _iter)
@@ -5069,6 +5260,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._sse_begin(200, _compact_headers(_compact_meta))
         lock = threading.Lock()
         stop = {"v": False}
+        client_gone = {"v": False}
         started_evt = threading.Event()
         def emit(b):
             with lock:
@@ -5079,7 +5271,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.wait()
             while not stop["v"]:
                 try:
+                    if self._client_gone():
+                        client_gone["v"] = True
+                        stop["v"] = True
+                        return
                     emit(b": keepalive\n\n")
+                except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                    client_gone["v"] = True
+                    stop["v"] = True
+                    return
                 except Exception:
                     return
                 time.sleep(1.0)
@@ -5096,6 +5296,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             _out_reason_chars = 0
             _out_tool_arg_chars = 0
             for kind, data in _upstream_iter(_first, _iter):
+                # 2api P0 cancel propagation: client gone → stop consuming upstream.
+                if stop["v"] or client_gone["v"] or self._client_gone():
+                    client_gone["v"] = True
+                    stop["v"] = True
+                    LOG.info("rid=%s [chat] client disconnect; aborting upstream drain", _rid)
+                    break
                 if kind == "content":
                     # After tool_calls, drop trailing prose (OpenAI clients treat
                     # tool_calls finish as terminal for this assistant turn).
@@ -5112,7 +5318,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif kind == "tool_call":
                     if not tools_enabled:
                         continue
-                    data = _validate_and_coerce_tool_calls([data], tools)[0]
+                    _v = _validate_and_coerce_tool_calls([data], tools)
+                    if not _v:
+                        continue
+                    data = _v[0]
                     idx = tool_call_count
                     argstr = json.dumps(data["arguments"], ensure_ascii=False)
                     _out_tool_arg_chars += len(argstr)
@@ -5149,7 +5358,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     stream_failed = True
                     sse({"error": {"message": (data.get("error") if isinstance(data, dict) else str(data)),
                                    "type": "api_error", "code": None}})
-            if not stream_failed:
+            if client_gone["v"]:
+                LOG.info("rid=%s <- client_gone [chat] stream model=%s tools=%d time=%dms",
+                         _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
+            elif not stream_failed:
                 sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                      "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
                 # stream_options.include_usage: OpenAI emits a trailing chunk with
@@ -5160,20 +5372,32 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                          "choices": [],
                          "usage": {"prompt_tokens": _p, "completion_tokens": _c, "total_tokens": _p + _c}})
-            emit(b"data: [DONE]\n\n")
-            LOG.info("rid=%s <- 200 [chat] stream model=%s tools=%d time=%dms",
-                     _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
+                emit(b"data: [DONE]\n\n")
+                LOG.info("rid=%s <- 200 [chat] stream model=%s tools=%d time=%dms",
+                         _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
+            client_gone["v"] = True
+            stop["v"] = True
+            LOG.info("rid=%s [chat] client disconnect during emit: %s", _rid, type(e).__name__)
         except Exception as e:
             try:
-                sse({"error": {"message": "server: %s" % e, "type": "api_error", "code": None}})
+                if not client_gone["v"]:
+                    sse({"error": {"message": "server: %s" % e, "type": "api_error", "code": None}})
                 sys.stderr.write(f"[ERR] {self.path} 500 model={disp} error={e} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
             except Exception:
                 pass
         finally:
             stop["v"] = True
+            # Closing the generator aborts upstream() finally → conn.close + sema release.
+            try:
+                if _iter is not None and hasattr(_iter, "close"):
+                    _iter.close()
+            except Exception:
+                pass
             hb.join(1.0)
-            with lock:
-                self._sse_end()
+            if not client_gone["v"]:
+                with lock:
+                    self._sse_end()
 
 
 def main():

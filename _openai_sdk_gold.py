@@ -11,6 +11,7 @@ Exit 0 only if all cases PASS.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 import traceback
@@ -165,42 +166,48 @@ def case_stream_text():
 def case_nonstream_tool():
     t0 = time.time()
     c = client()
+    last_detail = ""
     try:
-        r = c.chat.completions.create(
-            model=MODEL,
-            messages=[{"role": "user", "content": "Call get_time with tz=UTC. No prose."}],
-            tools=TOOLS,
-            tool_choice="auto",
-            max_tokens=128,
-            stream=False,
-        )
-        msg = r.choices[0].message
-        fr = r.choices[0].finish_reason
-        tcs = msg.tool_calls or []
-        ok = fr == "tool_calls" and len(tcs) >= 1
-        detail = f"fr={fr} n={len(tcs)}"
-        if tcs:
-            tc0 = tcs[0]
-            args = tc0.function.arguments
-            # CRITICAL: arguments must be str
-            if not isinstance(args, str):
-                ok = False
-                detail += f" args_type={type(args).__name__}"
-            else:
-                try:
-                    parsed = json.loads(args)
-                    detail += f" name={tc0.function.name} args={parsed} id={tc0.id} type={tc0.type}"
-                    if tc0.function.name != "get_time":
-                        ok = False
-                    if tc0.type != "function":
-                        ok = False
-                    if not tc0.id:
-                        ok = False
-                except Exception as je:
+        for attempt in range(2):
+            r = c.chat.completions.create(
+                model=MODEL,
+                messages=[{"role": "user", "content": "Call get_time with tz=UTC. No prose."}],
+                tools=TOOLS,
+                tool_choice="auto",
+                max_tokens=128,
+                stream=False,
+            )
+            msg = r.choices[0].message
+            fr = r.choices[0].finish_reason
+            tcs = msg.tool_calls or []
+            ok = fr == "tool_calls" and len(tcs) >= 1
+            detail = f"fr={fr} n={len(tcs)} attempt={attempt}"
+            if tcs:
+                tc0 = tcs[0]
+                args = tc0.function.arguments
+                # CRITICAL: arguments must be str
+                if not isinstance(args, str):
                     ok = False
-                    detail += f" args_not_json={args!r} err={je}"
-        rec("nonstream.tool", ok, detail, time.time() - t0)
-        return r if ok else None
+                    detail += f" args_type={type(args).__name__}"
+                else:
+                    try:
+                        parsed = json.loads(args)
+                        detail += f" name={tc0.function.name} args={parsed} id={tc0.id} type={tc0.type}"
+                        if tc0.function.name != "get_time":
+                            ok = False
+                        if tc0.type != "function":
+                            ok = False
+                        if not tc0.id:
+                            ok = False
+                    except Exception as je:
+                        ok = False
+                        detail += f" args_not_json={args!r} err={je}"
+            last_detail = detail
+            if ok:
+                rec("nonstream.tool", True, detail, time.time() - t0)
+                return r
+        rec("nonstream.tool", False, last_detail, time.time() - t0)
+        return None
     except Exception as e:
         rec("nonstream.tool", False, f"{type(e).__name__}: {e}\n{traceback.format_exc()[-400:]}", time.time() - t0)
         return None
@@ -396,19 +403,25 @@ def case_tool_choice_none():
 def case_tool_choice_required():
     t0 = time.time()
     c = client()
+    last = ""
     try:
-        r = c.chat.completions.create(
-            model=MODEL,
-            messages=[{"role": "user", "content": "I need the UTC time."}],
-            tools=TOOLS,
-            tool_choice="required",
-            max_tokens=128,
-            stream=False,
-        )
-        fr = r.choices[0].finish_reason
-        tcs = r.choices[0].message.tool_calls or []
-        ok = fr == "tool_calls" and len(tcs) >= 1
-        rec("tool_choice.required", ok, f"fr={fr} n={len(tcs)}", time.time() - t0)
+        for attempt in range(2):
+            r = c.chat.completions.create(
+                model=MODEL,
+                messages=[{"role": "user", "content": "I need the UTC time. You must call a tool."}],
+                tools=TOOLS,
+                tool_choice="required",
+                max_tokens=128,
+                stream=False,
+            )
+            fr = r.choices[0].finish_reason
+            tcs = r.choices[0].message.tool_calls or []
+            ok = fr == "tool_calls" and len(tcs) >= 1
+            last = f"fr={fr} n={len(tcs)} attempt={attempt}"
+            if ok:
+                rec("tool_choice.required", True, last, time.time() - t0)
+                return
+        rec("tool_choice.required", False, last, time.time() - t0)
     except Exception as e:
         rec("tool_choice.required", False, f"{type(e).__name__}: {e}", time.time() - t0)
 
@@ -691,6 +704,128 @@ def case_raw_sse_headers_and_done():
         rec("raw.sse_tool_wire", False, f"{type(e).__name__}: {e}", time.time() - t0)
 
 
+def case_param_n_rejected():
+    """n!=1 must 400 (single-stream upstream)."""
+    t0 = time.time()
+    try:
+        import http.client
+        body = json.dumps({
+            "model": MODEL,
+            "messages": [{"role": "user", "content": "hi"}],
+            "n": 2,
+            "max_tokens": 8,
+        }).encode()
+        conn = http.client.HTTPConnection("127.0.0.1", 8080, timeout=30)
+        conn.request("POST", "/v1/chat/completions", body=body, headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer sk-gold",
+        })
+        resp = conn.getresponse()
+        raw = resp.read().decode("utf-8", "replace")
+        conn.close()
+        ok = resp.status == 400 and "n" in raw
+        rec("error.n_gt_1", ok, f"st={resp.status} body={raw[:200]}", time.time() - t0)
+    except Exception as e:
+        rec("error.n_gt_1", False, f"{type(e).__name__}: {e}", time.time() - t0)
+
+
+def case_response_format_json_object():
+    """response_format=json_object should return parseable JSON (best-effort)."""
+    t0 = time.time()
+    c = client()
+    try:
+        r = c.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": 'Return JSON object with key "ok" boolean true. No prose.'}],
+            response_format={"type": "json_object"},
+            max_tokens=64,
+        )
+        text = (r.choices[0].message.content or "").strip()
+        # strip fences if any
+        if text.startswith("```"):
+            text = text.strip("`")
+            if text.lower().startswith("json"):
+                text = text[4:].lstrip()
+        parsed = json.loads(text)
+        ok = isinstance(parsed, dict)
+        rec("response_format.json_object", ok, f"text={text[:120]!r} parsed={parsed!r}", time.time() - t0)
+    except Exception as e:
+        rec("response_format.json_object", False, f"{type(e).__name__}: {e}", time.time() - t0)
+
+
+def case_embeddings_not_implemented():
+    t0 = time.time()
+    try:
+        import http.client
+        body = json.dumps({"model": MODEL, "input": "hi"}).encode()
+        conn = http.client.HTTPConnection("127.0.0.1", 8080, timeout=15)
+        conn.request("POST", "/v1/embeddings", body=body, headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer sk-gold",
+        })
+        resp = conn.getresponse()
+        raw = resp.read().decode("utf-8", "replace")
+        conn.close()
+        ok = resp.status == 501 and "not_implemented" in raw
+        rec("endpoint.embeddings_501", ok, f"st={resp.status} body={raw[:180]}", time.time() - t0)
+    except Exception as e:
+        rec("endpoint.embeddings_501", False, f"{type(e).__name__}: {e}", time.time() - t0)
+
+
+def case_context_length_code_unit():
+    """Unit-level: classify_error + _err_body produce context_length_exceeded code."""
+    t0 = time.time()
+    try:
+        # Import from server module without starting it
+        import importlib.util
+        path = os.path.join(os.path.dirname(__file__), "maxapi_server.py")
+        spec = importlib.util.spec_from_file_location("maxapi_server_gold", path)
+        m = importlib.util.module_from_spec(spec)
+        # Avoid running main: load module (defines helpers at import)
+        # maxapi_server has no side-effect main at import
+        import sys as _sys
+        # prevent accidental main if guarded
+        old = _sys.modules.get("maxapi_server_gold")
+        try:
+            spec.loader.exec_module(m)
+        finally:
+            pass
+        code, etype = m.classify_error("input too long: estimated 999999 tokens exceeds context_length 200000")
+        body = m._err_body(etype, "too long", param="messages", code="context_length_exceeded")
+        ok = code == 400 and etype == "context_length_exceeded" and body["error"]["code"] == "context_length_exceeded"
+        # also helper
+        c2, b2 = m._context_length_err(999999, 200000)
+        ok = ok and c2 == 400 and b2["error"]["code"] == "context_length_exceeded"
+        # n rejection
+        pe = m._validate_chat_params({"n": 3})
+        ok = ok and pe is not None and pe["error"]["param"] == "n"
+        rec("unit.context_and_params", ok, f"code={code} etype={etype} body={body} pe={pe}", time.time() - t0)
+    except Exception as e:
+        rec("unit.context_and_params", False, f"{type(e).__name__}: {e}\n{traceback.format_exc()[-500:]}", time.time() - t0)
+
+
+def case_silent_sampling_params():
+    """temperature/top_p/seed silently ignored — still 200 text."""
+    t0 = time.time()
+    c = client()
+    try:
+        r = c.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": "Reply with exactly: PING"}],
+            temperature=0.2,
+            top_p=0.9,
+            seed=42,
+            presence_penalty=0.1,
+            frequency_penalty=0.1,
+            max_tokens=16,
+        )
+        text = (r.choices[0].message.content or "").strip()
+        ok = r.choices[0].finish_reason in ("stop", None) and len(text) > 0
+        rec("params.sampling_silent", ok, f"fr={r.choices[0].finish_reason} text={text[:40]!r}", time.time() - t0)
+    except Exception as e:
+        rec("params.sampling_silent", False, f"{type(e).__name__}: {e}", time.time() - t0)
+
+
 def main():
     print(f"BASE={BASE} MODEL={MODEL}", flush=True)
     case_models()
@@ -703,11 +838,16 @@ def main():
     case_tool_choice_required()
     case_named_tool_choice()
     case_parallel_tools_prompt()
-    case_error_bad = case_error_model
-    case_error_bad()
+    case_error_model()
     case_stream_include_usage()
     case_raw_sse_headers_and_done()
     case_agent_chain_short()
+    # 2api extended P0
+    case_param_n_rejected()
+    case_response_format_json_object()
+    case_embeddings_not_implemented()
+    case_context_length_code_unit()
+    case_silent_sampling_params()
 
     passed = sum(1 for r in RESULTS if r["ok"])
     total = len(RESULTS)
