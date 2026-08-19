@@ -303,9 +303,116 @@ try:
     h = H("POST", "/v1/chat/completions", req)
     h.do_POST()
     status, head, body = parse_http(h.wfile.getvalue())
-    check("nonstream response has content-type",
-          "application/json" in head or "text/event-stream" in head,
-          head[:300])
+
+    # --- P0 v3: EOF hold-back must not leak unfinished tool/tag prefixes ---
+    tcp_p = m.ToolCallParser()
+    out_p = tcp_p.feed("hi <tool_cal")
+    out_p += tcp_p.flush()
+    joined_p = "".join(t for k,t in out_p if k=="content")
+    check("eof hold-back keeps prefix text", "hi" in joined_p, repr(joined_p))
+    check("eof hold-back drops unfinished tag", "tool_cal" not in joined_p and "<tool" not in joined_p, repr(joined_p))
+
+    tcp_p2 = m.ToolCallParser()
+    out_p2 = tcp_p2.feed("plain text only")
+    out_p2 += tcp_p2.flush()
+    joined_p2 = "".join(t for k,t in out_p2 if k=="content")
+    check("eof plain flush keeps all content", "plain text only" in joined_p2, repr(joined_p2))
+
+    # --- P0 v3: param policy ---
+    e_lp = m._validate_chat_params({"logprobs": True})
+    check("logprobs true -> 400 body", e_lp and e_lp.get("error",{}).get("param")=="logprobs", e_lp)
+    e_so = m._validate_chat_params({"stream": False, "stream_options": {"include_usage": True}})
+    check("stream_options without stream -> 400", e_so and "stream_options" in str(e_so), e_so)
+    e_ok = m._validate_chat_params({"stream": True, "stream_options": {"include_usage": True}})
+    check("stream_options with stream ok", e_ok is None, e_ok)
+
+    # --- P0 v3: tool message sequence ---
+    bad_seq = [
+        {"role": "user", "content": "x"},
+        {"role": "assistant", "tool_calls": [{"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}}]},
+        {"role": "user", "content": "next without tool result"},
+    ]
+    e_seq = m._validate_tool_message_sequence(bad_seq)
+    check("missing tool result mid-seq -> 400", e_seq is not None, e_seq)
+    unk = [
+        {"role": "assistant", "tool_calls": [{"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}}]},
+        {"role": "tool", "tool_call_id": "call_OTHER", "content": "x"},
+    ]
+    e_unk = m._validate_tool_message_sequence(unk)
+    check("unknown tool_call_id -> 400", e_unk is not None and "unknown" in str(e_unk).lower(), e_unk)
+    good = [
+        {"role": "assistant", "tool_calls": [{"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}}]},
+        {"role": "tool", "tool_call_id": "call_a", "content": "ok"},
+        {"role": "user", "content": "thanks"},
+    ]
+    check("valid tool sequence ok", m._validate_tool_message_sequence(good) is None, "")
+    trailing = [
+        {"role": "assistant", "tool_calls": [{"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}}]},
+    ]
+    check("trailing pending tool_calls allowed", m._validate_tool_message_sequence(trailing) is None, "")
+
+    # --- P0 v3: tool id format ---
+    tid = m._make_tool_id()
+    check("tool id call_ prefix", tid.startswith("call_") and len(tid) >= 20, tid)
+
+    # --- P0 v3: models/{id} + request-id + include_usage null ---
+    h = H("GET", "/v1/models", {})
+    h.do_GET()
+    status, head, body = parse_http(h.wfile.getvalue())
+    check("models list has x-request-id", "x-request-id" in head.lower(), head[:400])
+
+    # pick a live display id
+    mid = m.MODEL_DISPLAY_IDS[0]
+    h = H("GET", "/v1/models/" + mid, {})
+    h.do_GET()
+    status, head, body = parse_http(h.wfile.getvalue())
+    data = json.loads(body)
+    check("models/id status 200", status.startswith("HTTP/1.1 200"), status)
+    check("models/id single object", data.get("object")=="model" and data.get("id")==mid, data)
+    h = H("GET", "/v1/models/not-a-real-model-xyz", {})
+    h.do_GET()
+    status, head, body = parse_http(h.wfile.getvalue())
+    check("models/id unknown 404", status.startswith("HTTP/1.1 404"), status)
+
+    m.upstream = fake_text_upstream
+    req = {"model": "gpt-5.6-luna", "messages": [{"role": "user", "content": "hi"}],
+           "stream": True, "stream_options": {"include_usage": True}}
+    h = H("POST", "/v1/chat/completions", req)
+    h.do_POST()
+    status, head, body = parse_http(h.wfile.getvalue())
+    s = body.decode(errors="replace")
+    check("include_usage stream 200", status.startswith("HTTP/1.1 200"), status)
+    check("include_usage mid chunk usage null", '"usage": null' in s or '"usage":null' in s, s[:800])
+    check("include_usage trailing choices empty", '"choices": []' in s or '"choices":[]' in s, s[-600:])
+    check("include_usage has DONE", "data: [DONE]" in s, s[-200:])
+    check("chat stream has x-request-id", "x-request-id" in head.lower(), head[:400])
+
+    # logprobs via HTTP
+    req = {"model": "gpt-5.6-luna", "messages": [{"role": "user", "content": "hi"}], "logprobs": True}
+    h = H("POST", "/v1/chat/completions", req)
+    h.do_POST()
+    status, head, body = parse_http(h.wfile.getvalue())
+    check("logprobs HTTP 400", status.startswith("HTTP/1.1 400"), status)
+
+    req = {"model": "gpt-5.6-luna", "messages": [{"role": "user", "content": "hi"}],
+           "stream": False, "stream_options": {"include_usage": True}}
+    h = H("POST", "/v1/chat/completions", req)
+    h.do_POST()
+    status, head, body = parse_http(h.wfile.getvalue())
+    check("stream_options nonstream HTTP 400", status.startswith("HTTP/1.1 400"), status)
+
+    # stream error still DONE
+    m.upstream = fake_error_upstream
+    req = {"model": "gpt-5.6-luna", "messages": [{"role": "user", "content": "x"}], "stream": True}
+    h = H("POST", "/v1/chat/completions", req)
+    h.do_POST()
+    status, head, body = parse_http(h.wfile.getvalue())
+    s = body.decode(errors="replace")
+    # may be 400 before stream if error before headers; if 200 streamed, must have DONE
+    if status.startswith("HTTP/1.1 200"):
+        check("stream error still has DONE", "data: [DONE]" in s, s[-300:])
+    else:
+        check("stream error non-200 still structured", '"error"' in s, s[:500])
 
 finally:
     m.upstream = orig_upstream

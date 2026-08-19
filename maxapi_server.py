@@ -758,8 +758,9 @@ class ReasoningFilter:
 
 
 def _make_tool_id():
+    # REQ-TOOL-05: call_ + >=16 alnum. (Anthropic bridge clients accept this too.)
     chars = string.ascii_letters + string.digits
-    return "toolu_01" + "".join(random.choices(chars, k=22))
+    return "call_" + "".join(random.choices(chars, k=24))
 
 def _make_msg_id():
     chars = string.ascii_letters + string.digits
@@ -2748,8 +2749,36 @@ class ToolCallParser:
                 sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete tool block head=%r\n"
                                  % (len(content), _head))
         if self.pending:
-            out.append(self._emit(self.pending))
+            # REQ-SAN-06 / INV-01: EOF must flush hold-back, but unfinished control
+            # / tool tag prefixes must NOT leak into content. Emit only the safe
+            # prefix before the held '<' (if any); drop the residual opener.
+            _pend = self.pending
             self.pending = ""
+            _hold = _find_partial(_pend)
+            if _hold < 0:
+                _lt = _pend.rfind("<")
+                if _lt >= 0 and ">" not in _pend[_lt:]:
+                    _tail = _pend[_lt:].lower()
+                    _cands = (
+                        "<think", "<thinking", "<tool_", "<|", "<function",
+                        "<invoke", "<parameter", "</s", "</think", "</tool",
+                    )
+                    if any(c.startswith(_tail) or _tail.startswith(c[: max(1, len(_tail))]) for c in _cands):
+                        _hold = _lt
+            if _hold is not None and _hold >= 0:
+                _safe = _pend[:_hold]
+                if _safe:
+                    out.append(self._emit(_safe))
+                _tl = _pend[_hold:].lower()
+                if any(_tl.startswith(x) for x in (
+                        "<tool_", "<|dsml", "<|tool", "<function",
+                        "<invoke", "<parameter")):
+                    self.incomplete_tool = True
+                sys.stderr.write("[tcp] eof-hold-discarded %d bytes head=%r\n"
+                                 % (len(_pend) - _hold,
+                                    re.sub(r"\s+", " ", _pend[_hold:_hold + 80]).strip()))
+            else:
+                out.append(self._emit(_pend))
         return out
 
 
@@ -3966,7 +3995,8 @@ def _context_length_err(est, limit, flavor="openai"):
 _CHAT_SILENT_PARAMS = (
     "temperature", "top_p", "top_k", "stop", "seed",
     "presence_penalty", "frequency_penalty", "logit_bias", "user",
-    "logprobs", "top_logprobs", "service_tier", "store", "metadata",
+    # logprobs/top_logprobs rejected in _validate_chat_params (shape-changing)
+    "service_tier", "store", "metadata",
 )
 
 
@@ -4037,9 +4067,96 @@ def _validate_chat_params(req):
                 "Unsupported response_format.type %r" % (rft,),
                 param="response_format",
             )
-    # Silent-ignore list is intentional; no error. Documented in README.
+    # REQ-API-06: logprobs changes response shape — must 400 when requested.
+    if req.get("logprobs") not in (None, False, 0, "false", "0"):
+        return _err_body(
+            "invalid_request_error",
+            "logprobs is not supported by this endpoint.",
+            param="logprobs",
+            code="unsupported_parameter",
+        )
+    if req.get("top_logprobs") not in (None, False, 0, "false", "0"):
+        return _err_body(
+            "invalid_request_error",
+            "top_logprobs is not supported by this endpoint.",
+            param="top_logprobs",
+            code="unsupported_parameter",
+        )
+    # REQ-STR-09: stream_options only legal when stream=true.
+    if "stream_options" in req and req.get("stream_options") is not None:
+        if not req.get("stream"):
+            return _err_body(
+                "invalid_request_error",
+                "stream_options requires stream=true.",
+                param="stream_options",
+            )
+        if not isinstance(req.get("stream_options"), dict):
+            return _err_body(
+                "invalid_request_error",
+                "stream_options must be an object",
+                param="stream_options",
+            )
+    # Silent-ignore remaining sampling knobs; documented in README.
     return None
 
+
+def _validate_tool_message_sequence(messages):
+    """REQ-TOOL-11/12: assistant.tool_calls must be followed by covering tool msgs.
+
+    Returns error body dict or None. Trailing pending tool_calls at end of history
+    (client about to execute tools) are allowed; mid-sequence gaps and unknown
+    tool_call_id values are rejected.
+    """
+    if not isinstance(messages, list):
+        return None
+    pending = set()
+    for m in messages:
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role")
+        if role == "assistant":
+            tcs = m.get("tool_calls")
+            if isinstance(tcs, list) and tcs:
+                pending = set()
+                for tc in tcs:
+                    if not isinstance(tc, dict):
+                        continue
+                    tid = tc.get("id")
+                    if not tid:
+                        return _err_body(
+                            "invalid_request_error",
+                            "assistant tool_calls entries must include id",
+                            param="messages",
+                        )
+                    pending.add(str(tid))
+            else:
+                pending = set()
+        elif role == "tool":
+            tid = m.get("tool_call_id")
+            if not tid:
+                return _err_body(
+                    "invalid_request_error",
+                    "tool message missing tool_call_id",
+                    param="messages",
+                )
+            tid = str(tid)
+            if tid not in pending:
+                return _err_body(
+                    "invalid_request_error",
+                    "unknown tool_call_id %r (no matching assistant.tool_calls id)" % tid,
+                    param="messages",
+                )
+            pending.discard(tid)
+        elif role in ("user", "system", "developer"):
+            if pending:
+                return _err_body(
+                    "invalid_request_error",
+                    "missing tool response message(s) for tool_call_id(s): %s"
+                    % ", ".join(sorted(pending)),
+                    param="messages",
+                )
+            pending = set()
+    return None
 
 def _tool_schemas_map(tools, anthropic=False):
     """Build name -> parameters-schema dict from an OpenAI or Anthropic tool list."""
@@ -4300,11 +4417,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "*")
         self.send_header("Access-Control-Allow-Methods", "*")
+    def _ensure_req_id(self):
+        """REQ-ERR-04: stable per-request id for headers + logs."""
+        rid = getattr(self, "_req_id", None)
+        if not rid:
+            rid = _uuid.uuid4().hex[:16]
+            self._req_id = rid
+        return rid
+
     def _send(self, code, obj, ctype="application/json", extra=None):
         b = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", ctype + "; charset=utf-8")
         self.send_header("Content-Length", str(len(b)))
+        rid = self._ensure_req_id()
+        self.send_header("x-request-id", rid)
+        self.send_header("X-Request-Id", rid)
         if extra:
             for k, v in extra.items():
                 self.send_header(k, str(v))
@@ -4337,6 +4465,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         else:
             self.send_header("Connection", "close")
             self.close_connection = True
+        rid = self._ensure_req_id()
+        self.send_header("x-request-id", rid)
+        self.send_header("X-Request-Id", rid)
         self._cors()
         for k, v in (extra_headers or {}).items():
             self.send_header(k, str(v))
@@ -5104,11 +5235,37 @@ class Handler(http.server.BaseHTTPRequestHandler):
             sys.stderr.write(f"[RES] {self.path} 200 models={len(MODEL_DISPLAY_IDS)} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
             return
         if self.path.startswith("/v1/models"):
-            data = [{"id": m, "object": "model", "owned_by": "se.zzmax.cn-guest", "created": 1700000000, "permission": [], "root": m, "parent": None,
-                      "context_length": MODEL_META.get(m, (200000, 8192, True))[0],
-                      "max_output_tokens": MODEL_META.get(m, (200000, 8192, True))[1],
-                      "supports_tool_use": MODEL_META.get(m, (200000, 8192, True))[2]}
-                    for m in MODEL_DISPLAY_IDS]
+            def _model_obj(m):
+                meta = MODEL_META.get(m, (200000, 8192, True))
+                return {
+                    "id": m, "object": "model", "owned_by": "se.zzmax.cn-guest",
+                    "created": 1700000000, "permission": [], "root": m, "parent": None,
+                    "context_length": meta[0],
+                    "max_output_tokens": meta[1],
+                    "supports_tool_use": meta[2],
+                }
+            sub = self.path[len("/v1/models"):].lstrip("/")
+            if "?" in sub:
+                sub = sub.split("?", 1)[0]
+            if sub:
+                # REQ-API-01: single model retrieve
+                mid = sub
+                try:
+                    from urllib.parse import unquote
+                    mid = unquote(sub)
+                except Exception:
+                    mid = sub
+                if not model_is_known(mid):
+                    return self._send(404, _err_body(
+                        "invalid_request_error",
+                        "The model `%s` does not exist or you do not have access to it." % mid,
+                        param="model", code="model_not_found",
+                    ))
+                _g, _s, disp = resolve_model(mid)
+                self._send(200, _model_obj(disp))
+                sys.stderr.write(f"[RES] {self.path} 200 model={mid} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
+                return
+            data = [_model_obj(m) for m in MODEL_DISPLAY_IDS]
             self._send(200, {"object": "list", "data": data})
             sys.stderr.write(f"[RES] {self.path} 200 models={len(data)} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
             return
@@ -5167,6 +5324,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         messages = req.get("messages") or []
         if not isinstance(messages, list):
             return self._send(400, _err_body("invalid_request_error", "messages must be an array", param="messages"))
+        _seq_err = _validate_tool_message_sequence(messages)
+        if _seq_err:
+            return self._send(400, _seq_err)
         # response_format → system nudge (best-effort; no native JSON mode upstream)
         messages, _rf_err = _apply_response_format(messages, req.get("response_format"))
         if _rf_err:
@@ -5193,7 +5353,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if tools and _is_auto_tool_choice(tool_choice) and _user_forbids_tools(messages):
             tool_choice = "none"
         msgs_up, tools_enabled = _build_messages_with_tools(tools, tool_choice, messages)
-        _rid = _uuid.uuid4().hex[:8]
+        _rid = self._ensure_req_id()
         max_tokens = _clamp_max_tokens(disp, req.get("max_tokens") or 8192)
         _pf = _context_limit(disp, max_tokens)
         _inp_toks = _estimate_request_tokens(req, model=disp)
@@ -5364,6 +5524,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             with lock:
                 self._sse_chunk(b)
         def sse(o):
+            # REQ-STR-08: when include_usage, intermediate chunks carry usage:null;
+            # the trailing usage-only chunk sets choices=[] + real usage.
+            if include_usage and isinstance(o, dict) and "usage" not in o and not o.get("error"):
+                o = dict(o)
+                o["usage"] = None
             emit(("data: " + json.dumps(o, ensure_ascii=False) + "\n\n").encode("utf-8"))
         def heartbeat():
             started_evt.wait()
@@ -5459,7 +5624,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if client_gone["v"]:
                 LOG.info("rid=%s <- client_gone [chat] stream model=%s tools=%d time=%dms",
                          _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
-            elif not stream_failed:
+            elif stream_failed:
+                # REQ-ERR-05: after in-stream error data line, still terminate with [DONE]
+                try:
+                    emit(b"data: [DONE]\n\n")
+                except Exception:
+                    pass
+                LOG.info("rid=%s <- 200 [chat] stream_error model=%s tools=%d time=%dms",
+                         _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
+            else:
                 sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
                      "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
                 # stream_options.include_usage: OpenAI emits a trailing chunk with

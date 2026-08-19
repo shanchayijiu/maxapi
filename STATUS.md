@@ -1,4 +1,6 @@
 # maxapi STATUS
+> 2026-08-19 R4: **2api v3 P0 落地**——EOF hold-back 不泄漏半截 tag；include_usage 中间 chunk `usage:null`；`stream_options`/`logprobs`→400；全响应 `x-request-id`；`GET /v1/models/{id}`；tool_call_id 序列校验；`call_` tool id；stream error 仍发 `[DONE]`。local_compat **96/96**；gold **20/20**；Docker md5=`06cd87eddeb939e538882d4e73afcd5c`。blocking 余 REQ-SAN-12 / INV-11（P1）。
+
 > 2026-08-19 R3: **incomplete tool 静默 tools=0 修复**——flush 对截断 wrapper  salvage 已闭合 invoke；tools_enabled 且无 tool_call 时 incomplete 不再因 reasoning 已 yield 而假 stop，改为 retry/error 供 escalate。compat **74/74**；gold **20/20**；Docker md5=`1d40bc7cb923e6cc5455e9da075aff45`。
 
 > 2026-08-19 R2: **2api 全文 P0 补齐**——`n!=1`→400；`response_format` json_object/json_schema 软注入；`context_length_exceeded` 标准 code；客户端断连中止上游 drain；`/v1/embeddings|completions`→501；过滤 DSML 占位名 `TOOL_NAME_HERE`。金标 `_openai_sdk_gold.py` **20/20**；compat **70** / tool **28** / agent_long **17**。Docker md5 已同步。
@@ -11,7 +13,7 @@
 
 ## 一句话现状
 
-`maxapi_server.py`：OpenAI Chat Completions **wire-compat P0**（未知模型 404 / 流式 tool 分片 / include_usage / SSE headers）+ sol auto tool 阶梯 + mid-flight 门控 + thinking 双通道 tparser + DeepSeek token body 解析。验收：`_openai_sdk_gold.py` 20/20 + compat 74 + tool 28 + agent_long 17。8080 Docker 已同步。
+`maxapi_server.py`：OpenAI Chat Completions **wire-compat P0**（未知模型 404 / 流式 tool 分片 / include_usage / SSE headers）+ sol auto tool 阶梯 + mid-flight 门控 + thinking 双通道 tparser + DeepSeek token body 解析。验收：`_openai_sdk_gold.py` 20/20 + compat 96 + tool 28 + agent_long 17。8080 Docker 已同步。
 
 ## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
 
