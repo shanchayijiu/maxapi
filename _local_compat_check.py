@@ -207,6 +207,38 @@ try:
           "DSML" not in all_content and "invoke" not in all_content,
           repr(all_content))
 
+    # --- P0-1b: salvage complete inner invoke when outer wrapper truncated ---
+    tcp_s = m.ToolCallParser()
+    # full invoke body, missing </tool_calls>
+    frag = (
+        '<|DSML|tool_calls>\n'
+        '<|DSML|invoke name="Bash">\n'
+        '<|DSML|parameter name="command"><![CDATA[pwd]]></|DSML|parameter>\n'
+        '</|DSML|invoke>\n'
+        # intentionally NO closing tool_calls
+    )
+    out_s = tcp_s.feed(frag)
+    out_s += tcp_s.flush()
+    tools_s = [t for k, t in out_s if k == "tool_call"]
+    check("flush salvages complete invoke without outer close",
+          len(tools_s) == 1 and tools_s[0].get("name") == "Bash"
+          and (tools_s[0].get("arguments") or {}).get("command") == "pwd",
+          repr(tools_s))
+    check("flush salvage does not mark incomplete when tools recovered",
+          getattr(tcp_s, "incomplete_tool", False) is False,
+          getattr(tcp_s, "incomplete_tool", None))
+
+    # truly incomplete (no closed invoke) still marks incomplete + no tools
+    tcp_i = m.ToolCallParser()
+    tcp_i.feed('<|DSML|tool_calls>\n<|DSML|invoke name="Bash">\n<|DSML|parameter name="command">')
+    out_i = tcp_i.flush()
+    tools_i = [t for k, t in out_i if k == "tool_call"]
+    check("flush truly incomplete still no tools",
+          len(tools_i) == 0, repr(tools_i))
+    check("flush truly incomplete sets incomplete_tool",
+          getattr(tcp_i, "incomplete_tool", False) is True,
+          getattr(tcp_i, "incomplete_tool", None))
+
     # --- P0-1c: complete tool call still works ---
     tcp3 = m.ToolCallParser()
     out_f3 = tcp3.feed('<|DSML|tool_calls>\n<|DSML|invoke name="Bash">\n<|DSML|parameter name="command"><![CDATA[pwd]]></|DSML|parameter>\n</|DSML|invoke>\n</|DSML|tool_calls>')

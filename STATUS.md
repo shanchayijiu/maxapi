@@ -1,4 +1,5 @@
 # maxapi STATUS
+> 2026-08-19 R3: **incomplete tool 静默 tools=0 修复**——flush 对截断 wrapper  salvage 已闭合 invoke；tools_enabled 且无 tool_call 时 incomplete 不再因 reasoning 已 yield 而假 stop，改为 retry/error 供 escalate。compat **74/74**；gold **20/20**；Docker md5=`1d40bc7cb923e6cc5455e9da075aff45`。
 
 > 2026-08-19 R2: **2api 全文 P0 补齐**——`n!=1`→400；`response_format` json_object/json_schema 软注入；`context_length_exceeded` 标准 code；客户端断连中止上游 drain；`/v1/embeddings|completions`→501；过滤 DSML 占位名 `TOOL_NAME_HERE`。金标 `_openai_sdk_gold.py` **20/20**；compat **70** / tool **28** / agent_long **17**。Docker md5 已同步。
 > 2026-08-19: **OpenAI wire-compat P0**（chat stream）：未知 model → 404 `model_not_found`；SSE `Connection: keep-alive` + `X-Accel-Buffering: no`；流式 tool_calls 分片（首片 id/name/type/args=""，后续 args 字符串增量）；`stream_options.include_usage` 末块 usage；官方 openai-python 金标。
@@ -10,12 +11,13 @@
 
 ## 一句话现状
 
-`maxapi_server.py`：OpenAI Chat Completions **wire-compat P0**（未知模型 404 / 流式 tool 分片 / include_usage / SSE headers）+ sol auto tool 阶梯 + mid-flight 门控 + thinking 双通道 tparser + DeepSeek token body 解析。验收：`_openai_sdk_gold.py` 15/15 + compat 70 + tool 28 + agent_long 17。8080 Docker 已同步。
+`maxapi_server.py`：OpenAI Chat Completions **wire-compat P0**（未知模型 404 / 流式 tool 分片 / include_usage / SSE headers）+ sol auto tool 阶梯 + mid-flight 门控 + thinking 双通道 tparser + DeepSeek token body 解析。验收：`_openai_sdk_gold.py` 20/20 + compat 74 + tool 28 + agent_long 17。8080 Docker 已同步。
 
 ## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
 
 - **访客旁路核心**：每请求伪造 XFF/X-Real-IP；2 次 OK 后主动 retire identity；quota 换新 identity 短睡，busy/stall 同 identity 退避；`busy≠quota`；客户端错误不泄漏上游额度中文文案；上游并发信号量默认 **3**（`MAXAPI_UPSTREAM_CONCURRENCY`）。
 - **工具协议**：DSML prompt + ToolCallParser；OpenAI `/v1/chat/completions` + Anthropic `/v1/messages` + Responses。**content 与 reasoning 双通道都过 tparser**（防 think 内 DSML 泄漏 / 漏提 tool）。
+- **incomplete tool（2026-08-19 R3）**：流结束截断 DSML/function 块时优先 salvage 已闭合 invoke；tools 回合无 tool_call 不得因 reasoning 已 yield 而 `finish_reason=stop`（改为 retry/error → escalate）。
 - **auto tool 阶梯（2026-08-15）**：CONNECTED TOOLS 声明 → 动作请求无 tool 时 escalate 到 forced function/Bash → 仍失败则 terminal-force（独立短上下文，单次 max_retry=2，不再循环重试）→ 首轮/escalate 的 **retryable 529/busy** 也进 ladder（quota/auth 不进）→ howto / do-not-call-tools 门控 + `tool_choice=none`。2026-08-17: 上游并发从 5 降到 3，减少 busy 风暴。
 - **sol mid-flight completion 门控（2026-08-16）**：tool 历史存在时若 recent tool_result / 首轮 prose 已声明完成（「无需进一步操作」等），**不再** auto→required/terminal-force，允许 end_turn；未完成 + 短 nudge 仍 escalate。修 thrash 空转与双发延迟。
 - stream：header 前 prefetch；仅 `saw_tool` 才接受 escalate 缓冲（修「无 tool 缓冲当成功」）。

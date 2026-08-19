@@ -2409,6 +2409,75 @@ def _consume_capture(captured):
     return prefix, calls, suffix, True
 
 
+def _salvage_partial_tool_calls(content):
+    """Best-effort extract COMPLETE tool calls from a truncated capture buffer.
+
+    Used when the outer wrapper/stream ends early but one or more inner
+    invoke/function/tool_call blocks are already well-formed. Never invents
+    names or arguments from half-open tags.
+    """
+    if not content or not str(content).strip():
+        return []
+    # Full extractor already tolerates missing outer close for many shapes.
+    calls = _dsml_extract_calls(content)
+    if calls:
+        return [c for c in calls if c and c.get("name")]
+    norm = _normalize_dsml(content)
+    out = []
+    for im in _RE_FN_INVOKE.finditer(norm):
+        c = _parse_fn_invoke(im.group(1), im.group(2))
+        if c and c.get("name"):
+            out.append(c)
+    if out:
+        return out
+    for im in _RE_INVOKE.finditer(norm):
+        c = _parse_invoke(im.group(1), im.group(2))
+        if c and c.get("name"):
+            out.append(c)
+    for im in _RE_INVOKE_SQ.finditer(norm):
+        c = _parse_invoke(im.group(1), im.group(2))
+        if c and c.get("name"):
+            out.append(c)
+    if out:
+        return out
+    for m in _RE_SINGLE_CALL.finditer(norm):
+        parsed = _parse_tool_call_inner(m.group(1))
+        if parsed:
+            out.extend(parsed)
+        else:
+            legacy = _try_legacy_json(m.group(0))
+            if legacy:
+                out.extend(legacy)
+    # DeepSeek-style: NAME + JSON after an opener, even if closer is missing —
+    # only accept when a full JSON object is balanced/parsable.
+    if not out:
+        m = re.search(
+            r'<(?:tool_call|tool_use|function_call|invoke)\b[^>]*>\s*([A-Za-z_][\w.-]*)\s*(\n|$)',
+            norm, re.IGNORECASE)
+        if m:
+            name = m.group(1)
+            rest = norm[m.end():]
+            rest2 = re.sub(r'^```(?:json)?\s*', '', rest.strip(), count=1, flags=re.I)
+            brace = rest2.find('{')
+            if brace >= 0:
+                chunk = rest2[brace:]
+                for end in range(len(chunk), 1, -1):
+                    if chunk[end - 1] != '}':
+                        continue
+                    cand = chunk[:end]
+                    for js in (cand, _repair_loose_json(cand), _repair_backslash(cand)):
+                        try:
+                            jo = json.loads(js)
+                            if isinstance(jo, dict):
+                                out.append({"id": _make_tool_id(), "name": name, "arguments": jo})
+                                break
+                        except Exception:
+                            continue
+                    if out:
+                        break
+    return [c for c in out if c and c.get("name")]
+
+
 class ToolCallParser:
     """Streaming DSML sieve (ported from ds2api toolstream).
     feed(str) -> list of ("content", str) / ("tool_call", {id,name,arguments}).
@@ -2646,6 +2715,9 @@ class ToolCallParser:
             self.capture = ""
             self.capturing = False
             tries = _dsml_extract_calls(content)
+            if not tries:
+                # Outer wrapper may be truncated while inner invokes are complete.
+                tries = _salvage_partial_tool_calls(content)
             if tries:
                 for c in tries:
                     out.append(("tool_call", c))
@@ -2671,7 +2743,10 @@ class ToolCallParser:
                             _seg = _i
                 if _seg >= 0:
                     out.append(self._emit(content[:_seg]))
-                sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete tool block\n" % len(content))
+                # Log a short head so ops can see which format truncated (no full dump).
+                _head = re.sub(r'\s+', ' ', content[:160]).strip()
+                sys.stderr.write("[tcp] flush-discarded %d bytes of incomplete tool block head=%r\n"
+                                 % (len(content), _head))
         if self.pending:
             out.append(self._emit(self.pending))
             self.pending = ""
@@ -3505,6 +3580,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
         volatile = False
         got_done = False  # initialize before try so finally can reference it safely
         incomplete_tool = False
+        tool_yielded = False
         try:
             # Bound connect+headers by remaining deadline (never exceed budget).
             _remaining = _deadline - time.monotonic()
@@ -3669,6 +3745,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                                 for tk, tp in tparser_think.feed(piece):
                                     if tk == "tool_call":
                                         content_yielded = True
+                                        tool_yielded = True
                                         yield (tk, tp)
                                     elif tk == "content" and include_reasoning and tp:
                                         content_yielded = True
@@ -3688,6 +3765,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     for tk, tp in tparser_think.feed(piece):
                         if tk == "tool_call":
                             content_yielded = True
+                            tool_yielded = True
                             yield (tk, tp)
                         elif tk == "content" and include_reasoning and tp:
                             content_yielded = True
@@ -3702,6 +3780,7 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                     # flush may surface stripped prose that originated inside <think>;
                     # only promote leftover text as content (tool_call always forwarded).
                     if tk == "tool_call":
+                        tool_yielded = True
                         yield (tk, tp)
                     elif tk == "content" and tp:
                         # think-channel leftovers stay reasoning when client asked for it
@@ -3714,12 +3793,31 @@ def upstream(model_field, messages, include_reasoning=False, reasoning_effort="m
                 # without meaning the user-visible turn failed.
                 if _tp_inst is tparser_ans and getattr(_tp_inst, "incomplete_tool", False):
                     incomplete_tool = True
-            # Incomplete tool block with ZERO usable output → error so client retries.
-            # If we already streamed text/tools, do NOT kill the turn with a late error
-            # (that is the "one sentence then cut" failure mode).
-            if incomplete_tool and not content_yielded:
-                yield ("error", {"error": "upstream stream ended with incomplete tool block"})
-                return
+            # Incomplete tool block handling (agent-critical):
+            # - If we already emitted tool_call(s), finish cleanly (salvage won).
+            # - If tools_enabled and NO tool_call: never silent-stop. Retry only when
+            #   nothing was yielded yet; otherwise surface error so chat/messages
+            #   handlers can escalate or the client can retry the turn.
+            #   (Reasoning-only yields used to set content_yielded and swallowed this
+            #   into finish_reason=stop / tools=0 — the Codex "mid-turn cut" mode.)
+            # - Non-tool turns: keep historical behavior (error only if zero output).
+            if incomplete_tool and not tool_yielded:
+                if tools_enabled:
+                    if (not content_yielded) and attempt < max_retry:
+                        _remain = _deadline - time.monotonic()
+                        if _remain > 1.0:
+                            _sleep = min(2.0, max(0.2, 0.4 * attempt)) + random.uniform(0, 0.2)
+                            LOG.warning("[incomplete-tool %d/%d] no tool_call; retry in %.1fs",
+                                        attempt, max_retry, _sleep)
+                            time.sleep(_sleep)
+                            continue
+                    LOG.warning("[incomplete-tool] tools_enabled but stream ended mid tool block "
+                                "(content_yielded=%s attempt=%d)", content_yielded, attempt)
+                    yield ("error", {"error": "upstream stream ended with incomplete tool block"})
+                    return
+                if not content_yielded:
+                    yield ("error", {"error": "upstream stream ended with incomplete tool block"})
+                    return
             if got_done and not volatile:
                 identity_mark_ok(xff)
                 return
