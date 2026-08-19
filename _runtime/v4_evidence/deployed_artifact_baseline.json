@@ -1,0 +1,39 @@
+{
+  "probedFrom": "http://127.0.0.1:8080/healthz",
+  "probedAt": "2026-08-19T22:12:50Z",
+  "imageDigest": "container-missing:template parsing error: template: :1:90: executing \"\" at <.RepoDigests>: map has no entry for key \"RepoDigests\"",
+  "imageRepoDigests": [],
+  "binarySha256": "672f7068e6038afbc70332d1ca039af423b5ae7c8470d80d1ed65aa176bc19e4",
+  "binaryMd5": "06cd87eddeb939e538882d4e73afcd5c",
+  "hostBinarySha256": "672f7068e6038afbc70332d1ca039af423b5ae7c8470d80d1ed65aa176bc19e4",
+  "hostBinaryMd5": "06cd87eddeb939e538882d4e73afcd5c",
+  "hostMatchesContainer": true,
+  "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
+  "commitSource": "host-git-not-in-container",
+  "sanitizerConfigVersion": null,
+  "upstreamProfile": "se.zzmax.cn-guest",
+  "processStartedAt": "",
+  "processImage": "",
+  "healthz": {
+    "status": 200,
+    "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11}",
+    "parsed": {
+      "status": "ok",
+      "service": "maxapi",
+      "models": 11
+    }
+  },
+  "buildFingerprintHeadersPresent": false,
+  "sampleHeaders": {
+    "x-maxapi-commit": null,
+    "x-maxapi-binary-sha256": null,
+    "x-maxapi-sanitizer-config": null,
+    "x-build-id": null,
+    "x-git-commit": null,
+    "x-binary-sha256": null,
+    "x-request-id": "c5306dfa3cda43e7",
+    "content-type": "application/json; charset=utf-8"
+  },
+  "matchesGatedBuild": true,
+  "serviceLooksLikeMaxapi": true
+}

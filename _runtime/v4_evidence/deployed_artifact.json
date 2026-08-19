@@ -1,0 +1,46 @@
+{
+  "probedFrom": "http://127.0.0.1:8080/healthz",
+  "probedAt": "2026-08-19T22:23:12Z",
+  "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad",
+  "imageRepoDigests": [
+    "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+  ],
+  "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
+  "binaryMd5": "79f32148f893c6c99568497136ef30d7",
+  "hostBinarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
+  "hostBinaryMd5": "79f32148f893c6c99568497136ef30d7",
+  "hostMatchesContainer": true,
+  "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
+  "commitSource": "host-git-not-in-container",
+  "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
+  "upstreamProfile": "se.zzmax.cn-guest",
+  "processStartedAt": "2026-08-19T22:16:19.073099253Z",
+  "processImage": "maxapi-server:latest",
+  "healthz": {
+    "status": 200,
+    "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"654fd7e2461f16140c651bc1b671619ee499b55a\", \"binarySha256\": \"1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-19T22:16:19Z\"}",
+    "parsed": {
+      "status": "ok",
+      "service": "maxapi",
+      "models": 11,
+      "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
+      "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
+      "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
+      "upstreamProfile": "se.zzmax.cn-guest",
+      "processStartedAt": "2026-08-19T22:16:19Z"
+    }
+  },
+  "buildFingerprintHeadersPresent": true,
+  "sampleHeaders": {
+    "x-maxapi-commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
+    "x-maxapi-binary-sha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
+    "x-maxapi-sanitizer-config": "markers-toolcallparser-v4-20260820",
+    "x-build-id": null,
+    "x-git-commit": null,
+    "x-binary-sha256": null,
+    "x-request-id": "a2912539f3a74425",
+    "content-type": "application/json; charset=utf-8"
+  },
+  "matchesGatedBuild": true,
+  "serviceLooksLikeMaxapi": true
+}

@@ -1,0 +1,22 @@
+# v4 整改优先级（≤20 行）— 2026-08-20
+# 依据 _runtime/v4_consistency_report.json verdict=fail；blocking: INV-13, REQ-SAN-14
+1. [P0/fail] INV-13 + REQ-SAN-14：统一 finalize/close，挂到 EOF/stop/length/上游中断/客户端取消/缓冲超限六路 — locus maxapi_server.py:3791 及相关 break/return
+2. [P0/unknown→E2] INV-01：L0 红灯 b/d/e 已绿但 minEvidence=E2；需健康 live SSE（非 529）证明 content 零泄漏
+3. [P0/unknown] leak-a 六路终止注入 harness（Handler 层，非 Parser-only）
+4. [P0/unknown] leak-f include_usage：中间 chunk usage=null、末尾 choices=[] — 需健康上游 E2
+5. [P0/unknown] leak-g 上游 abort ≠ finish_reason=stop — fake upstream abort harness
+6. [P1/unknown] INV-03 码点守恒 ledger + 重建夹具（现 unknown，无 rule-id 台账）
+7. [P1/unknown] INV-17 终止可感知：健康流必须有 finish_reason/error + [DONE]
+8. [P1/mutant] leak-b shortest-match mutant 未杀死 — 复核最长匹配次序或加强 fixture
+9. [P1] 补 gold / tool_suite / agent_long 回归（本窗上游 busy，compat 96/96 已绿）
+10. [P1] leak-h：持续把 healthz/headers 指纹与门禁 deployedArtifact 对齐（本窗已通，防回退）
+11. [P2/mustE3] INV-02 未知标记零告警 — 生产 canary E3
+12. [P2/mustE3] INV-09 无状态隔离 — 多租户/并发 E3
+13. [P2/mustE3] INV-12 真流式 — 分片时序 soak E3
+14. [P2/mustE3] REQ-STATE-05 / REQ-OBS-05 — E3 观测与状态证据
+15. [P2] INV-04..08 / INV-10..11 结构面：tool/gold harness 齐后升 E1/E2
+16. [P2] REQ-STR-* 流契约矩阵（n!=1、response_format、context_length、disconnect）
+17. [P3] T-16 扩展：a/f/g/h 从 gap 变为可杀 mutant（需 handler fake upstream）
+18. [P3] image RepoDigests 在无 tag 推送环境的稳定导出（已有 Id 回退）
+19. [ops] 上游 529/busy 时证据窗自动降级为 knownDeviation，禁止假 pass
+20. [ops] 禁止子 agent 空夹具/硬编码 killed；门禁只认 _runtime/v4_audit.py validate

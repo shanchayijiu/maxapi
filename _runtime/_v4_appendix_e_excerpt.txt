@@ -1,0 +1,105 @@
+## 附录 E · 一致性报告（每次构建必须产出）
+
+```json
+{
+  "specVersion": "2api-acceptance-v4",
+  "buildId": "2026-08-19.118",
+  "generatedAt": "2026-08-19T20:10:00+08:00",
+  "deployedArtifact": {
+    "probedFrom": "http://127.0.0.1:8080/healthz",
+    "imageDigest": "sha256:ab12...",
+    "binarySha256": "9f3c...",
+    "commit": "654fd7e",
+    "sanitizerConfigVersion": "markers-2026-08-19",
+    "upstreamProfile": "deepseek-ui-protocol",
+    "processStartedAt": "2026-08-19T19:58:11+08:00",
+    "matchesGatedBuild": true
+  },
+  "invariants": [
+    { "id": "INV-01", "status": "pass", "evidence": [
+      { "level": "E1", "path": "_runtime/v4_evidence/t07_purity.txt", "note": "0 hits / 18432 outputs" },
+      { "level": "E2", "path": "_runtime/v4_evidence/live_raw_0819.sse", "note": "live 直连 40 请求 0 命中" }
+    ]},
+    { "id": "INV-03", "status": "pass", "evidence": [
+      { "level": "E1", "path": "_runtime/v4_evidence/t04_conservation.txt", "note": "41 fixtures 重建差异 0 码点" }
+    ]},
+    { "id": "INV-13", "status": "fail", "evidence": [
+      { "level": "E1", "path": "_runtime/v4_evidence/t06_terminations.txt" }
+    ],
+      "note": "client_cancel 路径未调用 close，残留 37 码点",
+      "codeLocation": "maxapi_server.py:812",
+      "minimalRepro": "scripts/repro_cancel.sh" },
+    { "id": "INV-09", "status": "unknown", "evidence": [],
+      "note": "无可用账号，未运行并发 canary，需 E3" },
+    { "id": "INV-12", "status": "unknown", "evidence": [],
+      "note": "无生产流量，无 E3" }
+  ],
+  "requirements": [
+    { "id": "REQ-SAN-06", "level": "MUST", "status": "pass", "minEvidence": "E1",
+      "tests": ["T-04", "T-06"], "evidence": [{ "level": "E1", "path": "..." }] },
+    { "id": "REQ-SAN-15", "level": "MUST", "status": "fail", "minEvidence": "E1",
+      "tests": ["T-06"], "note": "降级为文本时未剥离标记", "codeLocation": "sanitizer.py:214" },
+    { "id": "REQ-STR-12", "level": "SHOULD", "status": "waived",
+      "reason": "客户端兼容风险，暂不开心跳" }
+  ],
+  "mutantResults": [
+    { "mutant": "skip-close-on-cancel", "killed": true, "killedBy": ["T-06"] },
+    { "mutant": "byte-length-holdback", "killed": true, "killedBy": ["T-05"] },
+    { "mutant": "shortest-match-at-same-pos", "killed": false, "gap": "缺少同位置重叠标记 fixture" }
+  ],
+  "testChanges": [],
+  "thresholds": {
+    "ttfbP50Ms": 610, "ttfbP95Ms": 1420, "interChunkP95Ms": 900,
+    "outputSpanRatio": null, "usageDriftPct": 2.1,
+    "mutationKillRate": 0.89, "cancelPropagationP95Ms": 380
+  },
+  "fixtures": { "total": 43, "dialects": 10, "unclosedVariants": 10, "goldenReviewed": 43,
+                "fromProductionIncidents": 2 },
+  "knownDeviations": [
+    { "id": "DEV-01", "requirement": "REQ-STATE-05", "description": "上游注入自有 persona，无法关闭，已在文档声明" }
+  ],
+  "metaRuleViolations": [],
+  "unknownCount": 2,
+  "verdict": "fail",
+  "blockingIds": ["INV-13", "REQ-SAN-15"],
+  "nextEvidenceNeeded": [
+    { "id": "INV-09", "needs": "E3", "how": "有号后开并发 canary 24h" },
+    { "id": "INV-12", "needs": "E3", "how": "生产采样 200 请求时序" }
+  ]
+}
+```
+
+<aside>
+🧯
+
+报告自洽检查（T-17 会强制执行）：unknownCount 为 0 但 evidence 里无 E3 → invalid；deployedArtifact.matchesGatedBuild 为 false → invalid；存在 fail 但 blockingIds 为空 → invalid；pass 条目无证据文件 → invalid；mutantResults 里有 killed 为 false → 不得写 verdict 为 pass。
+
+</aside>
+
+## 附录 F · 线上取证 SOP（每次报缺陷先跑这四步）
+
+```bash
+# 1. 确认在跟哪个产物对话（INV-16）
+docker ps --digests
+docker inspect -f '{{.Created}} {{.Image}} {{.Config.Image}}' <cid>
+curl -s http://127.0.0.1:8080/healthz | jq .
+
+# 2. 抓原始字节，不经 SDK / jq / 网关
+curl --raw -N -s -D headers.txt http://127.0.0.1:8080/v1/chat/completions \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"model":"<alias>","stream":true,"messages":[{"role":"user","content":"<能复现的那句>"}]}' \
+  | tee raw.sse
+
+# 3. 判别方言与编码：竖线是 7C 还是 EF BC 9C，下划线是不是 E2 96 81
+xxd raw.sse | grep -i -m5 -B1 -A1 'tool'
+tail -c 2000 raw.sse | cat -A | tail -40      # 看末尾三个数据行与终止信号
+
+# 4. 三层对齐（决定性的一刀）
+#    上游原始流（REQ-OBS-07 落盘）vs 本服务输出 vs 客户端所见
+#    - 上游有完整答案、本服务没有 -> 净化层吞了（查 INV-03 / INV-13 / REQ-SAN-15）
+#    - 上游也是一两句就停   -> 上游侧，唯一 bug 是你把它映射成了 stop（INV-11 / INV-17）
+diff <(python scripts/replay.py --fixture new.raw --mode stream) \
+     <(python scripts/replay.py --fixture new.raw --mode nonstream)
+```
+
+取证完成后的固定动作：把 raw 流存为 fixture，写 golden 四元组，加一条红灯用例，再动代码。

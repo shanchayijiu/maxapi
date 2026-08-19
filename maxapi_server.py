@@ -39,6 +39,32 @@ render citations can use them.
 """
 import http.server, json, ssl, http.client, socket, random, string, argparse, sys, time, threading, re, logging, os, copy, hashlib, uuid as _uuid
 
+# Build / DEP fingerprint (REQ-DEP-01/02). Computed once at import from this file bytes.
+_MAXAPI_STARTED_AT = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+try:
+    _MAXAPI_BINARY_SHA256 = hashlib.sha256(open(os.path.abspath(__file__), "rb").read()).hexdigest()
+except Exception:
+    _MAXAPI_BINARY_SHA256 = "unknown"
+_MAXAPI_GIT_COMMIT = (
+    os.environ.get("MAXAPI_GIT_COMMIT")
+    or os.environ.get("GIT_COMMIT")
+    or ""
+)
+if not _MAXAPI_GIT_COMMIT:
+    try:
+        import subprocess as _sp
+        _MAXAPI_GIT_COMMIT = _sp.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=os.path.dirname(os.path.abspath(__file__)) or ".",
+            stderr=_sp.DEVNULL,
+            timeout=2,
+        ).decode("ascii", "replace").strip()
+    except Exception:
+        _MAXAPI_GIT_COMMIT = "unknown"
+# Dialect registry version for ToolCallParser marker tables (bump when tags change).
+_SANITIZER_CONFIG_VERSION = "markers-toolcallparser-v4-20260820"
+_UPSTREAM_PROFILE_DEFAULT = os.environ.get("MAXAPI_UPSTREAM_PROFILE", "se.zzmax.cn-guest")
+
 BASE = "se.zzmax.cn"
 OPEN_TAG = bytes([0x3c]) + b"think" + bytes([0x3e])
 CLOSE_TAG = bytes([0x3c, 0x2f]) + b"think" + bytes([0x3e])
@@ -804,6 +830,9 @@ _TOOL_TAG_PREFIXES = [
     # DeepSeek special tokens (fullwidth pipe variants)
     "<｜tool▁calls▁begin｜", "<｜tool▁call▁begin｜",
     # ASCII DeepSeek-style begin/end tokens (some gateways)
+    # Longer "section" forms first so hold-back / earliest match prefer them.
+    "<|tool_calls_section_begin", "<|tool_call_section_begin",
+    "<|tool_calls_section_end", "<|tool_call_section_end",
     "<|tool_calls_begin", "<|tool_call_begin", "<|tool_calls_end",
     "<|tool_call_end", "<|tool_sep",
     # se.zzmax <function=NAME> AND Claude-native <function_calls>
@@ -841,9 +870,14 @@ _TOOL_TAG_FULLS = [
     "<dstml|parameter>", "<dstml|parameter ", "<dstml|parameter\t", "<dstml|parameter\n", "<dstml|parameter\r",
     # DeepSeek special tokens (fullwidth)
     "<｜tool▁calls▁begin｜>", "<｜tool▁call▁begin｜>",
-    # ASCII DeepSeek-style begin tokens
+    # ASCII DeepSeek-style begin tokens (incl. "section" dialect seen on some gateways)
+    "<|tool_calls_section_begin|>", "<|tool_call_section_begin|>",
+    "<|tool_calls_section_end|>", "<|tool_call_section_end|>",
+    "<|tool_calls_section_begin|", "<|tool_call_section_begin|",
     "<|tool_calls_begin|>", "<|tool_call_begin|>",
     "<|tool_calls_begin|", "<|tool_call_begin|",
+    "<|tool_calls_end|>", "<|tool_call_end|>",
+    "<|tool_sep|>",
 ]
 
 
@@ -4425,6 +4459,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._req_id = rid
         return rid
 
+    def _build_fp_headers(self):
+        """REQ-DEP-01: fingerprint headers on every response."""
+        return {
+            "X-Maxapi-Commit": _MAXAPI_GIT_COMMIT,
+            "X-Maxapi-Binary-Sha256": _MAXAPI_BINARY_SHA256,
+            "X-Maxapi-Sanitizer-Config": _SANITIZER_CONFIG_VERSION,
+            "X-Maxapi-Upstream-Profile": _UPSTREAM_PROFILE_DEFAULT,
+        }
+
     def _send(self, code, obj, ctype="application/json", extra=None):
         b = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
@@ -4433,6 +4476,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         rid = self._ensure_req_id()
         self.send_header("x-request-id", rid)
         self.send_header("X-Request-Id", rid)
+        for k, v in self._build_fp_headers().items():
+            self.send_header(k, str(v))
         if extra:
             for k, v in extra.items():
                 self.send_header(k, str(v))
@@ -4468,6 +4513,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         rid = self._ensure_req_id()
         self.send_header("x-request-id", rid)
         self.send_header("X-Request-Id", rid)
+        for k, v in self._build_fp_headers().items():
+            self.send_header(k, str(v))
         self._cors()
         for k, v in (extra_headers or {}).items():
             self.send_header(k, str(v))
@@ -5231,7 +5278,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         _t0 = time.monotonic()
         if self.path.startswith("/healthz"):
-            self._send(200, {"status": "ok", "service": "maxapi", "models": len(MODEL_DISPLAY_IDS)})
+            # REQ-DEP-02: healthz echoes build identity for deployedArtifact probes.
+            self._send(200, {
+                "status": "ok",
+                "service": "maxapi",
+                "models": len(MODEL_DISPLAY_IDS),
+                "commit": _MAXAPI_GIT_COMMIT,
+                "binarySha256": _MAXAPI_BINARY_SHA256,
+                "sanitizerConfigVersion": _SANITIZER_CONFIG_VERSION,
+                "upstreamProfile": _UPSTREAM_PROFILE_DEFAULT,
+                "processStartedAt": _MAXAPI_STARTED_AT,
+            })
             sys.stderr.write(f"[RES] {self.path} 200 models={len(MODEL_DISPLAY_IDS)} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
             return
         if self.path.startswith("/v1/models"):

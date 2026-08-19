@@ -1,0 +1,15 @@
+{
+  "id": "d",
+  "title": "unclosed tool block at EOF must not leak markers",
+  "chunks": [
+    "visible ",
+    "<tool_calls><invoke name=\"X\"><parameter name=\"q\">",
+    "no-close"
+  ],
+  "expect": {
+    "content_equals": "visible ",
+    "forbid_tag_regex": true,
+    "incomplete_tool": true
+  },
+  "locus": "maxapi_server.py:2726"
+}

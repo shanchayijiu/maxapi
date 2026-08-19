@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-08-19T22:23:12Z",
+  "parser": "maxapi_server.ToolCallParser",
+  "fixtures": [
+    "leak_b_longest_match.json",
+    "leak_c_holdback_codepoint.json",
+    "leak_d_unclosed_strip.json",
+    "leak_e_no_tools_strip.json",
+    "leak_a_close_paths.json",
+    "leak_f_include_usage.json",
+    "leak_g_upstream_abort.json",
+    "leak_h_deploy_fingerprint.json"
+  ],
+  "cases": {
+    "a": {
+      "id": "a",
+      "status": "unknown",
+      "expected": "handler/live harness",
+      "actual": "not executable at Parser layer",
+      "locus": "maxapi_server.py:3791",
+      "note": "document-only: six termination paths (not Parser-only)"
+    },
+    "b": {
+      "id": "b",
+      "status": "pass",
+      "expected": {
+        "content_equals": "hello  tail",
+        "min_tools": 0,
+        "forbid_tag_regex": true
+      },
+      "actual": {
+        "content": "hello  tail",
+        "tools": [
+          {
+            "id": "call_PHUZXa7UaQsJIlzHTNbLe1U2",
+            "name": "x",
+            "arguments": {
+              "a": 1
+            }
+          }
+        ],
+        "incomplete_tool": false
+      },
+      "problems": [],
+      "locus": "maxapi_server.py:2644",
+      "fixture": "_runtime/v4_fixtures/leak_b_longest_match.json"
+    },
+    "c": {
+      "id": "c",
+      "status": "pass",
+      "expected": {
+        "content_contains": [
+          "pre ",
+          " post"
+        ],
+        "forbid_tag_regex": true,
+        "no_pending_after_flush": true
+      },
+      "actual": {
+        "content": "pre  post",
+        "tools": [
+          {
+            "id": "call_IVldrPghYNXwHEbhtRSdCgKS",
+            "name": "N",
+            "arguments": {}
+          }
+        ],
+        "incomplete_tool": false
+      },
+      "problems": [],
+      "locus": "maxapi_server.py:2670",
+      "fixture": "_runtime/v4_fixtures/leak_c_holdback_codepoint.json"
+    },
+    "d": {
+      "id": "d",
+      "status": "pass",
+      "expected": {
+        "content_equals": "visible ",
+        "forbid_tag_regex": true,
+        "incomplete_tool": true
+      },
+      "actual": {
+        "content": "visible ",
+        "tools": [],
+        "incomplete_tool": true
+      },
+      "problems": [],
+      "locus": "maxapi_server.py:2726",
+      "fixture": "_runtime/v4_fixtures/leak_d_unclosed_strip.json"
+    },
+    "e": {
+      "id": "e",
+      "status": "pass",
+      "expected": {
+        "forbid_tag_regex": true,
+        "content_startswith": "A "
+      },
+      "actual": {
+        "content": "A ",
+        "tools": [],
+        "incomplete_tool": true
+      },
+      "problems": [],
+      "locus": "maxapi_server.py:3574",
+      "fixture": "_runtime/v4_fixtures/leak_e_no_tools_strip.json"
+    },
+    "f": {
+      "id": "f",
+      "status": "unknown",
+      "expected": "handler/live harness",
+      "actual": "not executable at Parser layer",
+      "locus": "maxapi_server.py:5527",
+      "note": "live include_usage shape"
+    },
+    "g": {
+      "id": "g",
+      "status": "unknown",
+      "expected": "handler/live harness",
+      "actual": "not executable at Parser layer",
+      "locus": "maxapi_server.py:5620",
+      "note": "upstream abort must not become finish_reason=stop"
+    },
+    "h": {
+      "id": "h",
+      "status": "unknown",
+      "expected": "handler/live harness",
+      "actual": "not executable at Parser layer",
+      "locus": "maxapi_server.py:5233",
+      "note": "deployed fingerprint fields required"
+    }
+  }
+}

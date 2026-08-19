@@ -1,0 +1,111 @@
+[RES] /v1/models 200 models=11 time=0ms
+[tool-validate] name=do_work error=unexpected property .extra
+[tool-validate] name=do_work error=unexpected property .extra
+rid=41bdb13c [responses] stream upstream rejected ！ retrying compact target=8000
+rid=bedc752afe024aef [chat] stream upstream rejected ！ retrying compact target=8000
+rid=dad35945 stream upstream rejected ！ retrying compact target=8000
+[tcp] flush-discarded 45 bytes of incomplete tool block head='<|DSML|tool_calls> <|DSML|invoke name="Bash">'
+[tcp] flush-discarded 41 bytes of incomplete tool block head='<|DSML|tool_calls><|DSML|invoke name="x">'
+[tcp] flush-discarded 78 bytes of incomplete tool block head='<|DSML|tool_calls> <|DSML|invoke name="Bash"> <|DSML|parameter name="command">'
+_parse_too_long: rejected inverted parse actual=1000 < allowed=200000
+[tcp] eof-hold-discarded 9 bytes head='<tool_cal'
+[RES] /v1/models 200 models=11 time=0ms
+[RES] /v1/models/Claude Sonnet 5 200 model=Claude Sonnet 5 time=0ms
+rid=09fc59ff67de4b6a [chat] stream upstream rejected ！ retrying compact target=8000
+PASS - models status 200
+PASS - models context fields
+PASS - claude-opus-4-8 alias -> Opus 5
+PASS - claude-opus-4.8 alias -> Opus 5
+PASS - claude/claude-opus-4-8 alias -> Opus 5
+PASS - Opus 4.8 gone from model list
+PASS - every alias resolves to a live display id
+PASS - every model has an anthropic id
+PASS - no dead anthropic id entries
+PASS - opus-4-8 resolves to live submodel
+PASS - retired gpt 'gpt-5.6-terra' -> gpt-5.6-sol
+PASS - retired gpt 'chatgpt/gpt-5.6-terra' -> gpt-5.6-sol
+PASS - retired gpt 'GPT-5.5' -> gpt-5.6-sol
+PASS - retired gpt 'chatgpt/gpt-5.5' -> gpt-5.6-sol
+PASS - terra gone from model list
+PASS - GPT-5.5 gone from model list
+PASS - model count is 11
+PASS - retired id 'claude-opus-4-8' -> opus-5
+PASS - retired id 'claude-opus-4.8' -> opus-5
+PASS - retired id 'claude/claude-opus-4-8' -> opus-5
+PASS - retired id 'claude/claude-opus-4.8' -> opus-5
+PASS - retired id 'Claude Opus 4.8' -> opus-5
+PASS - schema coerces integer
+PASS - schema coerces boolean
+PASS - schema fills default
+PASS - forced tool prompt keeps must-call directive
+PASS - forced tool prompt keeps DSML schema
+PASS - forced tool prompt keeps exact function name example
+PASS - responses nonstream status 200
+PASS - responses nonstream object
+PASS - responses nonstream text content
+PASS - responses nonstream function_call
+PASS - responses function args coerced
+PASS - responses stream status 200
+PASS - responses stream delta event
+PASS - responses stream completed event
+PASS - responses stream tool status 200
+PASS - responses stream function item
+PASS - responses stream function args coerced
+PASS - responses stream function args done event
+PASS - responses stream error status 400
+PASS - responses stream error event
+PASS - chat stream error status 400
+PASS - chat stream error event
+PASS - messages stream error status 400
+PASS - messages stream error event
+PASS - flush discard incomplete DSML no tags in output
+PASS - flush discard incomplete DSML no tools produced
+PASS - flush keeps prefix before incomplete DSML
+PASS - flush prefix has no DSML leakage
+PASS - flush salvages complete invoke without outer close
+PASS - flush salvage does not mark incomplete when tools recovered
+PASS - flush truly incomplete still no tools
+PASS - flush truly incomplete sets incomplete_tool
+PASS - flush complete DSML still parsed
+PASS - parse_too_long: exceeds format
+PASS - parse_too_long: gt format
+PASS - parse_too_long: no match returns None
+PASS - parse_too_long: keyword no numbers returns TooLong(None,None)
+PASS - parse_too_long: keyword variant returns TooLong(None,None)
+PASS - parse_too_long: max context format
+PASS - parse_too_long: inverted actual<allowed returns None
+PASS - parse_too_long: actual==allowed boundary accepted
+PASS - parse_too_long: comma-separated numbers
+PASS - parse_too_long: huge input does not hang
+PASS - parse_too_long: pattern in middle of huge input returns None
+PASS - compact_budget: uses allowed with output reserve
+PASS - compact_budget: blind uses model context
+PASS - compact_budget: blind falls back to floor
+PASS - err_body anthropic format
+PASS - err_body openai format
+PASS - err_body openai has type
+PASS - err_body openai has code
+PASS - eof hold-back keeps prefix text
+PASS - eof hold-back drops unfinished tag
+PASS - eof plain flush keeps all content
+PASS - logprobs true -> 400 body
+PASS - stream_options without stream -> 400
+PASS - stream_options with stream ok
+PASS - missing tool result mid-seq -> 400
+PASS - unknown tool_call_id -> 400
+PASS - valid tool sequence ok
+PASS - trailing pending tool_calls allowed
+PASS - tool id call_ prefix
+PASS - models list has x-request-id
+PASS - models/id status 200
+PASS - models/id single object
+PASS - models/id unknown 404
+PASS - include_usage stream 200
+PASS - include_usage mid chunk usage null
+PASS - include_usage trailing choices empty
+PASS - include_usage has DONE
+PASS - chat stream has x-request-id
+PASS - logprobs HTTP 400
+PASS - stream_options nonstream HTTP 400
+PASS - stream error non-200 still structured
+TOTAL 96 FAIL 0

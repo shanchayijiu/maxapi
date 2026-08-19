@@ -1,0 +1,18 @@
+{
+  "id": "c",
+  "title": "partial tag hold-back then complete across chunks (unicode safe)",
+  "chunks": [
+    "pre ",
+    "<tool_cal",
+    "l>{\"name\":\"N\",\"arguments\":{}}</tool_call> post"
+  ],
+  "expect": {
+    "content_contains": [
+      "pre ",
+      " post"
+    ],
+    "forbid_tag_regex": true,
+    "no_pending_after_flush": true
+  },
+  "locus": "maxapi_server.py:2670"
+}

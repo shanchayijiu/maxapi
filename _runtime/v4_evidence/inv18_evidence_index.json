@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-08-19T22:23:13Z",
+  "deployedArtifactFingerprint": {
+    "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
+    "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
+    "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad",
+    "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820"
+  },
+  "passEvidenceComplete": true,
+  "missing": [],
+  "passCount": 19
+}

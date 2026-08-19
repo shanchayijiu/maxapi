@@ -1,0 +1,15 @@
+{
+  "id": "a",
+  "title": "document-only: six termination paths (not Parser-only)",
+  "type": "harness_template",
+  "status": "unknown",
+  "required_paths": [
+    "natural_eof",
+    "stop_sequence",
+    "length_limit",
+    "upstream_interrupt",
+    "client_cancel",
+    "internal_or_buffer_limit"
+  ],
+  "locus": "maxapi_server.py:3791"
+}

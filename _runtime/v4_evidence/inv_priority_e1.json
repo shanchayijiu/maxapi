@@ -1,0 +1,28 @@
+{
+  "INV-01": {
+    "status": "pass",
+    "evidence": "_runtime/v4_evidence/l0_redlight_run.json"
+  },
+  "INV-03": {
+    "status": "unknown",
+    "note": "no rule-id conservation ledger",
+    "nextEvidenceNeeded": "E1",
+    "codeLocation": "maxapi_server.py:2482"
+  },
+  "INV-13": {
+    "status": "fail",
+    "codeLocation": "maxapi_server.py:3791",
+    "minimalRepro": "rg -n finalize maxapi_server.py; inspect upstream/chat termination",
+    "expected": "single finalize for 6 termination classes",
+    "actual": "no finalize symbol; split EOF/cancel/error paths"
+  },
+  "INV-14": {
+    "status": "pass",
+    "evidence": "_runtime/v4_evidence/l0_redlight_run.json"
+  },
+  "INV-15": {
+    "status": "pass",
+    "evidence": "_runtime/v4_evidence/l0_redlight_run.json"
+  },
+  "generatedAt": "2026-08-19T22:23:12Z"
+}

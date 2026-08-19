@@ -1,0 +1,227 @@
+{
+  "meta": {
+    "probedAt": "2026-08-19T22:06:02Z",
+    "source": "main-session Read maxapi_server.py",
+    "note": "Parser has flush not close"
+  },
+  "a": {
+    "id": "a_close_paths",
+    "title": "close/flush not unified on all termination paths",
+    "loci": [
+      {
+        "file": "maxapi_server.py",
+        "line": 2692,
+        "symbol": "ToolCallParser.flush"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 3791,
+        "symbol": "upstream EOF filt+tparser flush"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 3825,
+        "symbol": "incomplete_tool termination"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 3731,
+        "symbol": "oversized SSE buffer abort"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5562,
+        "symbol": "chat client disconnect break"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5660,
+        "symbol": "chat finally _iter.close"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 4490,
+        "symbol": "Handler._sse_end"
+      }
+    ],
+    "coverage": "code-read+Handler-fake",
+    "status": "unknown",
+    "fixture": "_runtime/v4_fixtures/leak_a_close_paths.json",
+    "hypothesis": "No single finalize(); EOF flushes parsers; cancel/timeout/buffer paths rely on generator close — INV-13 likely fail"
+  },
+  "b": {
+    "id": "b_longest_match",
+    "title": "same-pos multi-marker longest match",
+    "loci": [
+      {
+        "file": "maxapi_server.py",
+        "line": 795,
+        "symbol": "_TOOL_TAG_PREFIXES"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 817,
+        "symbol": "_TOOL_TAG_FULLS"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 2644,
+        "symbol": "ToolCallParser.feed earliest seg"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 2279,
+        "symbol": "_find_seg earliest"
+      }
+    ],
+    "coverage": "Parser-E1",
+    "status": "unknown",
+    "fixture": "_runtime/v4_fixtures/leak_b_longest_match.json"
+  },
+  "c": {
+    "id": "c_holdback_codepoint",
+    "title": "hold-back by codepoint not bytes",
+    "loci": [
+      {
+        "file": "maxapi_server.py",
+        "line": 2254,
+        "symbol": "_find_partial"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 2670,
+        "symbol": "feed partial hold"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 2751,
+        "symbol": "flush EOF hold-back strip"
+      }
+    ],
+    "coverage": "Parser-E1",
+    "status": "unknown",
+    "fixture": "_runtime/v4_fixtures/leak_c_holdback_codepoint.json"
+  },
+  "d": {
+    "id": "d_unclosed_strip",
+    "title": "unclosed degrade strips markers",
+    "loci": [
+      {
+        "file": "maxapi_server.py",
+        "line": 2726,
+        "symbol": "flush discard incomplete tool"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 2745,
+        "symbol": "emit prefix before tag"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 2751,
+        "symbol": "EOF hold discard residual"
+      }
+    ],
+    "coverage": "Parser-E1",
+    "status": "unknown",
+    "fixture": "_runtime/v4_fixtures/leak_d_unclosed_strip.json"
+  },
+  "e": {
+    "id": "e_no_tools_strip",
+    "title": "no tools still strip markers from content",
+    "loci": [
+      {
+        "file": "maxapi_server.py",
+        "line": 3574,
+        "symbol": "upstream always ToolCallParser"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5582,
+        "symbol": "chat drop tool_call if not tools_enabled"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5175,
+        "symbol": "messages drop tool_call if not tools_enabled"
+      }
+    ],
+    "coverage": "Parser-E1",
+    "status": "unknown",
+    "fixture": "_runtime/v4_fixtures/leak_e_no_tools_strip.json"
+  },
+  "f": {
+    "id": "f_include_usage",
+    "title": "include_usage mid null + final empty choices",
+    "loci": [
+      {
+        "file": "maxapi_server.py",
+        "line": 5337,
+        "symbol": "include_usage flag"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5527,
+        "symbol": "sse injects usage:null"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5640,
+        "symbol": "trailing usage choices=[]"
+      }
+    ],
+    "coverage": "live-E2",
+    "status": "unknown",
+    "fixture": "_runtime/v4_fixtures/leak_f_include_usage.json"
+  },
+  "g": {
+    "id": "g_upstream_abort_not_stop",
+    "title": "upstream abort not finish_reason=stop",
+    "loci": [
+      {
+        "file": "maxapi_server.py",
+        "line": 3559,
+        "symbol": "upstream error mid-output"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5620,
+        "symbol": "kind==error stream_failed"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5627,
+        "symbol": "stream_failed error+[DONE]"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5635,
+        "symbol": "else finish_reason stop/tool_calls"
+      }
+    ],
+    "coverage": "Handler-fake",
+    "status": "unknown",
+    "fixture": "_runtime/v4_fixtures/leak_g_upstream_abort.json",
+    "hypothesis": "If stream ends without done/error after partial content, else-branch may emit stop — INV-11 risk"
+  },
+  "h": {
+    "id": "h_deploy_fingerprint",
+    "title": "running binary fingerprint",
+    "loci": [
+      {
+        "file": "maxapi_server.py",
+        "line": 5233,
+        "symbol": "GET /healthz"
+      },
+      {
+        "file": "maxapi_server.py",
+        "line": 5234,
+        "symbol": "healthz body status/service/models only"
+      }
+    ],
+    "coverage": "live-fingerprint",
+    "status": "unknown",
+    "fixture": "_runtime/v4_fixtures/leak_h_deploy_fingerprint.json",
+    "hypothesis": "REQ-DEP-01/02 fail: no fingerprint headers; healthz lacks sha/commit/sanitizerConfigVersion"
+  }
+}

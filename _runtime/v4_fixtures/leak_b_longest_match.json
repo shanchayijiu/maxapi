@@ -1,0 +1,15 @@
+{
+  "id": "b",
+  "title": "earliest/longest tool tag selection",
+  "chunks": [
+    "hello ",
+    "<function_calls><invoke name=\"x\">",
+    "<parameter name=\"a\">1</parameter></invoke></function_calls> tail"
+  ],
+  "expect": {
+    "content_equals": "hello  tail",
+    "min_tools": 0,
+    "forbid_tag_regex": true
+  },
+  "locus": "maxapi_server.py:2644"
+}

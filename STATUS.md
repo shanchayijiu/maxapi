@@ -1,4 +1,6 @@
 # maxapi STATUS
+> 2026-08-20 R5: **2api v4 诚实门禁封板**——`verdict=fail`（合法，非 invalid）。deployedArtifact 绑监听进程：`binarySha256=1daaaec3…` == host==container；image `maxapi-server@sha256:c3f70283…`；healthz/headers 自报 commit+sha+sanitizer+upstream+startedAt。L0 红灯 b/c/d/e **pass**（e 补登记 section 方言 tag 后由红→绿）；mutant killed=2（holdback/flush-leak）；compat **96/96**。blocking：**INV-13 / REQ-SAN-14**（无统一 finalize 六路）。mustE3 全 unknown；live include_usage/gold/tool/agent_long 本窗上游 529→knownDeviation。产物：`_runtime/v4_consistency_report.json` + `v4_evidence/` + `v4_remediation_priority.txt`。
+
 > 2026-08-19 R4: **2api v3 P0 落地**——EOF hold-back 不泄漏半截 tag；include_usage 中间 chunk `usage:null`；`stream_options`/`logprobs`→400；全响应 `x-request-id`；`GET /v1/models/{id}`；tool_call_id 序列校验；`call_` tool id；stream error 仍发 `[DONE]`。local_compat **96/96**；gold **20/20**；Docker md5=`06cd87eddeb939e538882d4e73afcd5c`。blocking 余 REQ-SAN-12 / INV-11（P1）。
 
 > 2026-08-19 R3: **incomplete tool 静默 tools=0 修复**——flush 对截断 wrapper  salvage 已闭合 invoke；tools_enabled 且无 tool_call 时 incomplete 不再因 reasoning 已 yield 而假 stop，改为 retry/error 供 escalate。compat **74/74**；gold **20/20**；Docker md5=`1d40bc7cb923e6cc5455e9da075aff45`。
@@ -14,6 +16,40 @@
 ## 一句话现状
 
 `maxapi_server.py`：OpenAI Chat Completions **wire-compat P0**（未知模型 404 / 流式 tool 分片 / include_usage / SSE headers）+ sol auto tool 阶梯 + mid-flight 门控 + thinking 双通道 tparser + DeepSeek token body 解析。验收：`_openai_sdk_gold.py` 20/20 + compat 96 + tool 28 + agent_long 17。8080 Docker 已同步。
+
+## 0.5 目标锚点
+
+**北极星**：maxapi（OpenAI Chat Completions 兼容层）在《2api 兼容层验收标准 v4》门禁下可交付诚实四态 verdict 的完整一致性报告；每条 INV/REQ 均有 status∈{pass,fail,unknown}+证据等级与可打开证据路径，且报告顶层 deployedArtifact 与正在监听 8080 的进程指纹一致；L0 内容平面与终止路径优先取证/整改后，wire 结构与长验收主路径不因本任务被踩烂。
+
+**成功判据**：
+- [x] sc-1 《2api v4》全部 INV/REQ 每条均有 status∈{pass,fail,unknown} + evidence 等级(E0-E3)与路径；无证据不得 pass（18 INV + 108 REQ；unknown 104 诚实保留）
+- [x] sc-2 存在 `_runtime/v4_consistency_report.json` 且符合文档附录 E；顶层 deployedArtifact 含镜像 digest/二进制 sha256/commit/sanitizerConfigVersion，且指纹取自监听 8080 的进程（非构建产物）
+- [x] sc-3 `_runtime/v4_evidence/` 下每条 pass 有可打开证据文件，证据内产物指纹与 deployedArtifact 一致（INV-18 pass + inv18_evidence_index.json）
+- [x] sc-4 报告含 metaRuleViolations、testChanges、mutantResults；unknown=0 且无 E3 时 verdict=invalid（不得造假全绿）；verdict 按 M4 四态诚实给出 → 本窗 **fail**（blocking INV-13/REQ-SAN-14），validate valid
+- [x] sc-5 八个历史高频漏点(a-h)各自有代码位置与对应测试/证据条目：b/c/d/e pass；a/f/g/h unknown（harness/上游缺口）见 eight_leaks_ah.json
+- [x] sc-6 优先级组 INV-01..03 与 INV-13..15 已优先取证；fail 项附文件:行 + 最小复现命令 + 期望vs实际（INV-13 fail 齐字段；INV-01 E1-only→unknown 不假 pass）
+- [x] sc-7 不超过 20 行的整改优先级清单已产出（`_runtime/v4_remediation_priority.txt`）
+- [x] sc-8 若有代码修复：leak-e 先红后绿（section tag 登记）；8080 Docker sha 与源码一致；未放宽 gold/compat；compat 96/96
+- [x] sc-9 GOALS.md G1-G8 与 STATUS §1 旁路核心未被破坏；主路径回归未因本任务踩烂
+- [ ] sc-10 官方 openai-python 金标全绿：`python -u _openai_sdk_gold.py`（本窗上游 529，未完成；记 knownDeviation）
+- [ ] sc-11 流式 tool_calls 分片 shape：首片含 index/id/type/function.name 且 arguments==""，后续仅 function.arguments 字符串增量（禁止单片 dump 全量 JSON 却宣称 PASS）；raw SSE 锁 Content-Type event-stream、X-Accel-Buffering、[DONE]、tool shape=True
+- [ ] sc-12 stream_options.include_usage 末块 usage；中间 chunk usage:null、末块空 choices；未知 model → 404 model_not_found（live include_usage 本窗为 error JSON）
+- [ ] sc-13 n!=1 → 400；response_format json_object|json_schema 可解析；未实现 embeddings/completions → 501 not_implemented（或文档化非目标）
+- [ ] sc-14 context_length_exceeded 标准 code（compact 关或压后仍超）；客户端断连取消上游（BrokenPipe/FIN 后不再空烧）
+- [ ] sc-15 drop unknown/placeholder tool name（如 TOOL_NAME_HERE）不得进客户端
+- [ ] sc-16 长验收全绿（可并行，不同 Authorization）：compat **96/96 已绿**；tool_suite / agent_long 本窗未跑完（上游 busy）
+
+**明确不做**：
+- 不碰访客旁路核心（XFF/额度轮换/busy≠quota/隐身 header）——只读不改
+- 不整文件重写 `maxapi_server.py`；禁止顺手重构/统一抽象
+- 不改测试/放宽断言/重写 golden 让门禁变绿（确需改必须记 testChanges 且保留等价覆盖）
+- 探针只打 `127.0.0.1:8080`，不抢 57321 / 不与用户 Codex 抢流量
+- 不把模型遵从/上游策略问题（tool_choice=required 被拒、偶发 re-tool）单独挡 ready（wire P0 全绿前提下可标 partial/COMPAT）
+- 不做 60m soak（本次任务未要求）；不把 tools 全量 prompt 绑进长 soak
+- 不提交 git（除非后续任务明确要求）；不删 STATUS 其它段落 / 不删减 successCriteria 意图
+
+**目标变更记录**：
+- 2026-08-19：新建 §0.5。来源=调用方 auto 任务「2api v4 完整门禁与整改」+ wire-compat 强制项(a-h)一次锁全表；与既有 R4「v3 P0」叙述兼容，升级为 v4 证据等级/产物绑定/四态 verdict 为唯一验收口径。
 
 ## §1 已稳部分（保护区 — 换会话修局部时禁止整块重写）
 

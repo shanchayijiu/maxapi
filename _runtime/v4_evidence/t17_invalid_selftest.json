@@ -1,0 +1,25 @@
+{
+  "case": "unknownCount=0 and no E3 must be invalid",
+  "validate": {
+    "ok": false,
+    "valid": false,
+    "violations": [
+      "M3 INV-02 mustE3 but pass without E3",
+      "M3 INV-09 mustE3 but pass without E3",
+      "M3 INV-12 mustE3 but pass without E3",
+      "M3 unknownCount==0 and no E3 evidence → invalid",
+      "M4 verdict pass but expected invalid"
+    ],
+    "notes": [
+      "verdict=pass expected_by_rules=invalid"
+    ],
+    "recomputed": {
+      "unknown": 0,
+      "fail": 0,
+      "pass": 18,
+      "e3_count": 0,
+      "expected_verdict": "invalid"
+    }
+  },
+  "passed_selftest": true
+}

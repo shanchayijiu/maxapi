@@ -1,0 +1,14 @@
+{
+  "id": "h",
+  "title": "deployed fingerprint fields required",
+  "type": "live_template",
+  "required_fields": [
+    "binarySha256",
+    "imageDigest",
+    "commit",
+    "sanitizerConfigVersion",
+    "upstreamProfile",
+    "processStartedAt"
+  ],
+  "locus": "maxapi_server.py:5233"
+}

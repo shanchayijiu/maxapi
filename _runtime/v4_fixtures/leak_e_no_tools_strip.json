@@ -1,0 +1,17 @@
+{
+  "id": "e",
+  "title": "parser strips tags even when caller has no tools (content plane)",
+  "chunks": [
+    "A ",
+    "<|tool_calls_section_begin|>",
+    "raw",
+    "<|tool_call_begin|>",
+    "x"
+  ],
+  "expect": {
+    "forbid_tag_regex": true,
+    "content_startswith": "A "
+  },
+  "locus": "maxapi_server.py:3574",
+  "note": "simulates upstream text with control tokens when tools_enabled=false; parser still peels"
+}

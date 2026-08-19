@@ -1,0 +1,7 @@
+{
+  "id": "g",
+  "title": "upstream abort must not become finish_reason=stop",
+  "type": "harness_template",
+  "status": "unknown",
+  "locus": "maxapi_server.py:5620"
+}

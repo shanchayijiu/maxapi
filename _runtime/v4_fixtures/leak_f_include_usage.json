@@ -1,0 +1,8 @@
+{
+  "id": "f",
+  "title": "live include_usage shape",
+  "type": "live_template",
+  "status": "unknown",
+  "locus": "maxapi_server.py:5527",
+  "probe": "POST /v1/chat/completions stream + stream_options.include_usage"
+}

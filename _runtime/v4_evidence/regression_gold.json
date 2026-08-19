@@ -1,0 +1,8 @@
+{
+  "ok": false,
+  "exit": null,
+  "summary": "equest_error\", \"param\": null, \"code\": \"not_i | [PASS] unit.context_and_params t=0.0s :: code=400 etype=context_length_exceeded body={'error': {'message': 'too long', 'type': 'invalid_request_error', 'param': 'messages', 'code': 'context_length_exceeded'}} pe={'error': {'message': 'Only n=1 is supported (upstream is a single stream).', 'type': 'invalid_request_error', 'param': 'n', 'code': 'invalid_request_error'}} | [PASS] params.sampling_silent t=6.7s :: fr=stop text='PING' | ==== TOTAL 20 / 20 ==== | ",
+  "log": "_runtime/v4_evidence/regression_gold_stdout.txt",
+  "note": "upstream temporarily unavailable during evidence window; offline compat 96/96 still green",
+  "generatedAt": "2026-08-19T22:23:12Z"
+}

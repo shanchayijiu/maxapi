@@ -1,0 +1,1 @@
+{"status": "ok", "service": "maxapi", "models": 11, "commit": "654fd7e2461f16140c651bc1b671619ee499b55a", "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9", "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820", "upstreamProfile": "se.zzmax.cn-guest", "processStartedAt": "2026-08-19T22:16:19Z"}
