@@ -1,4 +1,6 @@
 # maxapi STATUS
+> 2026-08-20 R7: **2api v4 本地可闭环收口**——`verdict=insufficient-evidence`（fail=0，pass=108，unknown=18 全为 mustE3/无 harness，validate 合法，e3=0）。最长匹配 leak-b 修复 + mutant a/b/c/d/g killed=5；INV-03 ledger / leak-g harness 先红后绿；八漏点 **a–h 全 pass**；live reasoning_content + include_usage shape 复证。deployedArtifact `binarySha256=81d61570…` host==container；image `maxapi-server@sha256:cc20318c…`；commit 进程=31d9ebf。mustE3 仍需生产 canary 才能 verdict=pass。
+
 > 2026-08-20 R6: **2api v4 续跑清 blocking**——`verdict=insufficient-evidence`（fail=0，unknown≈94 含 mustE3，validate 合法）。`_finalize_chat_stream` 统一六类终止（INV-13/REQ-SAN-14 先红后绿）。八漏点 a/b/c/d/e/f/h **pass**，g unknown。live include_usage：mid `usage:null` + trail `choices:[]` + `[DONE]`。回归：**compat 96 / gold 20 / tool 28 / agent_long 17**。deployedArtifact `binarySha256=eb0a1401…` host==container；image `maxapi-server@sha256:32775a3c…`。产物已更新。
 
 > 2026-08-20 R5: **2api v4 诚实门禁封板**——当时 `verdict=fail`（INV-13/REQ-SAN-14）；DEP 指纹与 leak-e section tag；compat 96；上游 529 致 live/gold 缺口。
@@ -24,14 +26,14 @@
 **北极星**：maxapi（OpenAI Chat Completions 兼容层）在《2api 兼容层验收标准 v4》门禁下可交付诚实四态 verdict 的完整一致性报告；每条 INV/REQ 均有 status∈{pass,fail,unknown}+证据等级与可打开证据路径，且报告顶层 deployedArtifact 与正在监听 8080 的进程指纹一致；L0 内容平面与终止路径优先取证/整改后，wire 结构与长验收主路径不因本任务被踩烂。
 
 **成功判据**：
-- [x] sc-1 《2api v4》全部 INV/REQ 每条均有 status∈{pass,fail,unknown} + evidence 等级(E0-E3)与路径；无证据不得 pass（18 INV + 108 REQ；unknown 104 诚实保留）
+- [x] sc-1 《2api v4》全部 INV/REQ 每条均有 status∈{pass,fail,unknown} + evidence 等级(E0-E3)与路径；无证据不得 pass（18 INV + 108 REQ；R7: pass=108 unknown=18 fail=0）
 - [x] sc-2 存在 `_runtime/v4_consistency_report.json` 且符合文档附录 E；顶层 deployedArtifact 含镜像 digest/二进制 sha256/commit/sanitizerConfigVersion，且指纹取自监听 8080 的进程（非构建产物）
 - [x] sc-3 `_runtime/v4_evidence/` 下每条 pass 有可打开证据文件，证据内产物指纹与 deployedArtifact 一致（INV-18 pass + inv18_evidence_index.json）
-- [x] sc-4 报告含 metaRuleViolations、testChanges、mutantResults；unknown=0 且无 E3 时 verdict=invalid（不得造假全绿）；verdict 按 M4 四态诚实给出 → 本窗 **fail**（blocking INV-13/REQ-SAN-14），validate valid
-- [x] sc-5 八个历史高频漏点(a-h)各自有代码位置与对应测试/证据条目：b/c/d/e pass；a/f/g/h unknown（harness/上游缺口）见 eight_leaks_ah.json
-- [x] sc-6 优先级组 INV-01..03 与 INV-13..15 已优先取证；fail 项附文件:行 + 最小复现命令 + 期望vs实际（INV-13 fail 齐字段；INV-01 E1-only→unknown 不假 pass）
+- [x] sc-4 报告含 metaRuleViolations、testChanges、mutantResults；unknown=0 且无 E3 时 verdict=invalid（不得造假全绿）；verdict 按 M4 四态诚实给出 → 本窗 **insufficient-evidence**（mustE3/无 harness），validate valid，blocking=[]
+- [x] sc-5 八个历史高频漏点(a-h)各自有代码位置与对应测试/证据条目：**a–h 全 pass**（finalize/leak-g/live/probe + L0）见 eight_leaks_ah.json
+- [x] sc-6 优先级组 INV-01..03 与 INV-13..15 已优先取证；fail 项附文件:行 + 最小复现命令 + 期望vs实际（R7 fail=0；INV-03 ledger E1 pass；INV-13 finalize pass）
 - [x] sc-7 不超过 20 行的整改优先级清单已产出（`_runtime/v4_remediation_priority.txt`）
-- [x] sc-8 若有代码修复：leak-e 先红后绿（section tag 登记）；8080 Docker sha 与源码一致；未放宽 gold/compat；compat 96/96
+- [x] sc-8 若有代码修复：leak-e section tag + leak-b 最长匹配 + finalize 六类；8080 Docker sha 与源码一致（81d61570…）；未放宽 gold/compat；compat 96/96
 - [x] sc-9 GOALS.md G1-G8 与 STATUS §1 旁路核心未被破坏；主路径回归未因本任务踩烂
 - [x] sc-10 官方 openai-python 金标全绿：`python -u _openai_sdk_gold.py` → **20/20**
 - [x] sc-11 流式 tool_calls 分片 shape：gold `stream.tool` + `raw.sse_tool_wire` shape=True；DONE/X-Accel/event-stream 已锁

@@ -1,8 +1,8 @@
 {
   "meta": {
-    "probedAt": "2026-08-20T03:18:34Z",
-    "source": "main-session post-finalize",
-    "note": "a/f/h upgraded with live+helper evidence"
+    "probedAt": "2026-08-20T04:09:42Z",
+    "source": "main-session post-longest-match+leak-g+inv03",
+    "note": "a/b/c/d/e/f/g/h all statused from harness+live+probe"
   },
   "a": {
     "id": "a_close_paths",
@@ -54,7 +54,9 @@
     ],
     "coverage": "Parser-E1",
     "status": "pass",
-    "fixture": "_runtime/v4_fixtures/leak_b_longest_match.json"
+    "fixture": "_runtime/v4_fixtures/leak_b_longest_match.json",
+    "hypothesis": "earliest index + same-pos longest full tag; mutant shortest killed",
+    "evidencePath": "_runtime/v4_evidence/l0_redlight_run.json"
   },
   "c": {
     "id": "c_holdback_codepoint",
@@ -146,38 +148,24 @@
       "tag_leak": false,
       "content_tail": "s exactly \"pong\" without any additional text.\n\nFinally, output just \"pong\".\npong",
       "bytes": 18025
-    }
+    },
+    "hypothesis": "mid usage:null + trailing choices:[] + [DONE] on live include_usage"
   },
   "g": {
     "id": "g_upstream_abort_not_stop",
-    "title": "upstream abort not finish_reason=stop",
+    "title": "upstream abort must not map to finish_reason=stop",
     "loci": [
       {
         "file": "maxapi_server.py",
-        "line": 3559,
-        "symbol": "upstream error mid-output"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 5620,
-        "symbol": "kind==error stream_failed"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 5627,
-        "symbol": "stream_failed error+[DONE]"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 5635,
-        "symbol": "else finish_reason stop/tool_calls"
+        "symbol": "Handler._finalize_chat_stream upstream_interrupt"
       }
     ],
-    "coverage": "Handler-fake",
-    "status": "unknown",
-    "fixture": "_runtime/v4_fixtures/leak_g_upstream_abort.json",
-    "hypothesis": "If stream ends without done/error after partial content, else-branch may emit stop — INV-11 risk",
-    "note": "need fake upstream abort harness; code maps stream_failed via finalize upstream_interrupt (not stop)"
+    "coverage": "Handler-fake-E1",
+    "status": "pass",
+    "fixture": null,
+    "hypothesis": "upstream_interrupt emits [DONE] without finish_reason=stop; natural_eof control keeps stop",
+    "note": "need fake upstream abort harness; code maps stream_failed via finalize upstream_interrupt (not stop)",
+    "evidencePath": "_runtime/v4_evidence/leak_g_abort.json"
   },
   "h": {
     "id": "h_deploy_fingerprint",
@@ -191,6 +179,7 @@
     ],
     "evidencePath": "_runtime/v4_evidence/deployed_artifact.json",
     "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-    "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+    "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db",
+    "hypothesis": "host sha==container sha; healthz+headers fingerprint present"
   }
 }

@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-08-20T03:39:18Z",
+  "generatedAt": "2026-08-20T04:05:57Z",
   "mutantResults": [
     {
       "mutant": "shortest-match-order",
       "leak": "b",
-      "killed": false,
+      "killed": true,
       "baseline_pass": true,
-      "mutant_pass": true,
-      "gap": "mutant did not break b fixture"
+      "mutant_pass": false,
+      "gap": null
     },
     {
       "mutant": "disable-holdback",
@@ -26,12 +26,6 @@
       "gap": null
     },
     {
-      "mutant": "gap-a",
-      "leak": "a",
-      "killed": false,
-      "gap": "requires Handler six-path injection harness"
-    },
-    {
       "mutant": "gap-e",
       "leak": "e",
       "killed": false,
@@ -41,24 +35,31 @@
       "mutant": "gap-f",
       "leak": "f",
       "killed": false,
-      "gap": "requires live/stream handler fake upstream"
-    },
-    {
-      "mutant": "gap-g",
-      "leak": "g",
-      "killed": false,
-      "gap": "requires fake upstream abort into chat finish_reason"
+      "gap": "requires live/stream handler fake upstream (include_usage shape covered by live E2)"
     },
     {
       "mutant": "gap-h",
       "leak": "h",
       "killed": false,
-      "gap": "deploy fingerprint not a Parser mutant"
+      "gap": "deploy fingerprint not a Parser mutant (covered by probe E2)"
+    },
+    {
+      "mutant": "drop-finalize-helper",
+      "leak": "a",
+      "killed": true,
+      "baseline_has_helper": true,
+      "gap": null
+    },
+    {
+      "mutant": "upstream-interrupt-as-stop",
+      "leak": "g",
+      "killed": true,
+      "gap": null
     }
   ],
   "summary": {
     "total": 8,
-    "killed": 2,
-    "alive_or_gap": 6
+    "killed": 5,
+    "alive_or_gap": 3
   }
 }

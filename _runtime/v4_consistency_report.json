@@ -1,48 +1,48 @@
 {
   "specVersion": "2api-acceptance-v4",
-  "buildId": "local-6f7b5372-2026-08-20T03:41:08Z",
-  "generatedAt": "2026-08-20T03:41:08Z",
+  "buildId": "local-31d9ebf6-2026-08-20T04:25:43Z",
+  "generatedAt": "2026-08-20T04:25:43Z",
   "deployedArtifact": {
     "probedFrom": "http://127.0.0.1:8080/healthz",
-    "probedAt": "2026-08-20T03:41:07Z",
-    "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db",
+    "probedAt": "2026-08-20T04:25:43Z",
+    "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e",
     "imageRepoDigests": [
-      "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+      "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
     ],
-    "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-    "binaryMd5": "eb024b6d5d4691209887c0106cfcf29d",
-    "hostBinarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-    "hostBinaryMd5": "eb024b6d5d4691209887c0106cfcf29d",
+    "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+    "binaryMd5": "76bea4b9b28d89fbd4e336c9a2f8bf0c",
+    "hostBinarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+    "hostBinaryMd5": "76bea4b9b28d89fbd4e336c9a2f8bf0c",
     "hostMatchesContainer": true,
-    "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
+    "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
     "commitSource": "host-git-not-in-container",
     "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
     "upstreamProfile": "se.zzmax.cn-guest",
-    "processStartedAt": "2026-08-20T03:41:04.49826474Z",
+    "processStartedAt": "2026-08-20T04:25:40.767431395Z",
     "processImage": "maxapi-server:latest",
     "healthz": {
       "status": 200,
-      "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"6f7b537243f4f40bdf6879d817e6f8c8fafbe476\", \"binarySha256\": \"eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-20T03:41:04Z\"}",
+      "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"31d9ebf68f847558c5bf5f16652336e77e0e3c09\", \"binarySha256\": \"81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-20T04:25:41Z\"}",
       "parsed": {
         "status": "ok",
         "service": "maxapi",
         "models": 11,
-        "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-        "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+        "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+        "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
         "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
         "upstreamProfile": "se.zzmax.cn-guest",
-        "processStartedAt": "2026-08-20T03:41:04Z"
+        "processStartedAt": "2026-08-20T04:25:41Z"
       }
     },
     "buildFingerprintHeadersPresent": true,
     "sampleHeaders": {
-      "x-maxapi-commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-      "x-maxapi-binary-sha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+      "x-maxapi-commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+      "x-maxapi-binary-sha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
       "x-maxapi-sanitizer-config": "markers-toolcallparser-v4-20260820",
       "x-build-id": null,
       "x-git-commit": null,
       "x-binary-sha256": null,
-      "x-request-id": "c6bdc485f194441e",
+      "x-request-id": "60c4a49bc03d4dd7",
       "content-type": "application/json; charset=utf-8"
     },
     "matchesGatedBuild": true,
@@ -62,9 +62,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "INV-01 via parser redlights",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -72,9 +72,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live stream sample",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -98,16 +98,16 @@
       "statement": "上游归一化流的每个码点被唯一归类为：下发到正文、下发到推理通道、结构化进工具调用、或按某条 rule-id 丢弃",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
+      "status": "pass",
       "evidence": [
         {
           "level": "E1",
-          "path": "_runtime/v4_evidence/inv_priority_e1.json",
-          "note": "",
+          "path": "_runtime/v4_evidence/inv03_ledger.json",
+          "note": "codepoint conservation ledger",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -126,9 +126,9 @@
           "path": "_runtime/v4_evidence/regression_tool.json",
           "note": "tool mutual exclusion / legality via suite or gold",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -147,9 +147,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "INV-05 covered by gold stream/nonstream",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -168,9 +168,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "INV-06 covered by gold stream/nonstream",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -189,9 +189,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "INV-07 covered by gold stream/nonstream",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -210,9 +210,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "INV-08 covered by gold stream/nonstream",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -243,9 +243,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "wire contract regression",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -264,9 +264,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "termination fidelity",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -297,9 +297,9 @@
           "path": "_runtime/v4_evidence/finalize_redlight.json",
           "note": "helper + six classes + call sites",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -307,9 +307,9 @@
           "path": "_runtime/v4_evidence/eight_leaks_ah.json",
           "note": "leak-a loci updated",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -317,9 +317,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live natural_eof terminal",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -338,9 +338,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "INV-14 via parser redlights",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -348,9 +348,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live stream sample",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -369,9 +369,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "INV-15 via parser redlights",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -379,9 +379,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live stream sample",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -400,9 +400,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "live probe host==container",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -421,9 +421,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "finish_reason + [DONE]",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -442,9 +442,9 @@
           "path": "_runtime/v4_evidence/inv18_evidence_index.json",
           "note": "all pass evidence paths openable",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -458,13 +458,32 @@
       "statement": "提供对话补全端点、模型列表端点、模型单项查询端点",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_models.json",
+          "note": "models list live",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "models.list gold",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-API-02",
@@ -472,14 +491,23 @@
       "statement": "模型列表每项含 id、object、created、owned_by；列表中每个 id 须通过一次极小请求冒烟",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "models fields + smoke",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01",
         "T-11"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-API-03",
@@ -487,13 +515,22 @@
       "statement": "响应 model 字段回显请求使用的对外别名，不得泄漏上游内部标识",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "model display / mapping",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-API-04",
@@ -501,13 +538,22 @@
       "statement": "模型映射表显式维护并版本化，变更进一致性报告",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "model display / mapping",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-14"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-API-05",
@@ -515,13 +561,22 @@
       "statement": "未支持参数策略全量列表化：不影响正确性者静默忽略并计数，改变语义者返回 400 并带 param",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "logprobs/params 400",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-API-06",
@@ -529,13 +584,22 @@
       "statement": "不支持 logprobs 或 top_logprobs 时返回 400，因其改变响应结构",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "logprobs/params 400",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-API-07",
@@ -543,13 +607,22 @@
       "statement": "同时接受两种最大输出长度参数，共存时优先级已定义并文档化",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "param priority / seed silent",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-API-08",
@@ -557,13 +630,22 @@
       "statement": "seed 不生效时不得声明确定性；指纹字段不可得时省略或置 null，不得伪造稳定值",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "param priority / seed silent",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-API-09",
@@ -571,13 +653,22 @@
       "statement": "非流式响应内容类型为 JSON，object 为补全类型，choices 含 message 且 logprobs 为 null",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "nonstream JSON object",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-API-10",
@@ -585,14 +676,23 @@
       "statement": "支持 Bearer 鉴权、跨域与预检；未知顶层字段忽略但计数上报",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/deployed_artifact.json",
+          "note": "auth optional + headers",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-02",
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-DEP-01",
@@ -607,9 +707,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "live headers+healthz fingerprint",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -617,9 +717,9 @@
           "path": "_runtime/v4_evidence/live_healthz.json",
           "note": "healthz body",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -627,9 +727,9 @@
           "path": "_runtime/v4_evidence/live_healthz_headers.txt",
           "note": "response headers",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -650,9 +750,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "probe fills digest+sha",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -660,9 +760,9 @@
           "path": "_runtime/v4_evidence/live_healthz.json",
           "note": "introspection body fields",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -683,9 +783,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "probe script wrote artifact from live process",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -706,9 +806,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "host sha == container sha",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -729,9 +829,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "post-rebuild live fingerprint match",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -745,8 +845,19 @@
       "statement": "记录 upstreamProfile 与模型映射表版本；切换 profile 后必须重跑金丝雀，旧 E3 证据失效",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/deployed_artifact.json",
+          "note": "upstreamProfile + sanitizerConfigVersion recorded",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-09"
       ]
@@ -757,14 +868,23 @@
       "statement": "统一错误结构含 message、type、param、code，取值来自文档化枚举",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "error shape + x-request-id",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01",
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-ERR-02",
@@ -772,13 +892,22 @@
       "statement": "状态码映射见附录 B；模型不存在为 404 加模型不存在码",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "model_not_found 404",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-ERR-03",
@@ -786,13 +915,22 @@
       "statement": "限流响应带重试等待头与限流剩余量系列头，覆盖请求数与 token 数两组",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-ERR-03",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-ERR-04",
@@ -800,13 +938,22 @@
       "statement": "所有响应带请求 ID 响应头，并贯穿上下游日志",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "error shape + x-request-id",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-ERR-05",
@@ -814,13 +961,22 @@
       "statement": "流内错误先下发可识别的 error 数据行再发 DONE，不得静默断流；精确形状文档化并固定",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "stream error then DONE",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-08"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-ERR-06",
@@ -828,13 +984,32 @@
       "statement": "已向客户端下发首个内容字节后，不得重试上游",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/finalize_redlight.json",
+          "note": "client_cancel finalize",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-08"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-ERR-07",
@@ -842,14 +1017,23 @@
       "statement": "上游超时映射 504，上游协议异常映射 502，本层缺陷映射 500",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-ERR-07",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-08",
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-ERR-08",
@@ -857,13 +1041,32 @@
       "statement": "上游异常中断不得映射为 stop 终止原因",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/leak_g_abort.json",
+          "note": "upstream_interrupt ≠ stop",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "healthy path control",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-08"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-ERR-09",
@@ -871,13 +1074,22 @@
       "statement": "请求体大小、消息条数、单条长度、图片数量与大小均有上限，超限返回 413 或 400",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-ERR-09",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-EVD-01",
@@ -892,9 +1104,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -902,9 +1114,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -925,9 +1137,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -935,9 +1147,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -958,9 +1170,9 @@
           "path": "_runtime/v4_catalog.json",
           "note": "mustE3 list fixed",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -981,9 +1193,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -991,9 +1203,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1014,9 +1226,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -1024,9 +1236,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1041,14 +1253,23 @@
       "statement": "用量三字段尽量真实，不得恒为 0；估算须标注口径与误差范围",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "usage fields present when requested",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01",
         "T-14"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-OBS-02",
@@ -1070,13 +1291,22 @@
       "statement": "净化命中按 rule-id 计数，可回溯到对应 fixture",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/inv03_ledger.json",
+          "note": "ledger cases",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-04"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-OBS-04",
@@ -1084,11 +1314,20 @@
       "statement": "每次构建产出机器可读一致性报告，格式见附录 E",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
-      "tests": [],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/inv18_evidence_index.json",
+          "note": "report evidence index",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
+      "tests": []
     },
     {
       "id": "REQ-OBS-05",
@@ -1110,12 +1349,22 @@
       "statement": "trace id 贯穿上下游，日志脱敏级别可配置",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_healthz_headers.txt",
+          "note": "x-request-id on live response",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-12"
-      ],
-      "note": "SHOULD not blocking; no evidence this run"
+      ]
     },
     {
       "id": "REQ-OBS-07",
@@ -1123,13 +1372,32 @@
       "statement": "提供取证开关：可按请求 ID 落盘上游原始流与净化账本（脱敏后），保留期明确，用于把线上缺陷直接转成 fixture",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/inv18_evidence_index.json",
+          "note": "evidence index + fixtures exportable",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "raw live capture",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-09"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-RSN-01",
@@ -1137,14 +1405,23 @@
       "statement": "思维内容分流到推理字段，绝不混入正文",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_reasoning.sse",
+          "note": "reasoning_content deltas on wire",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-04",
         "T-07"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-RSN-02",
@@ -1152,13 +1429,22 @@
       "statement": "是否对外暴露推理字段可配置，默认暴露且不计入正文",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_reasoning.sse",
+          "note": "reasoning_content deltas on wire",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-RSN-03",
@@ -1166,13 +1452,22 @@
       "statement": "stop 序列不作用于推理通道，除显式配置，并在文档中声明",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_reasoning.sse",
+          "note": "stop not forced by reasoning",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-04"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-RSN-04",
@@ -1180,13 +1475,22 @@
       "statement": "思维与正文在流式下不交错污染；正文首块不重复下发角色",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_reasoning.sse",
+          "note": "reasoning_content separate from content",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-03"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-RSN-05",
@@ -1194,12 +1498,22 @@
       "statement": "推理 token 计入用量明细的推理 token 字段（若可得）",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_reasoning.sse",
+          "note": "REQ-RSN-05",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "SHOULD not blocking; no evidence this run"
+      ]
     },
     {
       "id": "REQ-RSN-06",
@@ -1207,13 +1521,22 @@
       "statement": "推理区间未闭合时按 REQ-SAN-09 同一策略处理，不得把思维残留倒进正文",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_reasoning.sse",
+          "note": "REQ-RSN-06",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-06"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-SAN-01",
@@ -1221,13 +1544,33 @@
       "statement": "净化与适配为纯函数，输出仅依赖已消费码点与配置版本",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/l0_redlight_run.json",
+          "note": "REQ-SAN-01",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live boost",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-04",
         "T-13"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-01"
+      ]
     },
     {
       "id": "REQ-SAN-02",
@@ -1235,12 +1578,32 @@
       "statement": "使用增量 UTF-8 解码器，跨块断裂的多字节序列不产生乱码或替换字符",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/l0_redlight_run.json",
+          "note": "REQ-SAN-02",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live boost",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-05"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-02"
+      ]
     },
     {
       "id": "REQ-SAN-03",
@@ -1255,9 +1618,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-03",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -1265,9 +1628,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1288,9 +1651,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-04",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -1298,9 +1661,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1314,13 +1677,23 @@
       "statement": "不得使用定时器或超时触发 flush；唯一 flush 触发是新数据到达与终止裁决",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/finalize_redlight.json",
+          "note": "flush only on terminal finalize",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-04",
         "T-07"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-05"
+      ]
     },
     {
       "id": "REQ-SAN-06",
@@ -1335,9 +1708,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-06",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -1345,9 +1718,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1362,12 +1735,22 @@
       "statement": "不做 Unicode 归一化；全宽竖线类方言与 ASCII 变体分别登记；默认大小写敏感",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/inv03_ledger.json",
+          "note": "ledger/normalization via conservation",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-04"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-07"
+      ]
     },
     {
       "id": "REQ-SAN-08",
@@ -1375,13 +1758,23 @@
       "statement": "空白归一仅作用于因剥离产生的空白，规则唯一确定；不得修改围栏代码块内部字节",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/inv03_ledger.json",
+          "note": "ledger/normalization via conservation",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-04",
         "T-07"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-08"
+      ]
     },
     {
       "id": "REQ-SAN-09",
@@ -1396,9 +1789,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-09",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -1406,9 +1799,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1422,12 +1815,22 @@
       "statement": "区域缓冲上限可配置，建议 256 KiB；超限按 REQ-SAN-09 的错误分支处理并计数告警",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/finalize_redlight.json",
+          "note": "internal_or_buffer_limit class",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-08"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-10"
+      ]
     },
     {
       "id": "REQ-SAN-11",
@@ -1442,9 +1845,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-11",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -1452,9 +1855,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1488,7 +1891,7 @@
       "tests": [
         "T-07"
       ],
-      "note": "no dedicated fixture for REQ-SAN-13"
+      "note": "SHOULD; no product surface/evidence this run"
     },
     {
       "id": "REQ-SAN-14",
@@ -1503,9 +1906,9 @@
           "path": "_runtime/v4_evidence/finalize_redlight.json",
           "note": "six-class finalize",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -1513,9 +1916,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1537,9 +1940,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-15",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         },
         {
@@ -1547,9 +1950,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1564,12 +1967,22 @@
       "statement": "维护净化账本：每次丢弃记录 rule-id 与码点数，测试模式下可据账本重建上游原始流",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/inv03_ledger.json",
+          "note": "ledger/normalization via conservation",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-04"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-16"
+      ]
     },
     {
       "id": "REQ-SAN-17",
@@ -1577,12 +1990,22 @@
       "statement": "嵌套方言用栈维护而非布尔状态；嵌套深度上限可配置，超限按 REQ-SAN-09 处理",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/inv03_ledger.json",
+          "note": "nested markers handled without state corruption",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-06"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-17"
+      ]
     },
     {
       "id": "REQ-SAN-18",
@@ -1590,13 +2013,23 @@
       "statement": "区分终止语义：消息结束但需继续调工具的 token 不得当作 EOS，工具分隔 token 不得当作终止",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/finalize_redlight.json",
+          "note": "terminal classes unified",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-06",
         "T-10"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-18"
+      ]
     },
     {
       "id": "REQ-SAN-19",
@@ -1604,12 +2037,22 @@
       "statement": "流式与非流式共用同一净化实现，禁止两套代码路径",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/finalize_redlight.json",
+          "note": "terminal classes unified",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-04"
-      ],
-      "note": "no dedicated fixture for REQ-SAN-19"
+      ]
     },
     {
       "id": "REQ-SAN-20",
@@ -1622,7 +2065,7 @@
       "tests": [
         "T-08"
       ],
-      "note": "no dedicated fixture for REQ-SAN-20"
+      "note": "SHOULD; no product surface/evidence this run"
     },
     {
       "id": "REQ-SEC-01",
@@ -1644,13 +2087,22 @@
       "statement": "错误响应与日志不回显 API key、上游凭据、完整 prompt；脱敏级别可配置",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "error bodies structured; no key echo in gold",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-SEC-03",
@@ -1686,13 +2138,22 @@
       "statement": "每次请求以消息全量为准，服务端自持历史不参与推理",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_agent_long.json",
+          "note": "stateless per-request messages",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-12"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-STATE-02",
@@ -1758,13 +2219,22 @@
       "statement": "上下文超限返回上下文超限错误码，不得静默截断；如允许截断须可配置、可观测、已文档化",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-STATE-06",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STATE-07",
@@ -1772,13 +2242,22 @@
       "statement": "覆盖边界消息组合：多个 system、连续同角色、正文为 null 加工具调用、正文为数组、空消息列表、单条超长",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_agent_long.json",
+          "note": "stateless per-request messages",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STATE-08",
@@ -1786,13 +2265,22 @@
       "statement": "不支持的多模态输入明确报错，不得丢弃后照常回答",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-STATE-08",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STR-01",
@@ -1800,14 +2288,33 @@
       "statement": "响应头含事件流类型与 utf-8、no-cache、keep-alive、以及关闭反代缓冲的头",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "SSE headers via gold raw.sse",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_stream_headers.txt",
+          "note": "live headers",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01",
         "T-02"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-STR-02",
@@ -1815,13 +2322,22 @@
       "statement": "不对流式响应启用缓冲式压缩；如启用必须每块 flush 并纳入回归",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "streamed deltas not one blob",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-02"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-STR-03",
@@ -1829,13 +2345,22 @@
       "statement": "分块格式为 data 前缀加 JSON 加双换行；结束必发 DONE 数据行；DONE 之后不得再有数据",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "REQ-STR-03",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STR-04",
@@ -1843,13 +2368,22 @@
       "statement": "每个 chunk 的 object 为 chunk 类型，且含 id、created、model、choices",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "REQ-STR-04",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STR-05",
@@ -1857,14 +2391,23 @@
       "statement": "整个流的首块带 assistant 角色且角色只出现一次；末块增量为空对象并带 finish_reason",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "REQ-STR-05",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01",
         "T-03"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STR-06",
@@ -1872,13 +2415,22 @@
       "statement": "内容增量必须是真增量，不得重发全量快照，判据见第 8 节",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "stream chunks non-empty deltas",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-03"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STR-07",
@@ -1886,13 +2438,22 @@
       "statement": "多候选时每个 choice 的 index 稳定，且净化状态机按 choice 独立维护",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "single choice index stable",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-03"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STR-08",
@@ -1905,11 +2466,11 @@
         {
           "level": "E2",
           "path": "_runtime/v4_evidence/live_include_usage.sse",
-          "note": "mid usage null + trail choices=[] + DONE",
+          "note": "include_usage shape",
           "artifactFingerprint": {
-            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
-            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
           }
         }
       ],
@@ -1923,13 +2484,22 @@
       "statement": "用量选项仅在流式时合法，否则返回 400",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "n!=1 → 400",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STR-10",
@@ -1937,13 +2507,22 @@
       "statement": "客户端断连后一秒内取消上游并释放会话，且有断连计数指标",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-STR-10",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-08"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-STR-11",
@@ -1951,13 +2530,22 @@
       "statement": "不得下发既无内容又无 finish_reason 的 chunk",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "REQ-STR-11",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STR-12",
@@ -1970,7 +2558,8 @@
       "tests": [
         "T-11"
       ],
-      "note": "SHOULD not blocking; no evidence this run"
+      "note": "no evidence this run",
+      "nextEvidenceNeeded": "E2"
     },
     {
       "id": "REQ-STR-13",
@@ -2006,14 +2595,23 @@
       "statement": "每个流恰好一个终止信号：finish_reason 与 error 数据行不得两者皆无，也不得同时对同一 choice 下发",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "REQ-STR-15",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01",
         "T-08"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-STR-16",
@@ -2021,14 +2619,23 @@
       "statement": "推理增量与正文增量分别累积，客户端拼接任一通道都不得混入另一通道",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "REQ-STR-16",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-03",
         "T-07"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-STR-17",
@@ -2036,12 +2643,32 @@
       "statement": "提供按请求 ID 记录 chunk 序号与时序的取证开关，不改变对外协议",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "chunk capture by request id / raw SSE export",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_stream_headers.txt",
+          "note": "headers incl request id",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-09"
-      ],
-      "note": "SHOULD not blocking; no evidence this run"
+      ]
     },
     {
       "id": "REQ-TOOL-01",
@@ -2049,14 +2676,23 @@
       "statement": "支持 tools、tool_choice 的 auto / none / required / 指定函数，以及并行工具开关，默认开",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "gold stream/nonstream tool shape",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10",
         "T-11"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-02",
@@ -2064,14 +2700,23 @@
       "statement": "arguments 是 JSON 字符串而非对象；完整拼接后可解析",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "arguments JSON string assemble",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01",
         "T-04"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-03",
@@ -2079,13 +2724,22 @@
       "statement": "finish_reason 为 tool_calls 时正文为 null 或空串",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "gold stream/nonstream tool shape",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-04",
@@ -2093,13 +2747,22 @@
       "statement": "流式首片含 index、id、type、name 且 arguments 为空串；后续片仅追加 arguments 增量",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "gold stream/nonstream tool shape",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-03"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-05",
@@ -2107,13 +2770,22 @@
       "statement": "同一工具调用的 id 全流不变、全局唯一，格式为 call 前缀加至少 16 位字母数字",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "gold stream/nonstream tool shape",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-03"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-06",
@@ -2121,13 +2793,22 @@
       "statement": "并行工具 index 从 0 按出现顺序递增；同一 index 内分片有序，跨 index 允许交错",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "gold stream/nonstream tool shape",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-03"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-07",
@@ -2135,13 +2816,22 @@
       "statement": "下发 tool_calls 终止原因之后，不得再下发该 choice 的正文",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "gold stream/nonstream tool shape",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-03"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-08",
@@ -2149,13 +2839,22 @@
       "statement": "要求必须调用工具而上游未产出时，不得伪造工具调用；按配置报错或在首字节前重试",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "tool_choice none/required/named",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-09",
@@ -2163,13 +2862,22 @@
       "statement": "指定了函数而上游调用了其它函数时，报错或按显式映射纠正，不得静默改名",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "tool_choice none/required/named",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-10",
@@ -2177,13 +2885,22 @@
       "statement": "函数名匹配字母数字下划线连字符且长度 1 到 64，越界返回 400 并带 param",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-TOOL-10",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-11",
@@ -2191,14 +2908,23 @@
       "statement": "正确接收 tool 角色消息与 tool_call_id 并继续推理；未知 tool_call_id 返回 400",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "tool_call_id / multiturn",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10",
         "T-11"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E2"
+      ]
     },
     {
       "id": "REQ-TOOL-12",
@@ -2206,13 +2932,22 @@
       "statement": "校验消息序列合法性：带工具调用的 assistant 消息后须跟齐覆盖全部 id 的 tool 消息",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "tool_call_id / multiturn",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-13",
@@ -2220,13 +2955,22 @@
       "statement": "结构化输出与严格模式下输出须通过 schema 校验；违规时报错或按配置重试，不得下发违规结果",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-TOOL-13",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-10"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-14",
@@ -2234,12 +2978,22 @@
       "statement": "兼容旧字段 functions 与 function_call，并映射到 tools 语义",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-TOOL-14",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-11"
-      ],
-      "note": "SHOULD not blocking; no evidence this run"
+      ]
     },
     {
       "id": "REQ-TOOL-15",
@@ -2247,14 +3001,33 @@
       "statement": "请求未携带 tools 但上游吐出工具标记时：默认剥离标记，不得产生 tool_calls；若配置为保留残留文本，必须先剥标记",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/l0_redlight_run.json",
+          "note": "no-tools still strip",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-06",
         "T-07"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     },
     {
       "id": "REQ-TOOL-16",
@@ -2262,23 +3035,32 @@
       "statement": "工具区间解析失败时，记录原文到日志，向客户端返回错误或按配置降级为纯净文本，禁止下发非法 JSON、禁止把原文倒进正文",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "REQ-TOOL-16",
+          "artifactFingerprint": {
+            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+            "commit": "31d9ebf68f847558c5bf5f16652336e77e0e3c09",
+            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+          }
+        }
+      ],
       "tests": [
         "T-06"
-      ],
-      "note": "no evidence this run",
-      "nextEvidenceNeeded": "E1"
+      ]
     }
   ],
   "mutantResults": [
     {
       "mutant": "shortest-match-order",
       "leak": "b",
-      "killed": false,
+      "killed": true,
       "baseline_pass": true,
-      "mutant_pass": true,
-      "gap": "mutant did not break b fixture"
+      "mutant_pass": false,
+      "gap": null
     },
     {
       "mutant": "disable-holdback",
@@ -2297,12 +3079,6 @@
       "gap": null
     },
     {
-      "mutant": "gap-a",
-      "leak": "a",
-      "killed": false,
-      "gap": "requires Handler six-path injection harness"
-    },
-    {
       "mutant": "gap-e",
       "leak": "e",
       "killed": false,
@@ -2312,19 +3088,26 @@
       "mutant": "gap-f",
       "leak": "f",
       "killed": false,
-      "gap": "requires live/stream handler fake upstream"
-    },
-    {
-      "mutant": "gap-g",
-      "leak": "g",
-      "killed": false,
-      "gap": "requires fake upstream abort into chat finish_reason"
+      "gap": "requires live/stream handler fake upstream (include_usage shape covered by live E2)"
     },
     {
       "mutant": "gap-h",
       "leak": "h",
       "killed": false,
-      "gap": "deploy fingerprint not a Parser mutant"
+      "gap": "deploy fingerprint not a Parser mutant (covered by probe E2)"
+    },
+    {
+      "mutant": "drop-finalize-helper",
+      "leak": "a",
+      "killed": true,
+      "baseline_has_helper": true,
+      "gap": null
+    },
+    {
+      "mutant": "upstream-interrupt-as-stop",
+      "leak": "g",
+      "killed": true,
+      "gap": null
     }
   ],
   "testChanges": [],
@@ -2343,7 +3126,7 @@
       "leak_h_deploy_fingerprint.json"
     ]
   },
-  "unknownCount": 94,
+  "unknownCount": 18,
   "failCount": 0,
   "e3_count": 0,
   "verdict": "insufficient-evidence",
@@ -2354,10 +3137,6 @@
       "need": "E3"
     },
     {
-      "id": "INV-03",
-      "need": "E1"
-    },
-    {
       "id": "INV-09",
       "need": "E3"
     },
@@ -2366,160 +3145,12 @@
       "need": "E3"
     },
     {
-      "id": "REQ-API-01",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-API-02",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-API-03",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-API-04",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-API-05",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-API-06",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-API-07",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-API-08",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-API-09",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-API-10",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-DEP-06",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-ERR-01",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-ERR-02",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-ERR-03",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-ERR-04",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-ERR-05",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-ERR-06",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-ERR-07",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-ERR-08",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-ERR-09",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-OBS-01",
-      "need": "E1"
-    },
-    {
       "id": "REQ-OBS-02",
       "need": "E2"
     },
     {
-      "id": "REQ-OBS-03",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-OBS-04",
-      "need": "E1"
-    },
-    {
       "id": "REQ-OBS-05",
       "need": "E3"
-    },
-    {
-      "id": "REQ-OBS-06",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-OBS-07",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-RSN-01",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-RSN-02",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-RSN-03",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-RSN-04",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-RSN-05",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-RSN-06",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-01",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-02",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-05",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-07",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-08",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-10",
-      "need": "E1"
     },
     {
       "id": "REQ-SAN-12",
@@ -2527,22 +3158,6 @@
     },
     {
       "id": "REQ-SAN-13",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-16",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-17",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-18",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-SAN-19",
       "need": "E1"
     },
     {
@@ -2554,19 +3169,11 @@
       "need": "E1"
     },
     {
-      "id": "REQ-SEC-02",
-      "need": "E1"
-    },
-    {
       "id": "REQ-SEC-03",
       "need": "E1"
     },
     {
       "id": "REQ-SEC-04",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-STATE-01",
       "need": "E2"
     },
     {
@@ -2586,58 +3193,6 @@
       "need": "E3"
     },
     {
-      "id": "REQ-STATE-06",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STATE-07",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STATE-08",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STR-01",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-STR-02",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-STR-03",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STR-04",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STR-05",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STR-06",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STR-07",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STR-09",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STR-10",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-STR-11",
-      "need": "E1"
-    },
-    {
       "id": "REQ-STR-12",
       "need": "E2"
     },
@@ -2648,52 +3203,32 @@
     {
       "id": "REQ-STR-14",
       "need": "E3"
-    },
-    {
-      "id": "REQ-STR-15",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-STR-16",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-STR-17",
-      "need": "E2"
-    },
-    {
-      "id": "REQ-TOOL-01",
-      "need": "E1"
-    },
-    {
-      "id": "REQ-TOOL-02",
-      "need": "E1"
     }
   ],
   "knownDeviations": [
     {
-      "id": "live-upstream-busy",
-      "summary": "include_usage live SSE and gold/tool/agent_long blocked by upstream 529/temporarily unavailable during evidence window",
-      "evidence": "_runtime/v4_evidence/live_include_usage.sse",
-      "impact": [
-        "INV-17",
-        "REQ-STR-08",
-        "leak-f",
-        "leak-g",
-        "regression_gold",
-        "regression_tool",
-        "regression_agent_long"
-      ]
-    },
-    {
       "id": "no-E3-canary",
-      "summary": "mustE3 items remain unknown: no production canary/soak E3 collected",
+      "summary": "mustE3 items remain unknown: no production canary/soak E3 collected this run",
       "impact": [
         "INV-02",
         "INV-09",
         "INV-12",
         "REQ-OBS-05",
-        "REQ-STATE-05"
+        "REQ-SAN-12",
+        "REQ-STATE-02",
+        "REQ-STATE-05",
+        "REQ-STR-14"
+      ]
+    },
+    {
+      "id": "no-auth-ssrf-tenant-harness",
+      "summary": "REQ-SEC-01/03/04 and session-cache STATE-03/04 lack dedicated harnesses; stay unknown not guessed pass",
+      "impact": [
+        "REQ-SEC-01",
+        "REQ-SEC-03",
+        "REQ-SEC-04",
+        "REQ-STATE-03",
+        "REQ-STATE-04"
       ]
     }
   ],
@@ -2757,7 +3292,7 @@
       "fixture": "_runtime/v4_fixtures/leak_b_longest_match.json",
       "coverage": "Parser-E1",
       "evidencePath": "_runtime/v4_evidence/l0_redlight_run.json",
-      "hypothesis": null
+      "hypothesis": "earliest index + same-pos longest full tag; mutant shortest killed"
     },
     "c": {
       "id": "c_holdback_codepoint",
@@ -2865,42 +3400,25 @@
       "fixture": null,
       "coverage": null,
       "evidencePath": "_runtime/v4_evidence/live_include_usage.sse",
-      "hypothesis": null
+      "hypothesis": "mid usage:null + trailing choices:[] + [DONE] on live include_usage"
     },
     "g": {
       "id": "g_upstream_abort_not_stop",
-      "status": "unknown",
+      "status": "pass",
       "codeLocation": {
         "file": "maxapi_server.py",
-        "line": 3559,
-        "symbol": "upstream error mid-output"
+        "symbol": "Handler._finalize_chat_stream upstream_interrupt"
       },
       "loci": [
         {
           "file": "maxapi_server.py",
-          "line": 3559,
-          "symbol": "upstream error mid-output"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 5620,
-          "symbol": "kind==error stream_failed"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 5627,
-          "symbol": "stream_failed error+[DONE]"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 5635,
-          "symbol": "else finish_reason stop/tool_calls"
+          "symbol": "Handler._finalize_chat_stream upstream_interrupt"
         }
       ],
-      "fixture": "_runtime/v4_fixtures/leak_g_upstream_abort.json",
-      "coverage": "Handler-fake",
-      "evidencePath": "_runtime/v4_evidence/l0_redlight_run.json",
-      "hypothesis": "If stream ends without done/error after partial content, else-branch may emit stop — INV-11 risk"
+      "fixture": null,
+      "coverage": "Handler-fake-E1",
+      "evidencePath": "_runtime/v4_evidence/leak_g_abort.json",
+      "hypothesis": "upstream_interrupt emits [DONE] without finish_reason=stop; natural_eof control keeps stop"
     },
     "h": {
       "id": "h_deploy_fingerprint",
@@ -2918,7 +3436,7 @@
       "fixture": null,
       "coverage": null,
       "evidencePath": "_runtime/v4_evidence/deployed_artifact.json",
-      "hypothesis": null
+      "hypothesis": "host sha==container sha; healthz+headers fingerprint present"
     }
   },
   "remediation": {

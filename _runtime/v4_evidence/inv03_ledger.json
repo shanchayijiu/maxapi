@@ -1,0 +1,160 @@
+{
+  "generatedAt": "2026-08-20T04:05:57Z",
+  "id": "INV-03",
+  "status": "pass",
+  "cases": [
+    {
+      "id": "plain",
+      "input": "hello world",
+      "chunks": null,
+      "content": "hello world",
+      "tools": [],
+      "ledger": {
+        "n_in": 11,
+        "n_content": 11,
+        "n_tool_payload": 0,
+        "n_stripped_or_held": 0,
+        "pending_after": 0,
+        "incomplete_tool": false,
+        "tools": 0,
+        "conservation_ok": true,
+        "content_is_subset": true,
+        "content_subsequence": true,
+        "pass": true
+      },
+      "status": "pass"
+    },
+    {
+      "id": "with_tool",
+      "input": "pre <tool_call>{\"name\":\"N\",\"arguments\":{}}</tool_call> post",
+      "chunks": null,
+      "content": "pre  post",
+      "tools": [
+        {
+          "id": "call_bXUecRayZvvVw1y6dQVgGP1W",
+          "name": "N",
+          "arguments": {}
+        }
+      ],
+      "ledger": {
+        "n_in": 59,
+        "n_content": 9,
+        "n_tool_payload": 3,
+        "n_stripped_or_held": 50,
+        "pending_after": 0,
+        "incomplete_tool": false,
+        "tools": 1,
+        "conservation_ok": true,
+        "content_is_subset": true,
+        "content_subsequence": true,
+        "pass": true
+      },
+      "status": "pass"
+    },
+    {
+      "id": "chunked_partial",
+      "input": "pre <tool_call>{\"name\":\"N\",\"arguments\":{}}</tool_call> post",
+      "chunks": [
+        "pre ",
+        "<tool_cal",
+        "l>{\"name\":\"N\",\"arguments\":{}}</tool_call> post"
+      ],
+      "content": "pre  post",
+      "tools": [
+        {
+          "id": "call_VyPZQwwILgOKcKM9IrpkZqHK",
+          "name": "N",
+          "arguments": {}
+        }
+      ],
+      "ledger": {
+        "n_in": 59,
+        "n_content": 9,
+        "n_tool_payload": 3,
+        "n_stripped_or_held": 50,
+        "pending_after": 0,
+        "incomplete_tool": false,
+        "tools": 1,
+        "conservation_ok": true,
+        "content_is_subset": true,
+        "content_subsequence": true,
+        "pass": true
+      },
+      "status": "pass"
+    },
+    {
+      "id": "unclosed",
+      "input": "visible <tool_calls><invoke name=\"X\"><parameter name=\"q\">no-close",
+      "chunks": null,
+      "content": "visible ",
+      "tools": [],
+      "ledger": {
+        "n_in": 65,
+        "n_content": 8,
+        "n_tool_payload": 0,
+        "n_stripped_or_held": 57,
+        "pending_after": 0,
+        "incomplete_tool": true,
+        "tools": 0,
+        "conservation_ok": true,
+        "content_is_subset": true,
+        "content_subsequence": true,
+        "pass": true
+      },
+      "status": "pass"
+    },
+    {
+      "id": "unicode",
+      "input": "你好 <tool_call>{\"name\":\"U\",\"arguments\":{\"x\":\"中文\"}}</tool_call> 世界",
+      "chunks": null,
+      "content": "你好  世界",
+      "tools": [
+        {
+          "id": "call_5Ey8JxlF9ZAMZsby7L6Vv3Kg",
+          "name": "U",
+          "arguments": {
+            "x": "中文"
+          }
+        }
+      ],
+      "ledger": {
+        "n_in": 64,
+        "n_content": 6,
+        "n_tool_payload": 12,
+        "n_stripped_or_held": 58,
+        "pending_after": 0,
+        "incomplete_tool": false,
+        "tools": 1,
+        "conservation_ok": true,
+        "content_is_subset": true,
+        "content_subsequence": true,
+        "pass": true
+      },
+      "status": "pass"
+    },
+    {
+      "id": "nested_markers_text",
+      "input": "a <|tool_calls_section_begin|>raw<|tool_call_begin|>x",
+      "chunks": null,
+      "content": "a ",
+      "tools": [],
+      "ledger": {
+        "n_in": 53,
+        "n_content": 2,
+        "n_tool_payload": 0,
+        "n_stripped_or_held": 51,
+        "pending_after": 0,
+        "incomplete_tool": true,
+        "tools": 0,
+        "conservation_ok": true,
+        "content_is_subset": true,
+        "content_subsequence": true,
+        "pass": true
+      },
+      "status": "pass"
+    }
+  ],
+  "rule": "every input codepoint accounted as content or stripped/held; content is subsequence; no pending after flush",
+  "locus": "maxapi_server.py:ToolCallParser.feed/flush",
+  "minimalRepro": "python -u _runtime/v4_inv03_ledger.py --record _runtime/v4_evidence/inv03_ledger.json"
+}

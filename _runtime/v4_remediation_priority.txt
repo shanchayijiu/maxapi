@@ -1,22 +1,21 @@
-# v4 整改优先级（≤20 行）— 2026-08-20 R6
-# 依据 _runtime/v4_consistency_report.json verdict=insufficient-evidence；blocking=[]；fail=0
-1. [done] INV-13 + REQ-SAN-14：_finalize_chat_stream 六类终止已统一；finalize_redlight pass + live DONE
-2. [done] INV-01 E2：健康 live SSE 零 tag 泄漏 + L0 b/d/e
-3. [done] leak-a/f/h：finalize / include_usage 形态 / DEP 指纹 — eight_leaks pass
-4. [done] 回归：compat 96 + gold 20 + tool 28 + agent_long 17
-5. [P0/unknown] leak-g：fake upstream abort harness，断言 finish_reason≠stop（代码已走 upstream_interrupt finalize）
-6. [P1/unknown] INV-03 码点守恒 ledger + 重建夹具
-7. [P1/mutant] leak-b shortest-match mutant 未杀死 — 加强 fixture 或次序断言
-8. [P1] T-16 扩展 a/f/g/h 从 gap 变为可杀 mutant
-9. [P2/mustE3] INV-02 未知标记零告警 — 生产 canary E3
-10. [P2/mustE3] INV-09 无状态隔离 — 多租户/并发 E3
-11. [P2/mustE3] INV-12 真流式 — 分片时序 soak E3
-12. [P2/mustE3] REQ-STATE-05 / REQ-OBS-05 — E3 观测与状态证据
-13. [P2] 其余 REQ-* unknown（~90）：按目录补 E1 夹具，禁止猜 pass
-14. [P2] REQ-STR 全矩阵已有 gold 覆盖的条目可在 audit 映射升 pass（保持 minEvidence）
-15. [P3] stop_sequence/length_limit 运行时显式 class 注入（helper 已支持，缺上游信号）
-16. [P3] image RepoDigests 无 tag 环境稳定导出（已有 Id 回退）
-17. [ops] 上游慢时 tool_suite 需 ≥15min 墙钟；禁止 600s 前台杀进程
-18. [ops] 门禁只认 v4_audit.py validate；禁止空夹具/硬编码 killed
-19. [ops] Docker rebuild 后必须 probe hostMatchesContainer 再封 deployedArtifact
-20. [ops] mustE3 未采集前 verdict 不得为 pass（本窗 insufficient-evidence 正确）
+v4 remediation priority (≤20 lines) — sealed 2026-08-20 post longest-match rebuild
+verdict=insufficient-evidence | fail=0 | pass=108 | unknown=18 | e3=0 | eightLeaks a–h=pass | mutants killed=5/8
+deployed: commit=315ef23 binarySha256=81d61570… image=maxapi-server@sha256:cc20318c… hostMatchesContainer=true
+1. E3 canary/soak (blocks verdict=pass): INV-02 INV-09 INV-12 REQ-STATE-05 REQ-OBS-05 REQ-SAN-12 REQ-STATE-02 REQ-STR-14
+2. Auth constant-time + fail-closed harness → REQ-SEC-01 (E1)
+3. Remote image/file fetch SSRF allowlist + timeout harness → REQ-SEC-03 (E1)
+4. Multi-tenant credential isolation / auto-evict → REQ-SEC-04 (E2)
+5. Session cache prefix-hash + TTL/evict under pressure → REQ-STATE-03/04 (E2)
+6. Ops metrics surface (TTFB/P95/success/fallback/unknown-rate) → REQ-OBS-02 (E2)
+7. Streaming backpressure: slow-client write timeout disconnect → REQ-STR-13 (E2)
+8. Canary ID dual-channel dynamic gate (default off) → REQ-STR-12 (E2)
+9. SHOULD watermark annotations mapping → REQ-SAN-13 (optional)
+10. SHOULD ops alert hooks without protocol change → REQ-SAN-20 (optional)
+11. Keep mutant gaps e/f/h as documented non-Parser mutants (covered by live/probe)
+12. Do NOT greenwash mustE3 or missing harnesses; unknown is valid
+13. After any maxapi_server.py change: docker rebuild + MAXAPI_GIT_COMMIT=HEAD + probe DEP
+14. Long regressions already green this lineage: gold20/compat96/tool28/agent17 — re-run after protocol edits
+15. Leak a–h loci + fixtures locked under _runtime/v4_fixtures + harnesses
+16. Report engine: python -u _runtime/v4_audit.py build-report && validate
+17. Priority if engineering time is scarce: #1 E3 canary first, then SEC-01, then STR-13
+18. Binding rule: deployedArtifact always from listening process healthz/headers, never build script alone

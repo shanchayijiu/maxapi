@@ -1,7 +1,7 @@
 {
   "id": "a",
   "title": "unified finalize on six termination classes",
-  "generatedAt": "2026-08-20T03:39:17Z",
+  "generatedAt": "2026-08-20T04:05:58Z",
   "locus": "maxapi_server.py:Handler._finalize_chat_stream",
   "required_classes": [
     "natural_eof",

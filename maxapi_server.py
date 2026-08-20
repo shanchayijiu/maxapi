@@ -2311,28 +2311,36 @@ def _find_partial(s):
 
 
 def _find_seg(s):
+    """Earliest tool-tag start; at the same index prefer the longest full tag (leak-b / INV longest-match)."""
     low = s.lower()
     best = -1
+    best_len = -1
     for prefix in _TOOL_TAG_FULLS:
         # Loop past fence-enclosed occurrences so a tag inside a code block
         # doesn't shadow a real tag that follows it.
         pos = 0
+        plen = len(prefix)
         while True:
             idx = low.find(prefix, pos)
             if idx < 0:
                 break
             if not _inside_fence(s[:idx]):
-                if best < 0 or idx < best:
+                # earliest wins; tie → longest full match
+                if best < 0 or idx < best or (idx == best and plen > best_len):
                     best = idx
-                break  # found a valid one; earlier is always better for this prefix
+                    best_len = plen
+                break  # found a valid one for this prefix
             pos = idx + 1
     # bare <function=NAME> opener (se.zzmax upstream): name varies, match by regex
     for fn in re.finditer(r'<function\s*=\s*"?[A-Za-z_]', s, re.IGNORECASE):
         fidx = fn.start()
         if not _inside_fence(s[:fidx]):
-            if best < 0 or fidx < best:
+            # treat as length of matched opener span
+            plen = max(len("<function="), fn.end() - fidx)
+            if best < 0 or fidx < best or (fidx == best and plen > best_len):
                 best = fidx
-            break  # earliest valid match wins
+                best_len = plen
+            break  # earliest valid match wins among regex hits
     return best
 
 
@@ -2673,24 +2681,30 @@ class ToolCallParser:
             if not self.pending:
                 break
             # Find earliest tag outside fences (instance fence + pending-local).
+            # Same-index ties: longest full tag wins (leak-b).
             low = self.pending.lower()
             seg = -1
+            seg_len = -1
             for prefix in _TOOL_TAG_FULLS:
                 pos = 0
+                plen = len(prefix)
                 while True:
                     idx = low.find(prefix, pos)
                     if idx < 0:
                         break
                     if self._seg_outside_fence(self.pending, idx):
-                        if seg < 0 or idx < seg:
+                        if seg < 0 or idx < seg or (idx == seg and plen > seg_len):
                             seg = idx
+                            seg_len = plen
                         break
                     pos = idx + 1
             for fn in re.finditer(r'<function\s*=\s*"?[A-Za-z_]', self.pending, re.IGNORECASE):
                 fidx = fn.start()
                 if self._seg_outside_fence(self.pending, fidx):
-                    if seg < 0 or fidx < seg:
+                    plen = max(len("<function="), fn.end() - fidx)
+                    if seg < 0 or fidx < seg or (fidx == seg and plen > seg_len):
                         seg = fidx
+                        seg_len = plen
                     break
             if seg >= 0:
                 prefix = self.pending[:seg]

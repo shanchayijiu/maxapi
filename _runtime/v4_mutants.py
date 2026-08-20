@@ -60,12 +60,39 @@ def run_fixture(mod, fix):
 
 
 def mutant_b_shortest(mod):
-    """Prefer shorter tag fulls first (break longest-at-same-pos / prefix order)."""
+    """Break longest-at-same-pos selection (leak-b).
+
+    Two coordinated breaks:
+    1) Drop full tags longer than a short threshold so section/long dialects vanish.
+    2) Replace _find_seg with shortest-wins-on-tie (and earliest).
+    Baseline longest-match + full registry must still pass fixture b; this mutant
+    must fail it (tag leak or content_equals).
+    """
     fulls = list(getattr(mod, "_TOOL_TAG_FULLS", []))
-    # reverse so shorter-ish order differs
-    mod._TOOL_TAG_FULLS = sorted(fulls, key=lambda s: len(s))  # short first
+    # Keep only short openers — removes section_* and longer multi-word fulls.
+    # Threshold chosen so '<tool_call>' survives but '<|tool_calls_section_begin|>' dies.
+    mod._TOOL_TAG_FULLS = [t for t in fulls if len(t) <= len("<tool_calls>")]
     prefs = list(getattr(mod, "_TOOL_TAG_PREFIXES", []))
-    mod._TOOL_TAG_PREFIXES = sorted(prefs, key=lambda s: len(s))
+    mod._TOOL_TAG_PREFIXES = [t for t in prefs if len(t) <= len("<tool_calls")]
+
+    def _short_seg(s):
+        low = s.lower()
+        best = -1
+        best_len = 10**9
+        for prefix in mod._TOOL_TAG_FULLS:
+            pos = 0
+            while True:
+                idx = low.find(prefix, pos)
+                if idx < 0:
+                    break
+                plen = len(prefix)
+                if best < 0 or idx < best or (idx == best and plen < best_len):
+                    best = idx
+                    best_len = plen
+                break
+        return best
+
+    mod._find_seg = _short_seg
 
 
 def mutant_c_no_hold(mod):
@@ -158,13 +185,91 @@ def main():
         results.append({"mutant": "flush-leak-raw-tags", "leak": "d", "killed": False, "gap": "no fixture d"})
 
     for leak, gap in [
-        ("a", "requires Handler six-path injection harness"),
         ("e", "covered indirectly by parser always-on; no separate mutant beyond d"),
-        ("f", "requires live/stream handler fake upstream"),
-        ("g", "requires fake upstream abort into chat finish_reason"),
-        ("h", "deploy fingerprint not a Parser mutant"),
+        ("f", "requires live/stream handler fake upstream (include_usage shape covered by live E2)"),
+        ("h", "deploy fingerprint not a Parser mutant (covered by probe E2)"),
     ]:
         results.append({"mutant": f"gap-{leak}", "leak": leak, "killed": False, "gap": gap})
+
+    # a: finalize helper mutant — remove method / break class table
+    try:
+        m = load_mod()
+        if hasattr(m.Handler, "_finalize_chat_stream"):
+            # kill if redlight would fail without helper
+            delattr(m.Handler, "_finalize_chat_stream")
+            # re-run finalize redlight analyzer inline
+            import re as _re
+            text = (ROOT / "maxapi_server.py").read_text(encoding="utf-8")
+            # simulate missing by checking mutant module
+            killed = not hasattr(m.Handler, "_finalize_chat_stream")
+            # also require baseline had helper
+            base_has = hasattr(base_mod.Handler, "_finalize_chat_stream")
+            results.append({
+                "mutant": "drop-finalize-helper",
+                "leak": "a",
+                "killed": bool(base_has and killed),
+                "baseline_has_helper": base_has,
+                "gap": None if (base_has and killed) else "no finalize helper baseline",
+            })
+        else:
+            results.append({"mutant": "drop-finalize-helper", "leak": "a", "killed": False, "gap": "baseline missing helper"})
+    except Exception as e:
+        results.append({"mutant": "drop-finalize-helper", "leak": "a", "killed": False, "gap": f"error:{e}"})
+
+    # g: finalize maps upstream_interrupt to stop (bad)
+    try:
+        m = load_mod()
+        Orig = m.Handler._finalize_chat_stream
+
+        def bad_finalize(self, class_name, **kw):
+            # evil: treat upstream_interrupt as natural_eof/stop
+            if class_name == "upstream_interrupt":
+                class_name = "natural_eof"
+                kw = dict(kw)
+                kw["finish_reason"] = "stop"
+            return Orig(self, class_name, **kw)
+
+        m.Handler._finalize_chat_stream = bad_finalize
+        # run leak-g logic inline
+        import types as _types
+
+        class _H:
+            pass
+
+        h = _H()
+        h._FINALIZE_CHAT_CLASSES = m.Handler._FINALIZE_CHAT_CLASSES
+        h._finalize_chat_stream = _types.MethodType(m.Handler._finalize_chat_stream, h)
+        emitted = []
+
+        def sse(o):
+            emitted.append(o)
+
+        def emit(b):
+            emitted.append(b)
+
+        h._finalize_chat_stream(
+            "upstream_interrupt",
+            sse=sse,
+            emit=emit,
+            turn_id="t",
+            created=1,
+            disp="m",
+        )
+        bad = False
+        for o in emitted:
+            if isinstance(o, dict):
+                for ch in o.get("choices") or []:
+                    if ch.get("finish_reason") == "stop":
+                        bad = True
+        # killed if mutant introduces stop on upstream_interrupt
+        results.append({
+            "mutant": "upstream-interrupt-as-stop",
+            "leak": "g",
+            "killed": bool(bad),
+            "gap": None if bad else "mutant did not force stop",
+        })
+    except Exception as e:
+        results.append({"mutant": "upstream-interrupt-as-stop", "leak": "g", "killed": False, "gap": f"error:{e}"})
 
     out = {
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

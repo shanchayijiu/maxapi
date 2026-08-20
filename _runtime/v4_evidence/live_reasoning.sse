@@ -1,0 +1,144 @@
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "\nI need "}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "to c"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "a"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "lcul"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ate 17 × 19.\n\nLet me break thi"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "s down using "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "the distributive pro"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "perty"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": ":\n17 × 19 ="}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " 17 × (20 - "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "1)\n       "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "  = 17 ×"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " 20 - 17 × 1\n       "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "  = 340 - 17\n         ="}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " 323\n\nL"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "et me verify "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "this an"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "oth"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "er way to"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " be sure:"}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "\n19 × 17 ="}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " (20 - 1) × "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "17\n       "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "  ="}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " 20 × 17 - 1 × 17"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "\n         = 340 - 1"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "7\n      "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "  = 323\n\nOr I can think o"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "f it as:\n1"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "7 "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "× "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "19 = 17 ×"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " 10 + 17 ×"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " 9\n       "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "  = 170 + 17 × 9"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "\n      "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "   = 17"}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "0"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": " "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "+ (1"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "7 × 10 - 17)\n     "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "    = 170 + 170 - 1"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "7\n         = 340 - "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "17\n       "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "  = 323\n\nAll met"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "hods conf"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "irm the "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "s"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "a"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"reasoning_content": "me result.\n\n\n"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": "To calculate "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": "17 × 19, I'll"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": " use the distributive property:\n\n17"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": " × 19 = 17"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": " × (20 - 1"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": ")\n        "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": "= ("}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": "17 × 20) - ("}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": "17 × 1)\n        "}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": "= 340 - 17"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": "\n        = 323\n\n**"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": "Final answer"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {"content": ": 323**"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}], "usage": null}
+
+data: {"id": "chatcmpl-1787199365902", "object": "chat.completion.chunk", "created": 1787199365, "model": "Claude Sonnet 5", "choices": [], "usage": {"prompt_tokens": 19, "completion_tokens": 173, "total_tokens": 192}}
+
+data: [DONE]
+

@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-08-20T04:05:57Z",
+  "id": "g",
+  "status": "pass",
+  "problems": [],
+  "upstream_interrupt_result": {
+    "class": "upstream_interrupt",
+    "wire": true,
+    "finish_reason": null
+  },
+  "upstream_interrupt_emitted": [
+    [
+      "raw",
+      "data: [DONE]\n\n"
+    ]
+  ],
+  "expected": "upstream_interrupt → [DONE] without finish_reason=stop; natural_eof → stop; client_cancel → no wire",
+  "locus": "maxapi_server.py:Handler._finalize_chat_stream",
+  "minimalRepro": "python -u _runtime/v4_leak_g_harness.py --record _runtime/v4_evidence/leak_g_abort.json"
+}
