@@ -4,7 +4,7 @@
 > 改完对照文末「完成判定」打勾；对不上 = 没做完，不许声称完成、不许顺手加戏。  
 > 本文是用户要求的单一真相源；与 STATUS §1 保护区叠加，冲突时以**更严**的为准。
 
-最后整理：2026-08-19（会话：慢/截断/Codex 工具失效根因修复后）。
+最后整理：2026-08-20（叠加 2api v4 诚实门禁；wire 回归口径不变）。
 
 ---
 
@@ -28,6 +28,7 @@
 | G6 | **多模型可用** | Claude / gpt-sol / deepseek-v4-flash 等 catalog 内模型在 8080 可调用；DeepSeek 原生 tool token 必须能解析 |
 | G7 | **Codex 路径可用** | Codex →（可选 57321）→ **8080** 工具+长文正常；修 maxapi 时默认 **不抢用户的 57321**，独立打 8080 探针 |
 | G8 | **访客旁路核心不被改坏** | 伪造 XFF/额度轮换/busy≠quota/隐身 header 等是生存能力，review/功能活默认只读（见 STATUS §1 + `review_principle_bypass`） |
+| G9 | **2api v4 报告可复验** | `_runtime/v4_consistency_report.json` 四态 verdict 诚实；`deployedArtifact` 与 8080 监听进程指纹一致；无证据不得 pass；mustE3 无 E3 时不得 verdict=pass |
 
 ---
 
@@ -63,10 +64,12 @@
 ### 4.1 必做（任何协议/流式/工具相关改动）
 
 ```
-[ ] 8080 Docker 已是当前代码（docker cp 或 rebuild，禁止「只改了主机文件」）
+[ ] 8080 Docker 已是当前代码（rebuild + MAXAPI_GIT_COMMIT=HEAD；禁止「只改了主机文件」）
+[ ] curl /healthz：binarySha256 与主机 maxapi_server.py 一致；X-Maxapi-* 头存在
 [ ] 纯文本流式：短答 + 较长列表（如 1..20）不截断、有 finish/[DONE]
 [ ] 工具：responses stream + chat stream + chat nonstream 至少各 1 次 auto tool
 [ ] 日志：无 BrokenPipe 风暴；无无意义连续 tool-escalate ×3
+[ ] 若动 parser/终止路径：跑 v4 L0/finalize/inv03/leak-g/mutants + build-report/validate
 [ ] git commit；用户要求时 push；STATUS.md 顶部追加一条日期摘要
 ```
 

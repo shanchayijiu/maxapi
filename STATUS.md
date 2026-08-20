@@ -1,5 +1,5 @@
 # maxapi STATUS
-> 2026-08-20 R7: **2api v4 本地可闭环收口**——`verdict=insufficient-evidence`（fail=0，pass=108，unknown=18 全为 mustE3/无 harness，validate 合法，e3=0）。最长匹配 leak-b 修复 + mutant a/b/c/d/g killed=5；INV-03 ledger / leak-g harness 先红后绿；八漏点 **a–h 全 pass**；live reasoning_content + include_usage shape 复证。deployedArtifact `binarySha256=81d61570…` host==container；image `maxapi-server@sha256:cc20318c…`；commit 进程=1c8ca11 仍需生产 canary 才能 verdict=pass。
+> 2026-08-20 R7: **2api v4 本地可闭环收口**——`verdict=insufficient-evidence`（fail=0，pass=108，unknown=18 全为 mustE3/无 harness，validate 合法，e3=0）。最长匹配 leak-b 修复 + mutant a/b/c/d/g killed=5；INV-03 ledger / leak-g harness 先红后绿；八漏点 **a–h 全 pass**；live reasoning_content + include_usage shape 复证。deployedArtifact `binarySha256=81d61570…` host==container；image `maxapi-server@sha256:cc20318c…`；commit 进程=1c8ca11。mustE3 仍需生产 canary 才能 verdict=pass。
 
 > 2026-08-20 R6: **2api v4 续跑清 blocking**——`verdict=insufficient-evidence`（fail=0，unknown≈94 含 mustE3，validate 合法）。`_finalize_chat_stream` 统一六类终止（INV-13/REQ-SAN-14 先红后绿）。八漏点 a/b/c/d/e/f/h **pass**，g unknown。live include_usage：mid `usage:null` + trail `choices:[]` + `[DONE]`。回归：**compat 96 / gold 20 / tool 28 / agent_long 17**。deployedArtifact `binarySha256=eb0a1401…` host==container；image `maxapi-server@sha256:32775a3c…`。产物已更新。
 
@@ -19,7 +19,7 @@
 
 ## 一句话现状
 
-`maxapi_server.py`：OpenAI Chat Completions **wire-compat P0**（未知模型 404 / 流式 tool 分片 / include_usage / SSE headers）+ sol auto tool 阶梯 + mid-flight 门控 + thinking 双通道 tparser + DeepSeek token body 解析。验收：`_openai_sdk_gold.py` 20/20 + compat 96 + tool 28 + agent_long 17。8080 Docker 已同步。
+`maxapi_server.py`：OpenAI Chat Completions **wire-compat P0** + **2api v4 诚实门禁**（DEP 指纹 / finalize 六类 / ToolCallParser 最长匹配）+ sol auto tool 阶梯 + mid-flight 门控 + thinking 双通道 tparser。验收：gold 20 + compat 96 + tool 28 + agent_long 17；v4 report pass=108 unknown=18 fail=0（insufficient-evidence）。8080 Docker `maxapi-server:latest` 已同步。
 
 ## 0.5 目标锚点
 

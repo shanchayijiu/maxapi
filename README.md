@@ -11,10 +11,29 @@
 `response_format` json_object/json_schema 软注入 system；`/v1/embeddings` 与 `/v1/completions` → 501 `not_implemented`。
 超上下文：`MAXAPI_COMPACT=0` 时 400 `context_length_exceeded`；默认 compact 开启。流式客户端断连会中止上游 drain。
 
-验收：`python _openai_sdk_gold.py` / `_local_compat_check.py` / `_accept_tool_suite.py` / `_accept_agent_long.py`。
+验收（wire 回归）：`python _openai_sdk_gold.py` / `_local_compat_check.py` / `_accept_tool_suite.py` / `_accept_agent_long.py`。
 
-**2026-08-19**：OpenAI chat wire-compat P0（404 model / tool 分片 / include_usage / SSE keep-alive / n!=1 / response_format / context_length code / disconnect cancel / embeddings 501）。
-**2026-08-17**：thinking 通道 DSML 泄漏根因修复（`e97d000`）——`<think>` 内 `|DSML|tool_calls` 同步过 ToolCallParser，不再当 reasoning 原文下发；terminal-force 单次 + concurrency 3。**2026-08-16**：sol mid-flight **completion 门控**；catalog `code_mode_only`→tools=0 已修；预压缩 `eff>limit*0.88`。**2026-08-15**：auto tool escalate/terminal-force/529。身份：2-OK XFF；`busy≠quota`。详见 [STATUS.md](STATUS.md)。
+**2api v4 门禁（2026-08-20）**：以桌面《2api 兼容层验收标准 v4》为唯一口径。产物：
+- `_runtime/v4_consistency_report.json`（附录 E；M4 四态 verdict）
+- `_runtime/v4_evidence/`（每条 pass 可打开证据）
+- `_runtime/v4_remediation_priority.txt`（≤20 行整改优先级）
+
+本地可闭环封板（R7）：`verdict=insufficient-evidence`（fail=0，pass=108，unknown=18=mustE3/无 harness，validate 合法）；八漏点 a–h pass；mutants killed 5/8；deployedArtifact 取自**监听 8080 的进程**（非构建脚本）。mustE3 需生产 canary/soak E3 才能 `verdict=pass`。一键复验：
+
+```bash
+python -u _runtime/v4_probe_deployed.py --out _runtime/v4_evidence/deployed_artifact.json
+python -u _runtime/v4_l0_redlights.py --record _runtime/v4_evidence/l0_redlight_run.json
+python -u _runtime/v4_finalize_redlight.py --record _runtime/v4_evidence/finalize_redlight.json
+python -u _runtime/v4_inv03_ledger.py --record _runtime/v4_evidence/inv03_ledger.json
+python -u _runtime/v4_leak_g_harness.py --record _runtime/v4_evidence/leak_g_abort.json
+python -u _runtime/v4_mutants.py --out _runtime/v4_evidence/mutant_results.json
+python -u _runtime/v4_audit.py build-report --out _runtime/v4_consistency_report.json
+python -u _runtime/v4_audit.py validate --report _runtime/v4_consistency_report.json
+```
+
+**2026-08-20**：v4 诚实门禁 + DEP 指纹（healthz/headers）+ `_finalize_chat_stream` 六类终止 + leak-b 最长匹配 + section 方言 strip。  
+**2026-08-19**：OpenAI chat wire-compat P0（404 model / tool 分片 / include_usage / SSE keep-alive / n!=1 / response_format / context_length code / disconnect cancel / embeddings 501）。  
+**2026-08-17**：thinking 通道 DSML 泄漏根因修复——`<think>` 内 `|DSML|tool_calls` 同步过 ToolCallParser；terminal-force 单次 + concurrency 3。详见 [STATUS.md](STATUS.md)。
 
 ## 上游机制（实证，2026-08-01）
 
@@ -79,20 +98,36 @@
 
 ## 部署
 
+镜像名以仓库现状为准：`maxapi-server:latest`（Dockerfile 仅 `COPY maxapi_server.py`）。改协议后必须 rebuild，并用**监听进程**的 `/healthz` 核对 `binarySha256` 与主机文件一致。
+
 ```bash
-cd outputs
-docker build -t maxapi:latest .
-docker run -d --name maxapi -p 8080:8080 maxapi:latest
-# 自定义限速/关伴随：
-docker run -d --name maxapi -p 8080:8080 maxapi:latest \
-  python maxapi_server.py --host 0.0.0.0 --port 8080 --rpm 12
-# 关闭伴随调用：加 --no-companion
-curl http://localhost:8080/healthz   # {"status":"ok","models":17}
+# 构建（在仓库根，不要 cd outputs）
+docker build -t maxapi-server:latest .
+
+# 运行：注入当前 git commit，便于 DEP / v4 deployedArtifact 对齐
+docker rm -f maxapi 2>/dev/null || true
+docker run -d --name maxapi -p 8080:8080 --restart unless-stopped \
+  -e MAXAPI_GIT_COMMIT="$(git rev-parse HEAD)" \
+  maxapi-server:latest
+
+# 自定义限速 / 关伴随（覆盖默认 ENTRYPOINT 时显式传 python）:
+# docker run -d --name maxapi -p 8080:8080 maxapi-server:latest \
+#   python maxapi_server.py --host 0.0.0.0 --port 8080 --rpm 12 --no-companion
+
+curl -sS http://127.0.0.1:8080/healthz
+# 期望字段：status/models/commit/binarySha256/sanitizerConfigVersion/upstreamProfile/processStartedAt
+# 响应头：X-Maxapi-Commit / X-Maxapi-Binary-Sha256 / X-Maxapi-Sanitizer-Config
+```
+
+探针绑定部署指纹（v4 要求取自监听进程，不是 build 脚本）：
+
+```bash
+python -u _runtime/v4_probe_deployed.py --out _runtime/v4_evidence/deployed_artifact.json
 ```
 
 ## API
 
-`GET /healthz` · `GET /v1/models` · `POST /v1/chat/completions`（OpenAI 兼容，流式默认）· `POST /v1/messages`（原生 Anthropic，Claude Code / Codex 直连，流式+非流式+thinking+tool_use 全闭环，2026-08-03 实测）
+`GET /healthz`（含 DEP 指纹）· `GET /v1/models` · `POST /v1/chat/completions`（OpenAI 兼容，流式默认；`stream_options.include_usage` 中间 `usage:null`、末块 `choices:[]`）· `POST /v1/messages`（原生 Anthropic，Claude Code / Codex 直连，流式+非流式+thinking+tool_use 全闭环）
 
 两个 POST 端点共享同一上游 (`upstream()`) 与限流重试逻辑；`/v1/messages` 直接出 Anthropic Messages 格式，无需外部协议转换层（cc-switch 15721 proxy 路径已非必需，详见文末「Claude Code 直连 maxapi」节）。
 
