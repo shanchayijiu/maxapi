@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-08-20T04:26:54Z",
+  "generatedAt": "2026-08-20T05:14:07Z",
   "deployedArtifactFingerprint": {
     "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-    "commit": "1c8ca11a260108e5217e641580d3de595f8de193",
+    "commit": "a8c7625109e95928806a07a51f195b2aaf5f4d06",
     "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e",
     "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820"
   },
