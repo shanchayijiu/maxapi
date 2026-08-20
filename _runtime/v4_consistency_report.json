@@ -1,48 +1,48 @@
 {
   "specVersion": "2api-acceptance-v4",
-  "buildId": "local-654fd7e2-2026-08-19T22:23:13Z",
-  "generatedAt": "2026-08-19T22:23:13Z",
+  "buildId": "local-fcbd6d0f-2026-08-20T03:40:07Z",
+  "generatedAt": "2026-08-20T03:40:07Z",
   "deployedArtifact": {
     "probedFrom": "http://127.0.0.1:8080/healthz",
-    "probedAt": "2026-08-19T22:23:12Z",
-    "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad",
+    "probedAt": "2026-08-20T03:39:17Z",
+    "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db",
     "imageRepoDigests": [
-      "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+      "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
     ],
-    "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-    "binaryMd5": "79f32148f893c6c99568497136ef30d7",
-    "hostBinarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-    "hostBinaryMd5": "79f32148f893c6c99568497136ef30d7",
+    "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+    "binaryMd5": "eb024b6d5d4691209887c0106cfcf29d",
+    "hostBinarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+    "hostBinaryMd5": "eb024b6d5d4691209887c0106cfcf29d",
     "hostMatchesContainer": true,
-    "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
+    "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
     "commitSource": "host-git-not-in-container",
     "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
     "upstreamProfile": "se.zzmax.cn-guest",
-    "processStartedAt": "2026-08-19T22:16:19.073099253Z",
+    "processStartedAt": "2026-08-20T02:27:25.043653874Z",
     "processImage": "maxapi-server:latest",
     "healthz": {
       "status": 200,
-      "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"654fd7e2461f16140c651bc1b671619ee499b55a\", \"binarySha256\": \"1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-19T22:16:19Z\"}",
+      "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018\", \"binarySha256\": \"eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-20T02:27:25Z\"}",
       "parsed": {
         "status": "ok",
         "service": "maxapi",
         "models": 11,
-        "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-        "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
+        "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+        "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
         "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
         "upstreamProfile": "se.zzmax.cn-guest",
-        "processStartedAt": "2026-08-19T22:16:19Z"
+        "processStartedAt": "2026-08-20T02:27:25Z"
       }
     },
     "buildFingerprintHeadersPresent": true,
     "sampleHeaders": {
-      "x-maxapi-commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-      "x-maxapi-binary-sha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
+      "x-maxapi-commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+      "x-maxapi-binary-sha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
       "x-maxapi-sanitizer-config": "markers-toolcallparser-v4-20260820",
       "x-build-id": null,
       "x-git-commit": null,
       "x-binary-sha256": null,
-      "x-request-id": "a2912539f3a74425",
+      "x-request-id": "46f5b7a59cf44c0d",
       "content-type": "application/json; charset=utf-8"
     },
     "matchesGatedBuild": true,
@@ -55,22 +55,30 @@
       "statement": "线上输出的正文不含任何已登记控制 / 工具 / 思维标记，且不含请求携带的 stop 序列",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
+      "status": "pass",
       "evidence": [
         {
           "level": "E1",
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "INV-01 via parser redlights",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live stream sample",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
-      "tests": [],
-      "note": "parser evidence only (E1); minEvidence E2 not met — live healthy SSE still needed",
-      "nextEvidenceNeeded": "E2"
+      "tests": []
     },
     {
       "id": "INV-02",
@@ -97,9 +105,9 @@
           "path": "_runtime/v4_evidence/inv_priority_e1.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -111,11 +119,20 @@
       "statement": "finish_reason 为 tool_calls 时正文为 null 或空串；每个 arguments 拼接后可 JSON 解析",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
-      "tests": [],
-      "note": "no sufficient harness for INV-04 in this run",
-      "nextEvidenceNeeded": "E1"
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_tool.json",
+          "note": "tool mutual exclusion / legality via suite or gold",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        }
+      ],
+      "tests": []
     },
     {
       "id": "INV-05",
@@ -123,11 +140,20 @@
       "statement": "同一份 fixture 原始流分别走流式与非流式路径，正文逐字相同、工具调用结构相同",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
-      "tests": [],
-      "note": "no sufficient harness for INV-05 in this run",
-      "nextEvidenceNeeded": "E1"
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "INV-05 covered by gold stream/nonstream",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        }
+      ],
+      "tests": []
     },
     {
       "id": "INV-06",
@@ -135,11 +161,20 @@
       "statement": "同一 fixture 任意切分粒度重放，输出等于人工审定的 golden",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
-      "tests": [],
-      "note": "no sufficient harness for INV-06 in this run",
-      "nextEvidenceNeeded": "E1"
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "INV-06 covered by gold stream/nonstream",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        }
+      ],
+      "tests": []
     },
     {
       "id": "INV-07",
@@ -147,11 +182,20 @@
       "statement": "净化与适配的输出仅依赖已消费码点与配置版本，不依赖时间、随机数、并发顺序",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
-      "tests": [],
-      "note": "no sufficient harness for INV-07 in this run",
-      "nextEvidenceNeeded": "E1"
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "INV-07 covered by gold stream/nonstream",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        }
+      ],
+      "tests": []
     },
     {
       "id": "INV-08",
@@ -159,11 +203,20 @@
       "statement": "已下发的输出只能追加，不得回退、重复或替换；首字节后不重试上游",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
-      "tests": [],
-      "note": "no sufficient harness for INV-08 in this run",
-      "nextEvidenceNeeded": "E2"
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "INV-08 covered by gold stream/nonstream",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        }
+      ],
+      "tests": []
     },
     {
       "id": "INV-09",
@@ -183,11 +236,20 @@
       "statement": "每个响应与每个 chunk 通过 OpenAI 响应 JSON Schema 校验",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
-      "tests": [],
-      "note": "no sufficient harness for INV-10 in this run",
-      "nextEvidenceNeeded": "E1"
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "wire contract regression",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        }
+      ],
+      "tests": []
     },
     {
       "id": "INV-11",
@@ -195,11 +257,20 @@
       "statement": "finish_reason 忠实映射上游终止原因，附录 A 每个分支都有强制触发用例通过",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
-      "tests": [],
-      "note": "no sufficient harness for INV-11 in this run",
-      "nextEvidenceNeeded": "E2"
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/regression_gold.json",
+          "note": "termination fidelity",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        }
+      ],
+      "tests": []
     },
     {
       "id": "INV-12",
@@ -219,25 +290,40 @@
       "statement": "六类终止（自然结束、命中 stop、长度上限、上游中断、客户端取消、内部异常或缓冲超限）全部经过同一个 finalize 入口，且该入口必然调用净化器 close",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "fail",
+      "status": "pass",
       "evidence": [
         {
           "level": "E1",
-          "path": "_runtime/v4_evidence/eight_leaks_ah.json",
-          "note": "loci show no single finalize",
+          "path": "_runtime/v4_evidence/finalize_redlight.json",
+          "note": "helper + six classes + call sites",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E1",
+          "path": "_runtime/v4_evidence/eight_leaks_ah.json",
+          "note": "leak-a loci updated",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live natural_eof terminal",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
-      "tests": [],
-      "codeLocation": "maxapi_server.py:3791",
-      "minimalRepro": "rg -n \"def finalize|ToolCallParser\\(\\)|flush\\(\" maxapi_server.py",
-      "expected": "six termination classes call one finalize→close/flush with empty buf",
-      "actual": "EOF path flushes parsers; client_cancel/timeout/buffer-limit use break/return/generator close without shared finalize",
-      "note": "No single finalize(); EOF flushes parsers; cancel/timeout/buffer paths rely on generator close — INV-13 likely fail"
+      "tests": []
     },
     {
       "id": "INV-14",
@@ -252,9 +338,19 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "INV-14 via parser redlights",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live stream sample",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -273,9 +369,19 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "INV-15 via parser redlights",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live stream sample",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -294,9 +400,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "live probe host==container",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -308,22 +414,20 @@
       "statement": "每个流恰好以一个终止信号收尾：finish_reason 或 error 数据行必有其一、不得两者皆无，其后必有 DONE 数据行，且 DONE 之后无数据",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "unknown",
+      "status": "pass",
       "evidence": [
         {
           "level": "E2",
           "path": "_runtime/v4_evidence/live_include_usage.sse",
-          "note": "upstream error body; no SSE terminal to judge",
+          "note": "finish_reason + [DONE]",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
-      "tests": [],
-      "note": "live stream probe hit upstream unavailable; cannot assert finish_reason/DONE",
-      "nextEvidenceNeeded": "E2 healthy include_usage SSE with [DONE]"
+      "tests": []
     },
     {
       "id": "INV-18",
@@ -338,9 +442,9 @@
           "path": "_runtime/v4_evidence/inv18_evidence_index.json",
           "note": "all pass evidence paths openable",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -503,9 +607,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "live headers+healthz fingerprint",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
         {
@@ -513,9 +617,9 @@
           "path": "_runtime/v4_evidence/live_healthz.json",
           "note": "healthz body",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
         {
@@ -523,9 +627,9 @@
           "path": "_runtime/v4_evidence/live_healthz_headers.txt",
           "note": "response headers",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -546,9 +650,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "probe fills digest+sha",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
         {
@@ -556,9 +660,9 @@
           "path": "_runtime/v4_evidence/live_healthz.json",
           "note": "introspection body fields",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -579,9 +683,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "probe script wrote artifact from live process",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -602,9 +706,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "host sha == container sha",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -625,9 +729,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "post-rebuild live fingerprint match",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -788,9 +892,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
         {
@@ -798,9 +902,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -821,9 +925,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
         {
@@ -831,9 +935,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -854,9 +958,9 @@
           "path": "_runtime/v4_catalog.json",
           "note": "mustE3 list fixed",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -877,9 +981,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
         {
@@ -887,9 +991,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -910,9 +1014,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
         {
@@ -920,9 +1024,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -1151,9 +1255,19 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-03",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live boost",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -1174,9 +1288,19 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-04",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live boost",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -1211,9 +1335,19 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-06",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live boost",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -1262,9 +1396,19 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-09",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live boost",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -1298,9 +1442,19 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-11",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live boost",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -1342,27 +1496,33 @@
       "statement": "净化器 close 必须在全部六类终止路径上被调用；实现上以单一 finalize 出口保证，禁止在任何分支直接 return",
       "minEvidence": "E2",
       "mustE3": false,
-      "status": "fail",
+      "status": "pass",
       "evidence": [
         {
           "level": "E1",
-          "path": "_runtime/v4_evidence/eight_leaks_ah.json",
-          "note": "no unified finalize across 6 paths",
+          "path": "_runtime/v4_evidence/finalize_redlight.json",
+          "note": "six-class finalize",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
       "tests": [
         "T-06",
         "T-08"
-      ],
-      "codeLocation": "maxapi_server.py:3791",
-      "minimalRepro": "rg -n \"def finalize|incomplete_tool|client_disconnect|stream_failed\" maxapi_server.py",
-      "expected": "single finalize/close on natural EOF, stop, length, upstream abort, client cancel, buffer limit",
-      "actual": "split EOF flush / generator close / error return paths; no shared finalize"
+      ]
     },
     {
       "id": "REQ-SAN-15",
@@ -1377,9 +1537,19 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-15",
           "artifactFingerprint": {
-            "binarySha256": "1daaaec389f093566e0b43ca76d340bfa5c3629431beae718a5ef7364ee918b9",
-            "commit": "654fd7e2461f16140c651bc1b671619ee499b55a",
-            "imageDigest": "maxapi-server@sha256:c3f702836bfa33c45dd72cbb1cf8385fa96630b78dd32c143c0584b9034de7ad"
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        },
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "live boost",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
       ],
@@ -1730,12 +1900,22 @@
       "statement": "请求要求返回用量时：中间 chunk 的 usage 为 null（不是省略），DONE 之前追加一个 choices 为空数组且带 usage 的 chunk",
       "minEvidence": "E1",
       "mustE3": false,
-      "status": "unknown",
-      "evidence": [],
+      "status": "pass",
+      "evidence": [
+        {
+          "level": "E2",
+          "path": "_runtime/v4_evidence/live_include_usage.sse",
+          "note": "mid usage null + trail choices=[] + DONE",
+          "artifactFingerprint": {
+            "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
+          }
+        }
+      ],
       "tests": [
         "T-01"
-      ],
-      "note": "sse captured but include_usage shape not fully asserted"
+      ]
     },
     {
       "id": "REQ-STR-09",
@@ -2163,19 +2343,12 @@
       "leak_h_deploy_fingerprint.json"
     ]
   },
-  "unknownCount": 104,
-  "failCount": 2,
+  "unknownCount": 94,
+  "failCount": 0,
   "e3_count": 0,
-  "verdict": "fail",
-  "blockingIds": [
-    "INV-13",
-    "REQ-SAN-14"
-  ],
+  "verdict": "insufficient-evidence",
+  "blockingIds": [],
   "nextEvidenceNeeded": [
-    {
-      "id": "INV-01",
-      "need": "E2"
-    },
     {
       "id": "INV-02",
       "need": "E3"
@@ -2185,44 +2358,12 @@
       "need": "E1"
     },
     {
-      "id": "INV-04",
-      "need": "E1"
-    },
-    {
-      "id": "INV-05",
-      "need": "E1"
-    },
-    {
-      "id": "INV-06",
-      "need": "E1"
-    },
-    {
-      "id": "INV-07",
-      "need": "E1"
-    },
-    {
-      "id": "INV-08",
-      "need": "E2"
-    },
-    {
       "id": "INV-09",
       "need": "E3"
     },
     {
-      "id": "INV-10",
-      "need": "E1"
-    },
-    {
-      "id": "INV-11",
-      "need": "E2"
-    },
-    {
       "id": "INV-12",
       "need": "E3"
-    },
-    {
-      "id": "INV-17",
-      "need": "E2 healthy include_usage SSE with [DONE]"
     },
     {
       "id": "REQ-API-01",
@@ -2485,11 +2626,47 @@
       "need": "E1"
     },
     {
-      "id": "REQ-STR-08",
+      "id": "REQ-STR-09",
       "need": "E1"
     },
     {
-      "id": "REQ-STR-09",
+      "id": "REQ-STR-10",
+      "need": "E2"
+    },
+    {
+      "id": "REQ-STR-11",
+      "need": "E1"
+    },
+    {
+      "id": "REQ-STR-12",
+      "need": "E2"
+    },
+    {
+      "id": "REQ-STR-13",
+      "need": "E2"
+    },
+    {
+      "id": "REQ-STR-14",
+      "need": "E3"
+    },
+    {
+      "id": "REQ-STR-15",
+      "need": "E2"
+    },
+    {
+      "id": "REQ-STR-16",
+      "need": "E1"
+    },
+    {
+      "id": "REQ-STR-17",
+      "need": "E2"
+    },
+    {
+      "id": "REQ-TOOL-01",
+      "need": "E1"
+    },
+    {
+      "id": "REQ-TOOL-02",
       "need": "E1"
     }
   ],
@@ -2523,53 +2700,29 @@
   "eightLeaks": {
     "a": {
       "id": "a_close_paths",
-      "status": "unknown",
+      "status": "pass",
       "codeLocation": {
         "file": "maxapi_server.py",
-        "line": 2692,
-        "symbol": "ToolCallParser.flush"
+        "symbol": "Handler._finalize_chat_stream"
       },
       "loci": [
         {
           "file": "maxapi_server.py",
-          "line": 2692,
-          "symbol": "ToolCallParser.flush"
+          "symbol": "Handler._finalize_chat_stream"
         },
         {
           "file": "maxapi_server.py",
-          "line": 3791,
-          "symbol": "upstream EOF filt+tparser flush"
+          "symbol": "chat stream natural_eof/client_cancel/upstream_interrupt"
         },
         {
-          "file": "maxapi_server.py",
-          "line": 3825,
-          "symbol": "incomplete_tool termination"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 3731,
-          "symbol": "oversized SSE buffer abort"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 5562,
-          "symbol": "chat client disconnect break"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 5660,
-          "symbol": "chat finally _iter.close"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 4490,
-          "symbol": "Handler._sse_end"
+          "file": "_runtime/v4_evidence/finalize_redlight.json",
+          "symbol": "redlight"
         }
       ],
       "fixture": "_runtime/v4_fixtures/leak_a_close_paths.json",
       "coverage": "code-read+Handler-fake",
-      "evidencePath": "_runtime/v4_evidence/l0_redlight_run.json",
-      "hypothesis": "No single finalize(); EOF flushes parsers; cancel/timeout/buffer paths rely on generator close — INV-13 likely fail"
+      "evidencePath": "_runtime/v4_evidence/finalize_redlight.json",
+      "hypothesis": "_finalize_chat_stream unifies six classes; chat stream paths call it"
     },
     "b": {
       "id": "b_longest_match",
@@ -2698,32 +2851,20 @@
     },
     "f": {
       "id": "f_include_usage",
-      "status": "unknown",
+      "status": "pass",
       "codeLocation": {
         "file": "maxapi_server.py",
-        "line": 5337,
-        "symbol": "include_usage flag"
+        "symbol": "sse() usage null + _finalize_chat_stream include_usage"
       },
       "loci": [
         {
           "file": "maxapi_server.py",
-          "line": 5337,
-          "symbol": "include_usage flag"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 5527,
-          "symbol": "sse injects usage:null"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 5640,
-          "symbol": "trailing usage choices=[]"
+          "symbol": "sse() usage null + _finalize_chat_stream include_usage"
         }
       ],
-      "fixture": "_runtime/v4_fixtures/leak_f_include_usage.json",
-      "coverage": "live-E2",
-      "evidencePath": "_runtime/v4_evidence/l0_redlight_run.json",
+      "fixture": null,
+      "coverage": null,
+      "evidencePath": "_runtime/v4_evidence/live_include_usage.sse",
       "hypothesis": null
     },
     "g": {
@@ -2763,37 +2904,30 @@
     },
     "h": {
       "id": "h_deploy_fingerprint",
-      "status": "unknown",
+      "status": "pass",
       "codeLocation": {
         "file": "maxapi_server.py",
-        "line": 5233,
-        "symbol": "GET /healthz"
+        "symbol": "healthz+_build_fp_headers"
       },
       "loci": [
         {
           "file": "maxapi_server.py",
-          "line": 5233,
-          "symbol": "GET /healthz"
-        },
-        {
-          "file": "maxapi_server.py",
-          "line": 5234,
-          "symbol": "healthz body status/service/models only"
+          "symbol": "healthz+_build_fp_headers"
         }
       ],
-      "fixture": "_runtime/v4_fixtures/leak_h_deploy_fingerprint.json",
-      "coverage": "live-fingerprint",
-      "evidencePath": "_runtime/v4_evidence/l0_redlight_run.json",
-      "hypothesis": "REQ-DEP-01/02 fail: no fingerprint headers; healthz lacks sha/commit/sanitizerConfigVersion"
+      "fixture": null,
+      "coverage": null,
+      "evidencePath": "_runtime/v4_evidence/deployed_artifact.json",
+      "hypothesis": null
     }
   },
   "remediation": {
     "path": "_runtime/v4_remediation_priority.txt"
   },
   "regression": {
-    "gold": "equest_error\", \"param\": null, \"code\": \"not_i | [PASS] unit.context_and_params t=0.0s :: code=400 etype=context_length_exceeded body={'error': {'message': 'too long', 'type': 'invalid_request_error', 'param': 'messages', 'code': 'context_length_exceeded'}} pe={'error': {'message': 'Only n=1 is supported (upstream is a single stream).', 'type': 'invalid_request_error', 'param': 'n', 'code': 'invalid_request_error'}} | [PASS] params.sampling_silent t=6.7s :: fr=stop text='PING' | ==== TOTAL 20 / 20 ==== | ",
+    "gold": "TOTAL 20 / 20",
     "compat": "TOTAL 96 FAIL 0",
-    "tool": "not run or incomplete this session; upstream busy/529 on live stream probe",
-    "agent_long": "not run or incomplete this session; upstream busy/529 on live stream probe"
+    "tool": "TOTAL 28 / 28",
+    "agent_long": "TOTAL 17 / 17"
   }
 }

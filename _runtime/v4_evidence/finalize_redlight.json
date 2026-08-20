@@ -1,0 +1,36 @@
+{
+  "id": "a",
+  "title": "unified finalize on six termination classes",
+  "generatedAt": "2026-08-20T03:39:17Z",
+  "locus": "maxapi_server.py:Handler._finalize_chat_stream",
+  "required_classes": [
+    "natural_eof",
+    "stop_sequence",
+    "length_limit",
+    "upstream_interrupt",
+    "client_cancel",
+    "internal_or_buffer_limit"
+  ],
+  "status": "pass",
+  "expected": {
+    "helper": "_finalize_chat_stream",
+    "classes": [
+      "natural_eof",
+      "stop_sequence",
+      "length_limit",
+      "upstream_interrupt",
+      "client_cancel",
+      "internal_or_buffer_limit"
+    ],
+    "called_from_chat_stream": true
+  },
+  "actual": {
+    "has_helper": true,
+    "helper_calls": 6,
+    "missing_classes": [],
+    "problems": [],
+    "pass": true
+  },
+  "problems": [],
+  "minimalRepro": "python -u _runtime/v4_finalize_redlight.py --record _runtime/v4_evidence/finalize_redlight.json"
+}

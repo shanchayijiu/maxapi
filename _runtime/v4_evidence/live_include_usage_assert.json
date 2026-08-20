@@ -1,0 +1,8 @@
+{
+  "done": true,
+  "mids_usage_null": true,
+  "trail_empty_choices": true,
+  "tag_leak": false,
+  "content_tail": "s exactly \"pong\" without any additional text.\n\nFinally, output just \"pong\".\npong",
+  "bytes": 18025
+}

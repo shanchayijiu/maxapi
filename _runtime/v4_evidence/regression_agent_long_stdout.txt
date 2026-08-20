@@ -1,0 +1,19 @@
+[PASS] round_0_tool t=20.6s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_0'}
+[PASS] round_1_tool t=4.1s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_1'}
+[PASS] round_2_tool t=11.7s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_2'}
+[PASS] round_3_tool t=9.5s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_3'}
+[PASS] round_4_tool t=46.1s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_4'}
+[PASS] round_5_tool t=22.3s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_5'}
+[PASS] round_6_tool t=4.0s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_6'}
+[PASS] round_7_tool t=3.3s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_7'}
+[PASS] round_8_tool t=6.1s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_8'}
+[PASS] round_9_tool t=13.0s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_9'}
+[PASS] round_10_tool t=3.6s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_10'}
+[PASS] round_11_tool t=67.9s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_11'}
+[PASS] round_12_tool t=79.3s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_12'}
+[PASS] round_13_tool t=5.2s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_13'}
+[PASS] round_14_tool t=3.8s :: stop=tool_use n_tools=1 input={'command': 'echo STEP_14'}
+[PASS] final_no_tool t=2.1s :: types=['text'] text=ALL_DONE stop=end_turn
+[PASS] agent_long_summary t=307.1s :: tool_rounds=15/15 total_cases=16/16 wall=307.1s
+==== TOTAL 17 / 17 ====
+DONE

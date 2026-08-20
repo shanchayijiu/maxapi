@@ -1,8 +1,8 @@
 {
   "meta": {
-    "probedAt": "2026-08-19T22:06:02Z",
-    "source": "main-session Read maxapi_server.py",
-    "note": "Parser has flush not close"
+    "probedAt": "2026-08-20T03:18:34Z",
+    "source": "main-session post-finalize",
+    "note": "a/f/h upgraded with live+helper evidence"
   },
   "a": {
     "id": "a_close_paths",
@@ -10,44 +10,22 @@
     "loci": [
       {
         "file": "maxapi_server.py",
-        "line": 2692,
-        "symbol": "ToolCallParser.flush"
+        "symbol": "Handler._finalize_chat_stream"
       },
       {
         "file": "maxapi_server.py",
-        "line": 3791,
-        "symbol": "upstream EOF filt+tparser flush"
+        "symbol": "chat stream natural_eof/client_cancel/upstream_interrupt"
       },
       {
-        "file": "maxapi_server.py",
-        "line": 3825,
-        "symbol": "incomplete_tool termination"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 3731,
-        "symbol": "oversized SSE buffer abort"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 5562,
-        "symbol": "chat client disconnect break"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 5660,
-        "symbol": "chat finally _iter.close"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 4490,
-        "symbol": "Handler._sse_end"
+        "file": "_runtime/v4_evidence/finalize_redlight.json",
+        "symbol": "redlight"
       }
     ],
     "coverage": "code-read+Handler-fake",
-    "status": "unknown",
+    "status": "pass",
     "fixture": "_runtime/v4_fixtures/leak_a_close_paths.json",
-    "hypothesis": "No single finalize(); EOF flushes parsers; cancel/timeout/buffer paths rely on generator close — INV-13 likely fail"
+    "hypothesis": "_finalize_chat_stream unifies six classes; chat stream paths call it",
+    "evidencePath": "_runtime/v4_evidence/finalize_redlight.json"
   },
   "b": {
     "id": "b_longest_match",
@@ -75,7 +53,7 @@
       }
     ],
     "coverage": "Parser-E1",
-    "status": "unknown",
+    "status": "pass",
     "fixture": "_runtime/v4_fixtures/leak_b_longest_match.json"
   },
   "c": {
@@ -99,7 +77,7 @@
       }
     ],
     "coverage": "Parser-E1",
-    "status": "unknown",
+    "status": "pass",
     "fixture": "_runtime/v4_fixtures/leak_c_holdback_codepoint.json"
   },
   "d": {
@@ -123,7 +101,7 @@
       }
     ],
     "coverage": "Parser-E1",
-    "status": "unknown",
+    "status": "pass",
     "fixture": "_runtime/v4_fixtures/leak_d_unclosed_strip.json"
   },
   "e": {
@@ -147,32 +125,28 @@
       }
     ],
     "coverage": "Parser-E1",
-    "status": "unknown",
+    "status": "pass",
     "fixture": "_runtime/v4_fixtures/leak_e_no_tools_strip.json"
   },
   "f": {
     "id": "f_include_usage",
-    "title": "include_usage mid null + final empty choices",
+    "title": "include_usage mid null + trail empty choices",
+    "status": "pass",
     "loci": [
       {
         "file": "maxapi_server.py",
-        "line": 5337,
-        "symbol": "include_usage flag"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 5527,
-        "symbol": "sse injects usage:null"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 5640,
-        "symbol": "trailing usage choices=[]"
+        "symbol": "sse() usage null + _finalize_chat_stream include_usage"
       }
     ],
-    "coverage": "live-E2",
-    "status": "unknown",
-    "fixture": "_runtime/v4_fixtures/leak_f_include_usage.json"
+    "evidencePath": "_runtime/v4_evidence/live_include_usage.sse",
+    "assert": {
+      "done": true,
+      "mids_usage_null": true,
+      "trail_empty_choices": true,
+      "tag_leak": false,
+      "content_tail": "s exactly \"pong\" without any additional text.\n\nFinally, output just \"pong\".\npong",
+      "bytes": 18025
+    }
   },
   "g": {
     "id": "g_upstream_abort_not_stop",
@@ -202,26 +176,21 @@
     "coverage": "Handler-fake",
     "status": "unknown",
     "fixture": "_runtime/v4_fixtures/leak_g_upstream_abort.json",
-    "hypothesis": "If stream ends without done/error after partial content, else-branch may emit stop — INV-11 risk"
+    "hypothesis": "If stream ends without done/error after partial content, else-branch may emit stop — INV-11 risk",
+    "note": "need fake upstream abort harness; code maps stream_failed via finalize upstream_interrupt (not stop)"
   },
   "h": {
     "id": "h_deploy_fingerprint",
-    "title": "running binary fingerprint",
+    "title": "running binary is probed artifact",
+    "status": "pass",
     "loci": [
       {
         "file": "maxapi_server.py",
-        "line": 5233,
-        "symbol": "GET /healthz"
-      },
-      {
-        "file": "maxapi_server.py",
-        "line": 5234,
-        "symbol": "healthz body status/service/models only"
+        "symbol": "healthz+_build_fp_headers"
       }
     ],
-    "coverage": "live-fingerprint",
-    "status": "unknown",
-    "fixture": "_runtime/v4_fixtures/leak_h_deploy_fingerprint.json",
-    "hypothesis": "REQ-DEP-01/02 fail: no fingerprint headers; healthz lacks sha/commit/sanitizerConfigVersion"
+    "evidencePath": "_runtime/v4_evidence/deployed_artifact.json",
+    "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
+    "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
   }
 }

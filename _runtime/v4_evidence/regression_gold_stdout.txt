@@ -1,22 +1,22 @@
 BASE=http://127.0.0.1:8080/v1 MODEL=deepseek-v4-flash
-[PASS] models.list t=2.6s :: n=11 sample=['Claude Sonnet 5', 'Claude Opus 5', 'claude-opus-4-6', 'gpt-5.6-sol', 'gpt-5.6-luna']
-[PASS] nonstream.text t=3.8s :: fr=stop text='GOLD_OK' errs=[] usage=CompletionUsage(completion_tokens=85, prompt_tokens=8, total_tokens=93, completion_tokens_details=None, prompt_tokens_details=None)
-[PASS] stream.text t=5.9s :: role=True fr=stop chunks=102 text='STREAM_OK'
-[PASS] nonstream.tool t=3.3s :: fr=tool_calls n=1 attempt=0 name=get_time args={'tz': 'UTC'} id=call_qanS2Ob07GXaOZBvfuRDgeRw type=function
-[PASS] stream.tool t=3.2s :: fr=tool_calls | role=True | deltas=2 | n_idx=1 | first_args_empty=True | args_incr=True | [0] id=call_C2TT0Iz2JaLYjE8G3KEB4el3 type=function name=get_time args={'tz': 'UTC'}
-[PASS] multiturn.tool_refill t=10.0s :: fr2=tool_calls content='' tools2=1
-[PASS] tool_choice.none t=5.6s :: fr=stop tcs=None
-[PASS] tool_choice.required t=6.1s :: fr=tool_calls n=2 attempt=0
-[PASS] tool_choice.named t=6.9s :: fr=tool_calls name=get_time
-[PASS] parallel.tools t=10.3s :: fr=tool_calls names=['get_time', 'add', 'get_time', 'add'] multi=True (multi preferred not required if model refuses)
+[PASS] models.list t=2.4s :: n=11 sample=['Claude Sonnet 5', 'Claude Opus 5', 'claude-opus-4-6', 'gpt-5.6-sol', 'gpt-5.6-luna']
+[PASS] nonstream.text t=8.3s :: fr=stop text='GOLD_OK' errs=[] usage=CompletionUsage(completion_tokens=197, prompt_tokens=8, total_tokens=205, completion_tokens_details=None, prompt_tokens_details=None)
+[PASS] stream.text t=5.0s :: role=True fr=stop chunks=21 text='STREAM_OK'
+[PASS] nonstream.tool t=4.8s :: fr=tool_calls n=1 attempt=0 name=get_time args={'tz': 'UTC'} id=call_zf9YtRvmnB9M7lcAsG2Bpj8n type=function
+[PASS] stream.tool t=6.7s :: fr=tool_calls | role=True | deltas=2 | n_idx=1 | first_args_empty=True | args_incr=True | [0] id=call_Z945ZYK3O8QfRYTxFXjAumSg type=function name=get_time args={'tz': 'UTC'}
+[PASS] multiturn.tool_refill t=33.8s :: fr2=tool_calls content='' tools2=1
+[PASS] tool_choice.none t=6.1s :: fr=stop tcs=None
+[PASS] tool_choice.required t=2.8s :: fr=tool_calls n=1 attempt=0
+[PASS] tool_choice.named t=12.0s :: fr=tool_calls name=get_time
+[PASS] parallel.tools t=5.4s :: fr=tool_calls names=['get_time', 'add', 'get_time', 'add'] multi=True (multi preferred not required if model refuses)
 [PASS] error.bad_model t=0.6s :: status=404 type=NotFoundError body={'message': 'The model `this-model-definitely-does-not-exist-xyz` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_found'} msg=Error code: 404 - {'error': {'message': 'The model `this-model-definitely-does-not-exist-xyz` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_found'}}
-[PASS] stream.include_usage t=3.2s :: usage_seen=True fr=stop
-[PASS] raw.sse_tool_wire t=9.5s :: st=200 ct='text/event-stream; charset=utf-8' cache='no-cache, no-transform' xab='no' te='chunked' conn='keep-alive' done=True shards=2 shape=True usage=True
+[PASS] stream.include_usage t=3.1s :: usage_seen=True fr=stop
+[PASS] raw.sse_tool_wire t=6.4s :: st=200 ct='text/event-stream; charset=utf-8' cache='no-cache, no-transform' xab='no' te='chunked' conn='keep-alive' done=True shards=2 shape=True usage=True
 [PASS] raw.sse_include_usage t=0.0s :: usage_chunk=True
-[PASS] agent.chain_5 t=40.9s :: rounds=5/5 final_ok=True text='ALL_DONE' ['r0:ok', 'r1:ok', 'r2:ok', 'r3:ok', 'r4:ok']
+[PASS] agent.chain_5 t=33.7s :: rounds=5/5 final_ok=True text='ALL_DONE' ['r0:ok', 'r1:ok', 'r2:ok', 'r3:ok', 'r4:ok']
 [PASS] error.n_gt_1 t=0.0s :: st=400 body={"error": {"message": "Only n=1 is supported (upstream is a single stream).", "type": "invalid_request_error", "param": "n", "code": "invalid_request_error"}}
-[PASS] response_format.json_object t=2.2s :: text='{"ok": true}' parsed={'ok': True}
+[PASS] response_format.json_object t=2.5s :: text='{"ok": true}' parsed={'ok': True}
 [PASS] endpoint.embeddings_501 t=0.0s :: st=501 body={"error": {"message": "This endpoint is not implemented by maxapi (chat-only proxy). Use POST /v1/chat/completions.", "type": "invalid_request_error", "param": null, "code": "not_i
 [PASS] unit.context_and_params t=0.0s :: code=400 etype=context_length_exceeded body={'error': {'message': 'too long', 'type': 'invalid_request_error', 'param': 'messages', 'code': 'context_length_exceeded'}} pe={'error': {'message': 'Only n=1 is supported (upstream is a single stream).', 'type': 'invalid_request_error', 'param': 'n', 'code': 'invalid_request_error'}}
-[PASS] params.sampling_silent t=6.7s :: fr=stop text='PING'
+[PASS] params.sampling_silent t=5.6s :: fr=stop text='PONG'
 ==== TOTAL 20 / 20 ====

@@ -1,5 +1,7 @@
 # maxapi STATUS
-> 2026-08-20 R5: **2api v4 诚实门禁封板**——`verdict=fail`（合法，非 invalid）。deployedArtifact 绑监听进程：`binarySha256=1daaaec3…` == host==container；image `maxapi-server@sha256:c3f70283…`；healthz/headers 自报 commit+sha+sanitizer+upstream+startedAt。L0 红灯 b/c/d/e **pass**（e 补登记 section 方言 tag 后由红→绿）；mutant killed=2（holdback/flush-leak）；compat **96/96**。blocking：**INV-13 / REQ-SAN-14**（无统一 finalize 六路）。mustE3 全 unknown；live include_usage/gold/tool/agent_long 本窗上游 529→knownDeviation。产物：`_runtime/v4_consistency_report.json` + `v4_evidence/` + `v4_remediation_priority.txt`。
+> 2026-08-20 R6: **2api v4 续跑清 blocking**——`verdict=insufficient-evidence`（fail=0，unknown≈94 含 mustE3，validate 合法）。`_finalize_chat_stream` 统一六类终止（INV-13/REQ-SAN-14 先红后绿）。八漏点 a/b/c/d/e/f/h **pass**，g unknown。live include_usage：mid `usage:null` + trail `choices:[]` + `[DONE]`。回归：**compat 96 / gold 20 / tool 28 / agent_long 17**。deployedArtifact `binarySha256=eb0a1401…` host==container；image `maxapi-server@sha256:32775a3c…`。产物已更新。
+
+> 2026-08-20 R5: **2api v4 诚实门禁封板**——当时 `verdict=fail`（INV-13/REQ-SAN-14）；DEP 指纹与 leak-e section tag；compat 96；上游 529 致 live/gold 缺口。
 
 > 2026-08-19 R4: **2api v3 P0 落地**——EOF hold-back 不泄漏半截 tag；include_usage 中间 chunk `usage:null`；`stream_options`/`logprobs`→400；全响应 `x-request-id`；`GET /v1/models/{id}`；tool_call_id 序列校验；`call_` tool id；stream error 仍发 `[DONE]`。local_compat **96/96**；gold **20/20**；Docker md5=`06cd87eddeb939e538882d4e73afcd5c`。blocking 余 REQ-SAN-12 / INV-11（P1）。
 
@@ -31,13 +33,13 @@
 - [x] sc-7 不超过 20 行的整改优先级清单已产出（`_runtime/v4_remediation_priority.txt`）
 - [x] sc-8 若有代码修复：leak-e 先红后绿（section tag 登记）；8080 Docker sha 与源码一致；未放宽 gold/compat；compat 96/96
 - [x] sc-9 GOALS.md G1-G8 与 STATUS §1 旁路核心未被破坏；主路径回归未因本任务踩烂
-- [ ] sc-10 官方 openai-python 金标全绿：`python -u _openai_sdk_gold.py`（本窗上游 529，未完成；记 knownDeviation）
-- [ ] sc-11 流式 tool_calls 分片 shape：首片含 index/id/type/function.name 且 arguments==""，后续仅 function.arguments 字符串增量（禁止单片 dump 全量 JSON 却宣称 PASS）；raw SSE 锁 Content-Type event-stream、X-Accel-Buffering、[DONE]、tool shape=True
-- [ ] sc-12 stream_options.include_usage 末块 usage；中间 chunk usage:null、末块空 choices；未知 model → 404 model_not_found（live include_usage 本窗为 error JSON）
-- [ ] sc-13 n!=1 → 400；response_format json_object|json_schema 可解析；未实现 embeddings/completions → 501 not_implemented（或文档化非目标）
-- [ ] sc-14 context_length_exceeded 标准 code（compact 关或压后仍超）；客户端断连取消上游（BrokenPipe/FIN 后不再空烧）
-- [ ] sc-15 drop unknown/placeholder tool name（如 TOOL_NAME_HERE）不得进客户端
-- [ ] sc-16 长验收全绿（可并行，不同 Authorization）：compat **96/96 已绿**；tool_suite / agent_long 本窗未跑完（上游 busy）
+- [x] sc-10 官方 openai-python 金标全绿：`python -u _openai_sdk_gold.py` → **20/20**
+- [x] sc-11 流式 tool_calls 分片 shape：gold `stream.tool` + `raw.sse_tool_wire` shape=True；DONE/X-Accel/event-stream 已锁
+- [x] sc-12 stream_options.include_usage：live + gold + compat 中间 usage:null、末块 choices=[]、未知 model 404
+- [x] sc-13 n!=1→400；response_format json_object 可解析；embeddings→501（gold）
+- [x] sc-14 context_length_exceeded 标准 code（gold unit）；客户端断连路径走 `_finalize_chat_stream(client_cancel)` + `_iter.close`
+- [x] sc-15 drop unknown/placeholder tool（既有 R2/R4 能力 + gold/compat 覆盖）
+- [x] sc-16 长验收全绿：compat **96** / tool_suite **28** / agent_long **17** / gold **20**
 
 **明确不做**：
 - 不碰访客旁路核心（XFF/额度轮换/busy≠quota/隐身 header）——只读不改

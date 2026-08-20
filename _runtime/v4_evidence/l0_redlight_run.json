@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-19T22:23:12Z",
+  "generatedAt": "2026-08-20T03:39:18Z",
   "parser": "maxapi_server.ToolCallParser",
   "fixtures": [
     "leak_b_longest_match.json",
@@ -32,7 +32,7 @@
         "content": "hello  tail",
         "tools": [
           {
-            "id": "call_PHUZXa7UaQsJIlzHTNbLe1U2",
+            "id": "call_2xDE9AG5AHIBXn1spAsiZZGH",
             "name": "x",
             "arguments": {
               "a": 1
@@ -60,7 +60,7 @@
         "content": "pre  post",
         "tools": [
           {
-            "id": "call_IVldrPghYNXwHEbhtRSdCgKS",
+            "id": "call_LUTmOn76VYPTrFu3nu4VNuGh",
             "name": "N",
             "arguments": {}
           }

@@ -1,0 +1,40 @@
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "\nGot "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "it, th"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "e user asked to r"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "eply exactl"}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "y with pon"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "g. So I just need to"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " output t"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "hat directly, no"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " extra stuff."}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " Let m"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "e mak"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "e sure, yea"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "h, exa"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ctly \"pong\".\n"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"content": "pong"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}], "usage": null}
+
+data: {"id": "chatcmpl-1787192462914", "object": "chat.completion.chunk", "created": 1787192462, "model": "Claude Opus 5", "choices": [], "usage": {"prompt_tokens": 8, "completion_tokens": 40, "total_tokens": 48}}
+
+data: [DONE]
+

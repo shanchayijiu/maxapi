@@ -1,0 +1,30 @@
+[PASS] no_tools_pong t=4.9s :: PONG
+[PASS] auto_tool_0 t=30.4s :: stop=tool_use input={'command': 'echo HELLO_0'}
+[PASS] auto_tool_1 t=9.1s :: stop=tool_use input={'command': 'echo HELLO_1'}
+[PASS] auto_tool_2 t=5.9s :: stop=tool_use input={'command': 'echo HELLO_2'}
+[PASS] auto_tool_3 t=19.6s :: stop=tool_use input={'command': 'echo HELLO_3'}
+[PASS] auto_tool_4 t=81.4s :: stop=tool_use input={'command': 'echo HELLO_4'}
+[PASS] auto_tool_5 t=39.3s :: stop=tool_use input={'command': 'echo HELLO_5'}
+[PASS] auto_tool_6 t=9.8s :: stop=tool_use input={'command': 'echo HELLO_6'}
+[PASS] auto_tool_7 t=6.5s :: stop=tool_use input={'command': 'echo HELLO_7'}
+[PASS] auto_tool_8 t=12.6s :: stop=tool_use input={'command': 'echo HELLO_8'}
+[PASS] auto_tool_9 t=65.4s :: stop=tool_use input={'command': 'echo HELLO_9'}
+[PASS] auto_tool_10 t=6.6s :: stop=tool_use input={'command': 'echo HELLO_10'}
+[PASS] auto_tool_11 t=7.6s :: stop=tool_use input={'command': 'echo HELLO_11'}
+[PASS] auto_tool_12 t=9.2s :: stop=tool_use input={'command': 'echo HELLO_12'}
+[PASS] auto_tool_13 t=5.5s :: stop=tool_use input={'command': 'echo HELLO_13'}
+[PASS] auto_tool_14 t=6.3s :: stop=tool_use input={'command': 'echo HELLO_14'}
+[PASS] auto_tool_15 t=6.2s :: stop=tool_use input={'command': 'echo HELLO_15'}
+[PASS] auto_tool_16 t=29.9s :: stop=tool_use input={'command': 'echo HELLO_16'}
+[PASS] auto_tool_17 t=7.6s :: stop=tool_use input={'command': 'echo HELLO_17'}
+[PASS] auto_tool_18 t=4.1s :: stop=tool_use input={'command': 'echo HELLO_18'}
+[PASS] auto_tool_19 t=4.5s :: stop=tool_use input={'command': 'echo HELLO_19'}
+[PASS] auto_tool_rate_20 t=0.0s :: 20/20 err=0
+[PASS] plain_no_tool t=67.4s :: types=['text'] stop=end_turn
+[PASS] howto_no_force t=7.1s :: types=['text'] stop=end_turn
+[PASS] chat_auto_tool t=37.4s :: finish=tool_calls n=1
+[PASS] stream_auto_tool t=7.6s :: tool_use=True json=True bytes=1164
+[PASS] multi_tool_bash t=5.0s :: tools=['Bash'] inputs=[{'command': 'echo AGENT_OK'}]
+[PASS] agent_multiturn t=70.3s :: types=['text'] text=DONE
+==== TOTAL 28 / 28 ====
+DONE

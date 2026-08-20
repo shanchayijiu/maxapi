@@ -1,1 +1,164 @@
-{"error": {"message": "upstream temporarily unavailable; retry shortly", "type": "server_error", "param": null, "code": "api_error"}}
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "\nFirst, t"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "he user said:"}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " \"Reply with exa"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ctly: pong\". This"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " is a direct instruction to "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "respond w"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ith the wor"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "d \"pong\".\n\nI need"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " to check"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " my response guidelines"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": ". The system promp"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "t emphasizes com"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "plian"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ce with law"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "s and"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " valu"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "es, but "}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "this r"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "equest seems str"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "aigh"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "tforward and "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "harmless. It's jus"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "t asking for a sp"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ecific reply."}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "\n\nThe system"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " prompt a"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "lso mentions"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " tha"}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "t I must use the real-time"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " inf"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ormation for time-relate"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "d questio"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ns, but this isn'"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "t about "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "time. It's a simple co"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "mmand to say \"p"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ong\".\n\nThere's "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "no violation of an"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "y complia"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "nce bound"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ary here"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "."}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " No ille"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "gal, harmful, or i"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "nappropriate content"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " is "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "involved.\n\nI should res"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "pond exactly "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "a"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "s req"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "uested: wi"}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "th \""}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "pong"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "\".\n\nAlso, in the sy"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "stem prompt, it"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " says \"Reply with e"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "xactly"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": ": pong\", but th"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "at's part of the us"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "er'"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "s message. I ne"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ed to en"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "sure that my respons"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "e "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "is ex"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "actly \"pong\""}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " without any additional te"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "xt.\n\nFin"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "ally,"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": " o"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "utput "}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"reasoning_content": "just \"pong\".\n"}, "finish_reason": null}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {"content": "pong"}, "finish_reason": null}], "usage": null}
+
+: keepalive
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}], "usage": null}
+
+data: {"id": "chatcmpl-1787192881283", "object": "chat.completion.chunk", "created": 1787192881, "model": "Claude Opus 5", "choices": [], "usage": {"prompt_tokens": 8, "completion_tokens": 217, "total_tokens": 225}}
+
+data: [DONE]
+

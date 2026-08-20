@@ -1,8 +1,6 @@
 {
-  "ok": false,
-  "exit": null,
-  "summary": "not run or incomplete this session; upstream busy/529 on live stream probe",
-  "log": null,
-  "note": "upstream temporarily unavailable during evidence window; offline compat 96/96 still green",
-  "generatedAt": "2026-08-19T22:23:12Z"
+  "ok": true,
+  "summary": "TOTAL 17 / 17",
+  "log": "_runtime/v4_evidence/regression_agent_long_stdout.txt",
+  "generatedAt": "2026-08-20T03:39:17Z"
 }

@@ -1,9 +1,9 @@
 [RES] /v1/models 200 models=11 time=0ms
 [tool-validate] name=do_work error=unexpected property .extra
 [tool-validate] name=do_work error=unexpected property .extra
-rid=41bdb13c [responses] stream upstream rejected ！ retrying compact target=8000
-rid=bedc752afe024aef [chat] stream upstream rejected ！ retrying compact target=8000
-rid=dad35945 stream upstream rejected ！ retrying compact target=8000
+rid=64c06413 [responses] stream upstream rejected ！ retrying compact target=8000
+rid=c75a5cba8b0841fb [chat] stream upstream rejected ！ retrying compact target=8000
+rid=42976b08 stream upstream rejected ！ retrying compact target=8000
 [tcp] flush-discarded 45 bytes of incomplete tool block head='<|DSML|tool_calls> <|DSML|invoke name="Bash">'
 [tcp] flush-discarded 41 bytes of incomplete tool block head='<|DSML|tool_calls><|DSML|invoke name="x">'
 [tcp] flush-discarded 78 bytes of incomplete tool block head='<|DSML|tool_calls> <|DSML|invoke name="Bash"> <|DSML|parameter name="command">'
@@ -11,7 +11,7 @@ _parse_too_long: rejected inverted parse actual=1000 < allowed=200000
 [tcp] eof-hold-discarded 9 bytes head='<tool_cal'
 [RES] /v1/models 200 models=11 time=0ms
 [RES] /v1/models/Claude Sonnet 5 200 model=Claude Sonnet 5 time=0ms
-rid=09fc59ff67de4b6a [chat] stream upstream rejected ！ retrying compact target=8000
+rid=619cd8aba18c4610 [chat] stream upstream rejected ！ retrying compact target=8000
 PASS - models status 200
 PASS - models context fields
 PASS - claude-opus-4-8 alias -> Opus 5

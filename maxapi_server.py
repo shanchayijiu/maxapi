@@ -4546,6 +4546,103 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception:
             pass
 
+    # INV-13 / REQ-SAN-14 / leak-a: single chat-stream finalize entry.
+    # Six termination classes (v4) must converge here — never bare return mid-stream
+    # without going through this helper (client_cancel may skip wire write).
+    _FINALIZE_CHAT_CLASSES = (
+        "natural_eof",
+        "stop_sequence",
+        "length_limit",
+        "upstream_interrupt",
+        "client_cancel",
+        "internal_or_buffer_limit",
+    )
+
+    def _finalize_chat_stream(
+        self,
+        class_name,
+        *,
+        sse=None,
+        emit=None,
+        turn_id=None,
+        created=None,
+        disp=None,
+        tools_enabled=False,
+        tool_call_count=0,
+        include_usage=False,
+        usage_prompt=0,
+        usage_completion=0,
+        close_iter=None,
+        client_gone=False,
+        finish_reason=None,
+    ):
+        """Unified terminal for /v1/chat/completions SSE.
+
+        class_name ∈ _FINALIZE_CHAT_CLASSES. Guarantees:
+        - parser/upstream iterator closed (close_iter)
+        - wire terminal when client still connected:
+            natural_eof/stop_sequence/length_limit → finish_reason + optional usage + [DONE]
+            upstream_interrupt/internal_or_buffer_limit → [DONE] only (error already emitted)
+            client_cancel → no wire write (peer gone)
+        """
+        if class_name not in self._FINALIZE_CHAT_CLASSES:
+            LOG.warning("finalize unknown class=%s; treating as upstream_interrupt", class_name)
+            class_name = "upstream_interrupt"
+
+        # Always release upstream generator first (EOF flush / conn close / sema).
+        if close_iter is not None:
+            try:
+                if hasattr(close_iter, "close"):
+                    close_iter.close()
+            except Exception:
+                pass
+
+        if client_gone or class_name == "client_cancel":
+            return {"class": "client_cancel", "wire": False}
+
+        try:
+            if class_name in ("natural_eof", "stop_sequence", "length_limit"):
+                fr = finish_reason
+                if not fr:
+                    if class_name == "length_limit":
+                        fr = "length"
+                    elif tools_enabled and tool_call_count > 0:
+                        fr = "tool_calls"
+                    else:
+                        fr = "stop"
+                if sse is not None:
+                    sse({
+                        "id": turn_id, "object": "chat.completion.chunk",
+                        "created": created, "model": disp,
+                        "choices": [{"index": 0, "delta": {}, "finish_reason": fr}],
+                    })
+                    if include_usage:
+                        _p = max(1, int(usage_prompt or 1))
+                        _c = max(1, int(usage_completion or 1))
+                        sse({
+                            "id": turn_id, "object": "chat.completion.chunk",
+                            "created": created, "model": disp,
+                            "choices": [],
+                            "usage": {
+                                "prompt_tokens": _p,
+                                "completion_tokens": _c,
+                                "total_tokens": _p + _c,
+                            },
+                        })
+                if emit is not None:
+                    emit(b"data: [DONE]\n\n")
+                return {"class": class_name, "wire": True, "finish_reason": fr}
+
+            # upstream_interrupt / internal_or_buffer_limit: error line already sent
+            if emit is not None:
+                emit(b"data: [DONE]\n\n")
+            return {"class": class_name, "wire": True, "finish_reason": None}
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+            return {"class": "client_cancel", "wire": False}
+        except Exception as e:
+            LOG.warning("finalize wire failed class=%s err=%s", class_name, type(e).__name__)
+            return {"class": class_name, "wire": False, "error": str(e)}
+
     def _client_gone(self):
         """True if the client socket is already closed (best-effort)."""
         try:
@@ -5611,6 +5708,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             started_evt.set()
             tool_call_count = 0
             stream_failed = False
+            # INV-13 class tag for error path (upstream_interrupt vs internal_or_buffer_limit).
+            # stop_sequence / length_limit are reserved for explicit finish_reason mapping
+            # when upstream signals those classes; natural_eof is the default success path.
+            stream_fail_class = {"v": "upstream_interrupt"}
             # Accumulators for optional include_usage final chunk
             _out_content_chars = 0
             _out_reason_chars = 0
@@ -5676,47 +5777,78 @@ class Handler(http.server.BaseHTTPRequestHandler):
                          "choices": [], "sources": data})
                 elif kind == "error":
                     stream_failed = True
-                    sse({"error": {"message": (data.get("error") if isinstance(data, dict) else str(data)),
+                    # Distinguish buffer/internal abort text when present.
+                    _emsg = (data.get("error") if isinstance(data, dict) else str(data)) or ""
+                    if "incomplete tool" in str(_emsg).lower() or "buffer" in str(_emsg).lower():
+                        stream_fail_class["v"] = "internal_or_buffer_limit"
+                    else:
+                        stream_fail_class["v"] = "upstream_interrupt"
+                    sse({"error": {"message": _emsg,
                                    "type": "api_error", "code": None}})
+            # INV-13: all six termination classes enter _finalize_chat_stream.
+            _p = max(1, _estimate_messages_tokens(msgs_up))
+            _c = max(1, (_out_content_chars + _out_reason_chars + _out_tool_arg_chars) // 4 + 2)
             if client_gone["v"]:
+                self._finalize_chat_stream(
+                    "client_cancel",
+                    close_iter=_iter, client_gone=True,
+                )
+                _iter = None  # finally must not double-close
                 LOG.info("rid=%s <- client_gone [chat] stream model=%s tools=%d time=%dms",
                          _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
             elif stream_failed:
-                # REQ-ERR-05: after in-stream error data line, still terminate with [DONE]
-                try:
-                    emit(b"data: [DONE]\n\n")
-                except Exception:
-                    pass
-                LOG.info("rid=%s <- 200 [chat] stream_error model=%s tools=%d time=%dms",
-                         _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
+                self._finalize_chat_stream(
+                    stream_fail_class["v"] or "upstream_interrupt",
+                    sse=sse, emit=emit,
+                    turn_id=turn_id, created=created, disp=disp,
+                    close_iter=_iter,
+                )
+                _iter = None
+                LOG.info("rid=%s <- 200 [chat] stream_error model=%s tools=%d class=%s time=%dms",
+                         _rid, disp, tool_call_count, stream_fail_class["v"], int((time.monotonic()-_t0)*1000))
             else:
-                sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                     "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"}]})
-                # stream_options.include_usage: OpenAI emits a trailing chunk with
-                # empty choices + usage before [DONE].
-                if include_usage:
-                    _p = max(1, _estimate_messages_tokens(msgs_up))
-                    _c = max(1, (_out_content_chars + _out_reason_chars + _out_tool_arg_chars) // 4 + 2)
-                    sse({"id": turn_id, "object": "chat.completion.chunk", "created": created, "model": disp,
-                         "choices": [],
-                         "usage": {"prompt_tokens": _p, "completion_tokens": _c, "total_tokens": _p + _c}})
-                emit(b"data: [DONE]\n\n")
+                # natural_eof covers normal stop; stop_sequence/length_limit share wire shape
+                # (length only when upstream/handler sets finish_reason=length explicitly).
+                _cls = "natural_eof"
+                _fr = "tool_calls" if (tools_enabled and tool_call_count > 0) else "stop"
+                self._finalize_chat_stream(
+                    _cls,
+                    sse=sse, emit=emit,
+                    turn_id=turn_id, created=created, disp=disp,
+                    tools_enabled=tools_enabled, tool_call_count=tool_call_count,
+                    include_usage=include_usage,
+                    usage_prompt=_p, usage_completion=_c,
+                    close_iter=_iter, finish_reason=_fr,
+                )
+                _iter = None
                 LOG.info("rid=%s <- 200 [chat] stream model=%s tools=%d time=%dms",
                          _rid, disp, tool_call_count, int((time.monotonic()-_t0)*1000))
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
             client_gone["v"] = True
             stop["v"] = True
+            try:
+                self._finalize_chat_stream("client_cancel", close_iter=_iter, client_gone=True)
+                _iter = None
+            except Exception:
+                pass
             LOG.info("rid=%s [chat] client disconnect during emit: %s", _rid, type(e).__name__)
         except Exception as e:
             try:
                 if not client_gone["v"]:
                     sse({"error": {"message": "server: %s" % e, "type": "api_error", "code": None}})
+                    self._finalize_chat_stream(
+                        "internal_or_buffer_limit",
+                        sse=sse, emit=emit,
+                        turn_id=turn_id, created=created, disp=disp,
+                        close_iter=_iter,
+                    )
+                    _iter = None
                 sys.stderr.write(f"[ERR] {self.path} 500 model={disp} error={e} time={int((time.monotonic()-_t0)*1000)}ms\n"); sys.stderr.flush()
             except Exception:
                 pass
         finally:
             stop["v"] = True
-            # Closing the generator aborts upstream() finally → conn.close + sema release.
+            # Safety net: if a path forgot finalize, still close upstream generator.
             try:
                 if _iter is not None and hasattr(_iter, "close"):
                     _iter.close()

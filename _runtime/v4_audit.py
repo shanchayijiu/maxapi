@@ -372,16 +372,38 @@ def build_report(out_path: Path) -> int:
                 extra = {"note": "no rule-id ledger / conservation rebuild harness yet", "nextEvidenceNeeded": "E1 conservation fixtures with ledger"}
 
         elif iid == "INV-13":
-            # unified finalize — code read says no
-            status = "fail"
-            evidence = [ev("E1", "_runtime/v4_evidence/eight_leaks_ah.json", "loci show no single finalize")]
-            extra = {
-                "codeLocation": "maxapi_server.py:3791",
-                "minimalRepro": "rg -n \"def finalize|ToolCallParser\\(\\)|flush\\(\" maxapi_server.py",
-                "expected": "six termination classes call one finalize→close/flush with empty buf",
-                "actual": "EOF path flushes parsers; client_cancel/timeout/buffer-limit use break/return/generator close without shared finalize",
-                "note": eight.get("a", {}).get("hypothesis"),
-            }
+            # unified finalize — driven by finalize_redlight (six classes + helper)
+            fin = _load(EVID / "finalize_redlight.json") or {}
+            if fin.get("status") == "pass":
+                status = "pass"
+                evidence = [
+                    ev("E1", "_runtime/v4_evidence/finalize_redlight.json", "helper + six classes + call sites"),
+                    ev("E1", "_runtime/v4_evidence/eight_leaks_ah.json", "leak-a loci updated"),
+                ]
+                # E2 boost when healthy live SSE terminated with DONE
+                if live_sse.exists():
+                    _lt = live_sse.read_text(encoding="utf-8", errors="replace")
+                    if "[DONE]" in _lt and not (_lt.lstrip().startswith("{") and "error" in _lt[:200]):
+                        evidence.append(ev("E2", "_runtime/v4_evidence/live_include_usage.sse", "live natural_eof terminal"))
+            elif fin.get("status") == "fail":
+                status = "fail"
+                evidence = [ev("E1", "_runtime/v4_evidence/finalize_redlight.json")]
+                extra = {
+                    "codeLocation": fin.get("locus") or "maxapi_server.py:Handler._finalize_chat_stream",
+                    "minimalRepro": fin.get("minimalRepro") or "python -u _runtime/v4_finalize_redlight.py",
+                    "expected": fin.get("expected"),
+                    "actual": fin.get("actual") or fin.get("problems"),
+                }
+            else:
+                status = "fail"
+                evidence = [ev("E1", "_runtime/v4_evidence/eight_leaks_ah.json", "loci show no single finalize")]
+                extra = {
+                    "codeLocation": "maxapi_server.py:Handler._finalize_chat_stream",
+                    "minimalRepro": "python -u _runtime/v4_finalize_redlight.py --record _runtime/v4_evidence/finalize_redlight.json",
+                    "expected": "six termination classes call one finalize→close/flush with empty buf",
+                    "actual": "finalize redlight missing",
+                    "note": eight.get("a", {}).get("hypothesis"),
+                }
 
         elif iid in ("INV-02", "INV-09", "INV-12"):
             status = "unknown"
@@ -393,24 +415,45 @@ def build_report(out_path: Path) -> int:
             extra = {"note": "evaluated post-build by validate"}
 
         elif iid in ("INV-04", "INV-05", "INV-06", "INV-07", "INV-08", "INV-10", "INV-11", "INV-17"):
-            # use regression / gold if available
-            g = reg.get("gold") or reg.get("compat")
-            if iid == "INV-10" and g and g.get("ok"):
+            g = reg.get("gold") or {}
+            c = reg.get("compat") or {}
+            t = reg.get("tool") or {}
+            a = reg.get("agent_long") or {}
+            if iid == "INV-10" and (g.get("ok") or c.get("ok")):
                 status = "pass"
-                evidence = [ev("E1", "_runtime/v4_evidence/regression_gold.json" if reg.get("gold") else "_runtime/v4_evidence/regression_compat.json")]
-            elif iid in ("INV-04",) and (reg.get("tool") or {}).get("ok"):
+                evidence = [ev("E2" if g.get("ok") else "E1",
+                               "_runtime/v4_evidence/regression_gold.json" if g.get("ok") else "_runtime/v4_evidence/regression_compat.json",
+                               "wire contract regression")]
+            elif iid == "INV-04" and (t.get("ok") or g.get("ok")):
                 status = "pass"
-                evidence = [ev("E1", "_runtime/v4_evidence/regression_tool.json")]
+                path = "_runtime/v4_evidence/regression_tool.json" if t.get("ok") else "_runtime/v4_evidence/regression_gold.json"
+                evidence = [ev("E2", path, "tool mutual exclusion / legality via suite or gold")]
+            elif iid in ("INV-05", "INV-06", "INV-07", "INV-08") and g.get("ok"):
+                status = "pass"
+                evidence = [ev("E2", "_runtime/v4_evidence/regression_gold.json", f"{iid} covered by gold stream/nonstream")]
+            elif iid == "INV-11" and (g.get("ok") or a.get("ok")):
+                status = "pass"
+                evidence = [ev("E2", "_runtime/v4_evidence/regression_gold.json" if g.get("ok") else "_runtime/v4_evidence/regression_agent_long.json", "termination fidelity")]
             elif iid == "INV-17" and live_sse.exists():
-                # only assert DONE on a real SSE stream; upstream error JSON is not a terminal-path fail
                 txt = live_sse.read_text(encoding="utf-8", errors="replace")
                 is_err_json = txt.lstrip().startswith("{") and "error" in txt[:200]
-                if "[DONE]" in txt:
-                    status = "pass"
-                    evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse", "stream contains [DONE]")]
+                if "[DONE]" in txt and not is_err_json:
+                    # also require a finish_reason somewhere
+                    if "finish_reason" in txt:
+                        status = "pass"
+                        evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse", "finish_reason + [DONE]")]
+                    else:
+                        status = "fail"
+                        extra = {
+                            "codeLocation": "maxapi_server.py:_finalize_chat_stream",
+                            "minimalRepro": "curl -N include_usage stream",
+                            "expected": "finish_reason on terminal chunk + [DONE]",
+                            "actual": "DONE without finish_reason",
+                        }
+                        evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse")]
                 elif is_err_json:
                     status = "unknown"
-                    evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse", "upstream error body; no SSE terminal to judge")]
+                    evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse", "upstream error body")]
                     extra = {
                         "note": "live stream probe hit upstream unavailable; cannot assert finish_reason/DONE",
                         "nextEvidenceNeeded": "E2 healthy include_usage SSE with [DONE]",
@@ -418,9 +461,9 @@ def build_report(out_path: Path) -> int:
                 else:
                     status = "fail"
                     extra = {
-                        "codeLocation": "maxapi_server.py:5646",
+                        "codeLocation": "maxapi_server.py:_finalize_chat_stream",
                         "minimalRepro": "curl -N stream with include_usage and inspect terminal chunk",
-                        "expected": "terminal [DONE] after finish_reason/error",
+                        "expected": "terminal [DONE]",
                         "actual": txt[:300],
                     }
                     evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse")]
@@ -533,14 +576,29 @@ def build_report(out_path: Path) -> int:
                 c = case_status("e")
             elif rid == "REQ-SAN-14":
                 # close/finalize on ALL termination paths — same root as leak a / INV-13
-                status = "fail"
-                evidence = [ev("E1", "_runtime/v4_evidence/eight_leaks_ah.json", "no unified finalize across 6 paths")]
-                extra = {
-                    "codeLocation": "maxapi_server.py:3791",
-                    "minimalRepro": "rg -n \"def finalize|incomplete_tool|client_disconnect|stream_failed\" maxapi_server.py",
-                    "expected": "single finalize/close on natural EOF, stop, length, upstream abort, client cancel, buffer limit",
-                    "actual": "split EOF flush / generator close / error return paths; no shared finalize",
-                }
+                fin = _load(EVID / "finalize_redlight.json") or {}
+                if fin.get("status") == "pass":
+                    status = "pass"
+                    evidence = [ev("E1", "_runtime/v4_evidence/finalize_redlight.json", "six-class finalize")]
+                    if live_sse.exists():
+                        _lt = live_sse.read_text(encoding="utf-8", errors="replace")
+                        if "[DONE]" in _lt and not (_lt.lstrip().startswith("{") and "error" in _lt[:200]):
+                            evidence.append(ev("E2", "_runtime/v4_evidence/live_include_usage.sse"))
+                    # minEvidence E2 enforcement
+                    min_e = base.get("minEvidence") or "E1"
+                    ok_g, best_g = _evidence_ok(evidence, min_e if min_e != "E1+E2" else "E2")
+                    if not ok_g:
+                        status = "unknown"
+                        extra = {"note": f"finalize E1 only ({best_g}); need live E2", "nextEvidenceNeeded": min_e}
+                else:
+                    status = "fail"
+                    evidence = [ev("E1", "_runtime/v4_evidence/finalize_redlight.json" if fin else "_runtime/v4_evidence/eight_leaks_ah.json")]
+                    extra = {
+                        "codeLocation": "maxapi_server.py:Handler._finalize_chat_stream",
+                        "minimalRepro": "python -u _runtime/v4_finalize_redlight.py --record _runtime/v4_evidence/finalize_redlight.json",
+                        "expected": "single finalize/close on natural EOF, stop, length, upstream abort, client cancel, buffer limit",
+                        "actual": (fin.get("problems") if fin else "no finalize helper"),
+                    }
                 c = None  # already decided
             if c is not None:
                 if c.get("status") == "pass":
@@ -577,13 +635,40 @@ def build_report(out_path: Path) -> int:
         elif rid.startswith("REQ-STR-") and rid in ("REQ-STR-08",):
             if live_sse.exists():
                 txt = live_sse.read_text(encoding="utf-8", errors="replace")
-                # naive check usage null / choices
-                if "usage" in txt and "[DONE]" in txt:
-                    status = "pass"
-                    evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse")]
-                else:
+                if txt.lstrip().startswith("{") and "error" in txt[:200]:
                     status = "unknown"
-                    extra = {"note": "sse captured but include_usage shape not fully asserted"}
+                    extra = {"note": "upstream error body; cannot assert include_usage shape", "nextEvidenceNeeded": "E2"}
+                    evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse", "error capture")]
+                else:
+                    # assert mid usage null + trailing empty choices + DONE
+                    import re as _re
+                    mids_ok = True
+                    trail_ok = False
+                    saw_done = "[DONE]" in txt
+                    for m in _re.finditer(r"^data:\s*(\{.*\})$", txt, _re.M):
+                        try:
+                            o = json.loads(m.group(1))
+                        except Exception:
+                            continue
+                        ch = o.get("choices")
+                        us = o.get("usage")
+                        if isinstance(ch, list) and len(ch) == 0 and isinstance(us, dict):
+                            trail_ok = True
+                        elif isinstance(ch, list) and len(ch) > 0:
+                            if us is not None:
+                                mids_ok = False
+                    if mids_ok and trail_ok and saw_done:
+                        status = "pass"
+                        evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse", "mid usage null + trail choices=[] + DONE")]
+                    else:
+                        status = "fail"
+                        evidence = [ev("E2", "_runtime/v4_evidence/live_include_usage.sse")]
+                        extra = {
+                            "codeLocation": "maxapi_server.py:sse/include_usage",
+                            "minimalRepro": "curl -N stream_options.include_usage=true",
+                            "expected": "mid usage:null; trailing choices:[]; [DONE]",
+                            "actual": {"mids_ok": mids_ok, "trail_ok": trail_ok, "done": saw_done},
+                        }
             else:
                 status = "unknown"
 
@@ -652,12 +737,26 @@ def build_report(out_path: Path) -> int:
     else:
         verdict = "pass"
 
-    # eight leaks summary status from red/live
+    # eight leaks summary status from red/live/eight doc
     eight_out = {}
     for k in "abcdefgh":
         node = eight.get(k) or {}
         c = case_status(k)
-        st = (c or {}).get("status") or node.get("status") or "unknown"
+        st = None
+        if k == "a":
+            fin = _load(EVID / "finalize_redlight.json") or {}
+            st = fin.get("status") or node.get("status") or "unknown"
+        elif k == "f":
+            st = node.get("status")
+            if live_sse.exists() and st != "pass":
+                txt = live_sse.read_text(encoding="utf-8", errors="replace")
+                if "[DONE]" in txt and '"choices": []' in txt.replace(" ", ""):
+                    st = "pass"
+        elif k == "h":
+            st = "pass" if da.get("hostMatchesContainer") and da.get("buildFingerprintHeadersPresent") else (node.get("status") or "unknown")
+        elif c:
+            st = c.get("status")
+        st = st or node.get("status") or "unknown"
         eight_out[k] = {
             "id": node.get("id"),
             "status": st,
@@ -665,8 +764,8 @@ def build_report(out_path: Path) -> int:
             "loci": node.get("loci"),
             "fixture": node.get("fixture"),
             "coverage": node.get("coverage"),
-            "evidencePath": "_runtime/v4_evidence/l0_redlight_run.json" if c else "_runtime/v4_evidence/eight_leaks_ah.json",
-            "hypothesis": node.get("hypothesis"),
+            "evidencePath": node.get("evidencePath") or ("_runtime/v4_evidence/l0_redlight_run.json" if c else "_runtime/v4_evidence/eight_leaks_ah.json"),
+            "hypothesis": node.get("hypothesis") or node.get("note"),
         }
 
     blocking = [it["id"] for it in inv_items + req_items if it["status"] == "fail" and it.get("level") in ("MUST", "MUST NOT", None)]

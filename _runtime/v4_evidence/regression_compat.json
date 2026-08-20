@@ -1,5 +1,6 @@
 {
   "ok": true,
   "summary": "TOTAL 96 FAIL 0",
-  "log": "_runtime/v4_evidence/regression_compat_stdout.txt"
+  "log": "_runtime/v4_evidence/regression_compat_stdout.txt",
+  "generatedAt": "2026-08-20T03:39:17Z"
 }
