@@ -1,10 +1,10 @@
 {
   "specVersion": "2api-acceptance-v4",
-  "buildId": "local-fcbd6d0f-2026-08-20T03:40:07Z",
-  "generatedAt": "2026-08-20T03:40:07Z",
+  "buildId": "local-6f7b5372-2026-08-20T03:41:08Z",
+  "generatedAt": "2026-08-20T03:41:08Z",
   "deployedArtifact": {
     "probedFrom": "http://127.0.0.1:8080/healthz",
-    "probedAt": "2026-08-20T03:39:17Z",
+    "probedAt": "2026-08-20T03:41:07Z",
     "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db",
     "imageRepoDigests": [
       "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
@@ -14,35 +14,35 @@
     "hostBinarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
     "hostBinaryMd5": "eb024b6d5d4691209887c0106cfcf29d",
     "hostMatchesContainer": true,
-    "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+    "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
     "commitSource": "host-git-not-in-container",
     "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
     "upstreamProfile": "se.zzmax.cn-guest",
-    "processStartedAt": "2026-08-20T02:27:25.043653874Z",
+    "processStartedAt": "2026-08-20T03:41:04.49826474Z",
     "processImage": "maxapi-server:latest",
     "healthz": {
       "status": 200,
-      "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018\", \"binarySha256\": \"eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-20T02:27:25Z\"}",
+      "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"6f7b537243f4f40bdf6879d817e6f8c8fafbe476\", \"binarySha256\": \"eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-20T03:41:04Z\"}",
       "parsed": {
         "status": "ok",
         "service": "maxapi",
         "models": 11,
-        "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+        "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
         "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
         "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
         "upstreamProfile": "se.zzmax.cn-guest",
-        "processStartedAt": "2026-08-20T02:27:25Z"
+        "processStartedAt": "2026-08-20T03:41:04Z"
       }
     },
     "buildFingerprintHeadersPresent": true,
     "sampleHeaders": {
-      "x-maxapi-commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+      "x-maxapi-commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
       "x-maxapi-binary-sha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
       "x-maxapi-sanitizer-config": "markers-toolcallparser-v4-20260820",
       "x-build-id": null,
       "x-git-commit": null,
       "x-binary-sha256": null,
-      "x-request-id": "46f5b7a59cf44c0d",
+      "x-request-id": "c6bdc485f194441e",
       "content-type": "application/json; charset=utf-8"
     },
     "matchesGatedBuild": true,
@@ -63,7 +63,7 @@
           "note": "INV-01 via parser redlights",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -73,7 +73,7 @@
           "note": "live stream sample",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -106,7 +106,7 @@
           "note": "",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -127,7 +127,7 @@
           "note": "tool mutual exclusion / legality via suite or gold",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -148,7 +148,7 @@
           "note": "INV-05 covered by gold stream/nonstream",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -169,7 +169,7 @@
           "note": "INV-06 covered by gold stream/nonstream",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -190,7 +190,7 @@
           "note": "INV-07 covered by gold stream/nonstream",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -211,7 +211,7 @@
           "note": "INV-08 covered by gold stream/nonstream",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -244,7 +244,7 @@
           "note": "wire contract regression",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -265,7 +265,7 @@
           "note": "termination fidelity",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -298,7 +298,7 @@
           "note": "helper + six classes + call sites",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -308,7 +308,7 @@
           "note": "leak-a loci updated",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -318,7 +318,7 @@
           "note": "live natural_eof terminal",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -339,7 +339,7 @@
           "note": "INV-14 via parser redlights",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -349,7 +349,7 @@
           "note": "live stream sample",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -370,7 +370,7 @@
           "note": "INV-15 via parser redlights",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -380,7 +380,7 @@
           "note": "live stream sample",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -401,7 +401,7 @@
           "note": "live probe host==container",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -422,7 +422,7 @@
           "note": "finish_reason + [DONE]",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -443,7 +443,7 @@
           "note": "all pass evidence paths openable",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -608,7 +608,7 @@
           "note": "live headers+healthz fingerprint",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -618,7 +618,7 @@
           "note": "healthz body",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -628,7 +628,7 @@
           "note": "response headers",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -651,7 +651,7 @@
           "note": "probe fills digest+sha",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -661,7 +661,7 @@
           "note": "introspection body fields",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -684,7 +684,7 @@
           "note": "probe script wrote artifact from live process",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -707,7 +707,7 @@
           "note": "host sha == container sha",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -730,7 +730,7 @@
           "note": "post-rebuild live fingerprint match",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -893,7 +893,7 @@
           "note": "T-17 engine",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -903,7 +903,7 @@
           "note": "",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -926,7 +926,7 @@
           "note": "T-17 engine",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -936,7 +936,7 @@
           "note": "",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -959,7 +959,7 @@
           "note": "mustE3 list fixed",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -982,7 +982,7 @@
           "note": "T-17 engine",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -992,7 +992,7 @@
           "note": "",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -1015,7 +1015,7 @@
           "note": "T-17 engine",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -1025,7 +1025,7 @@
           "note": "",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -1256,7 +1256,7 @@
           "note": "REQ-SAN-03",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -1266,7 +1266,7 @@
           "note": "live boost",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -1289,7 +1289,7 @@
           "note": "REQ-SAN-04",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -1299,7 +1299,7 @@
           "note": "live boost",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -1336,7 +1336,7 @@
           "note": "REQ-SAN-06",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -1346,7 +1346,7 @@
           "note": "live boost",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -1397,7 +1397,7 @@
           "note": "REQ-SAN-09",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -1407,7 +1407,7 @@
           "note": "live boost",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -1443,7 +1443,7 @@
           "note": "REQ-SAN-11",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -1453,7 +1453,7 @@
           "note": "live boost",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -1504,7 +1504,7 @@
           "note": "six-class finalize",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -1514,7 +1514,7 @@
           "note": "",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -1538,7 +1538,7 @@
           "note": "REQ-SAN-15",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         },
@@ -1548,7 +1548,7 @@
           "note": "live boost",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }
@@ -1908,7 +1908,7 @@
           "note": "mid usage null + trail choices=[] + DONE",
           "artifactFingerprint": {
             "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
-            "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+            "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
             "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
           }
         }

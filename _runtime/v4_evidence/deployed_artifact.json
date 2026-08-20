@@ -1,6 +1,6 @@
 {
   "probedFrom": "http://127.0.0.1:8080/healthz",
-  "probedAt": "2026-08-20T03:39:17Z",
+  "probedAt": "2026-08-20T03:41:07Z",
   "imageDigest": "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db",
   "imageRepoDigests": [
     "maxapi-server@sha256:32775a3c97a7c7a8dd15c7b876ad60638b31c2f5ec00c96f116e529d114780db"
@@ -10,35 +10,35 @@
   "hostBinarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
   "hostBinaryMd5": "eb024b6d5d4691209887c0106cfcf29d",
   "hostMatchesContainer": true,
-  "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+  "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
   "commitSource": "host-git-not-in-container",
   "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
   "upstreamProfile": "se.zzmax.cn-guest",
-  "processStartedAt": "2026-08-20T02:27:25.043653874Z",
+  "processStartedAt": "2026-08-20T03:41:04.49826474Z",
   "processImage": "maxapi-server:latest",
   "healthz": {
     "status": 200,
-    "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018\", \"binarySha256\": \"eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-20T02:27:25Z\"}",
+    "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"6f7b537243f4f40bdf6879d817e6f8c8fafbe476\", \"binarySha256\": \"eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-20T03:41:04Z\"}",
     "parsed": {
       "status": "ok",
       "service": "maxapi",
       "models": 11,
-      "commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+      "commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
       "binarySha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
       "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
       "upstreamProfile": "se.zzmax.cn-guest",
-      "processStartedAt": "2026-08-20T02:27:25Z"
+      "processStartedAt": "2026-08-20T03:41:04Z"
     }
   },
   "buildFingerprintHeadersPresent": true,
   "sampleHeaders": {
-    "x-maxapi-commit": "fcbd6d0f600d47c6af65f1a1ec87cdc1cf0c2018",
+    "x-maxapi-commit": "6f7b537243f4f40bdf6879d817e6f8c8fafbe476",
     "x-maxapi-binary-sha256": "eb0a14011b2b2e99ae2fb2612f1c4fff85c01a423d93df8d2d618d2ea93c64cf",
     "x-maxapi-sanitizer-config": "markers-toolcallparser-v4-20260820",
     "x-build-id": null,
     "x-git-commit": null,
     "x-binary-sha256": null,
-    "x-request-id": "46f5b7a59cf44c0d",
+    "x-request-id": "c6bdc485f194441e",
     "content-type": "application/json; charset=utf-8"
   },
   "matchesGatedBuild": true,
