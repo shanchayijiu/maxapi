@@ -1,3 +1,5 @@
+> **SUPERSEDED 2026-08-21** — 内容错位（写成注册机/FastAPI），与真实 maxapi（se.zzmax 旁路兼容层）无关。权威文档：仓库根 `STATUS.md` + `docs/`。
+
 # MaxAPI Project Documentation
 
 ## Project Overview

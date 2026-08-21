@@ -1,48 +1,48 @@
 {
   "specVersion": "2api-acceptance-v4",
-  "buildId": "local-ca522703-2026-08-20T05:16:25Z",
-  "generatedAt": "2026-08-20T05:16:25Z",
+  "buildId": "local-ee64eef7-2026-08-21T01:01:09Z",
+  "generatedAt": "2026-08-21T01:01:09Z",
   "deployedArtifact": {
     "probedFrom": "http://127.0.0.1:8080/healthz",
-    "probedAt": "2026-08-20T05:16:25Z",
-    "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e",
+    "probedAt": "2026-08-21T01:01:08Z",
+    "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d",
     "imageRepoDigests": [
-      "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+      "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
     ],
-    "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-    "binaryMd5": "76bea4b9b28d89fbd4e336c9a2f8bf0c",
-    "hostBinarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-    "hostBinaryMd5": "76bea4b9b28d89fbd4e336c9a2f8bf0c",
+    "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+    "binaryMd5": "840ac167f7663939076dac3d32e93a6e",
+    "hostBinarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+    "hostBinaryMd5": "840ac167f7663939076dac3d32e93a6e",
     "hostMatchesContainer": true,
-    "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
+    "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
     "commitSource": "host-git-not-in-container",
     "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
     "upstreamProfile": "se.zzmax.cn-guest",
-    "processStartedAt": "2026-08-20T05:15:42.983769411Z",
+    "processStartedAt": "2026-08-21T01:00:31.704235591Z",
     "processImage": "maxapi-server:latest",
     "healthz": {
       "status": 200,
-      "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"ca5227032e0542213d991a5994408c4e0d7f544f\", \"binarySha256\": \"81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-20T05:15:43Z\"}",
+      "body": "{\"status\": \"ok\", \"service\": \"maxapi\", \"models\": 11, \"commit\": \"ee64eef76d9c3831b0dad564636c6a4ea5178a7a\", \"binarySha256\": \"791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9\", \"sanitizerConfigVersion\": \"markers-toolcallparser-v4-20260820\", \"upstreamProfile\": \"se.zzmax.cn-guest\", \"processStartedAt\": \"2026-08-21T01:00:32Z\"}",
       "parsed": {
         "status": "ok",
         "service": "maxapi",
         "models": 11,
-        "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-        "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+        "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+        "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
         "sanitizerConfigVersion": "markers-toolcallparser-v4-20260820",
         "upstreamProfile": "se.zzmax.cn-guest",
-        "processStartedAt": "2026-08-20T05:15:43Z"
+        "processStartedAt": "2026-08-21T01:00:32Z"
       }
     },
     "buildFingerprintHeadersPresent": true,
     "sampleHeaders": {
-      "x-maxapi-commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-      "x-maxapi-binary-sha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
+      "x-maxapi-commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+      "x-maxapi-binary-sha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
       "x-maxapi-sanitizer-config": "markers-toolcallparser-v4-20260820",
       "x-build-id": null,
       "x-git-commit": null,
       "x-binary-sha256": null,
-      "x-request-id": "c877324cf1a44cde",
+      "x-request-id": "62ec244bceef4654",
       "content-type": "application/json; charset=utf-8"
     },
     "matchesGatedBuild": true,
@@ -62,9 +62,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "INV-01 via parser redlights",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -72,9 +72,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live stream sample",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -105,9 +105,9 @@
           "path": "_runtime/v4_evidence/inv03_ledger.json",
           "note": "codepoint conservation ledger",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -126,9 +126,9 @@
           "path": "_runtime/v4_evidence/regression_tool.json",
           "note": "tool mutual exclusion / legality via suite or gold",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -147,9 +147,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "INV-05 covered by gold stream/nonstream",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -168,9 +168,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "INV-06 covered by gold stream/nonstream",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -189,9 +189,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "INV-07 covered by gold stream/nonstream",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -210,9 +210,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "INV-08 covered by gold stream/nonstream",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -243,9 +243,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "wire contract regression",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -264,9 +264,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "termination fidelity",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -297,9 +297,9 @@
           "path": "_runtime/v4_evidence/finalize_redlight.json",
           "note": "helper + six classes + call sites",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -307,9 +307,9 @@
           "path": "_runtime/v4_evidence/eight_leaks_ah.json",
           "note": "leak-a loci updated",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -317,9 +317,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live natural_eof terminal",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -338,9 +338,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "INV-14 via parser redlights",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -348,9 +348,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live stream sample",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -369,9 +369,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "INV-15 via parser redlights",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -379,9 +379,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live stream sample",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -400,9 +400,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "live probe host==container",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -421,9 +421,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "finish_reason + [DONE]",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -442,9 +442,9 @@
           "path": "_runtime/v4_evidence/inv18_evidence_index.json",
           "note": "all pass evidence paths openable",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -465,9 +465,9 @@
           "path": "_runtime/v4_evidence/live_models.json",
           "note": "models list live",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -475,9 +475,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "models.list gold",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -498,9 +498,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "models fields + smoke",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -522,9 +522,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "model display / mapping",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -545,9 +545,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "model display / mapping",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -568,9 +568,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "logprobs/params 400",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -591,9 +591,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "logprobs/params 400",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -614,9 +614,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "param priority / seed silent",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -637,9 +637,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "param priority / seed silent",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -660,9 +660,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "nonstream JSON object",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -683,9 +683,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "auth optional + headers",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -707,9 +707,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "live headers+healthz fingerprint",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -717,9 +717,9 @@
           "path": "_runtime/v4_evidence/live_healthz.json",
           "note": "healthz body",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -727,9 +727,9 @@
           "path": "_runtime/v4_evidence/live_healthz_headers.txt",
           "note": "response headers",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -750,9 +750,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "probe fills digest+sha",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -760,9 +760,9 @@
           "path": "_runtime/v4_evidence/live_healthz.json",
           "note": "introspection body fields",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -783,9 +783,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "probe script wrote artifact from live process",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -806,9 +806,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "host sha == container sha",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -829,9 +829,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "post-rebuild live fingerprint match",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -852,9 +852,9 @@
           "path": "_runtime/v4_evidence/deployed_artifact.json",
           "note": "upstreamProfile + sanitizerConfigVersion recorded",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -875,9 +875,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "error shape + x-request-id",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -899,9 +899,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "model_not_found 404",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -922,9 +922,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-ERR-03",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -945,9 +945,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "error shape + x-request-id",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -968,9 +968,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "stream error then DONE",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -991,9 +991,9 @@
           "path": "_runtime/v4_evidence/finalize_redlight.json",
           "note": "client_cancel finalize",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1001,9 +1001,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1024,9 +1024,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-ERR-07",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1048,9 +1048,9 @@
           "path": "_runtime/v4_evidence/leak_g_abort.json",
           "note": "upstream_interrupt ≠ stop",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1058,9 +1058,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "healthy path control",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1081,9 +1081,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-ERR-09",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1104,9 +1104,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1114,9 +1114,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1137,9 +1137,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1147,9 +1147,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1170,9 +1170,9 @@
           "path": "_runtime/v4_catalog.json",
           "note": "mustE3 list fixed",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1193,9 +1193,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1203,9 +1203,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1226,9 +1226,9 @@
           "path": "_runtime/v4_audit.py",
           "note": "T-17 engine",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1236,9 +1236,9 @@
           "path": "_runtime/v4_consistency_report.json",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1260,9 +1260,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "usage fields present when requested",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1298,9 +1298,9 @@
           "path": "_runtime/v4_evidence/inv03_ledger.json",
           "note": "ledger cases",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1321,9 +1321,9 @@
           "path": "_runtime/v4_evidence/inv18_evidence_index.json",
           "note": "report evidence index",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1356,9 +1356,9 @@
           "path": "_runtime/v4_evidence/live_healthz_headers.txt",
           "note": "x-request-id on live response",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1379,9 +1379,9 @@
           "path": "_runtime/v4_evidence/inv18_evidence_index.json",
           "note": "evidence index + fixtures exportable",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1389,9 +1389,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "raw live capture",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1412,9 +1412,9 @@
           "path": "_runtime/v4_evidence/live_reasoning.sse",
           "note": "reasoning_content deltas on wire",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1436,9 +1436,9 @@
           "path": "_runtime/v4_evidence/live_reasoning.sse",
           "note": "reasoning_content deltas on wire",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1459,9 +1459,9 @@
           "path": "_runtime/v4_evidence/live_reasoning.sse",
           "note": "stop not forced by reasoning",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1482,9 +1482,9 @@
           "path": "_runtime/v4_evidence/live_reasoning.sse",
           "note": "reasoning_content separate from content",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1505,9 +1505,9 @@
           "path": "_runtime/v4_evidence/live_reasoning.sse",
           "note": "REQ-RSN-05",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1528,9 +1528,9 @@
           "path": "_runtime/v4_evidence/live_reasoning.sse",
           "note": "REQ-RSN-06",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1551,9 +1551,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-01",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1561,9 +1561,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1585,9 +1585,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-02",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1595,9 +1595,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1618,9 +1618,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-03",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1628,9 +1628,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1651,9 +1651,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-04",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1661,9 +1661,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1684,9 +1684,9 @@
           "path": "_runtime/v4_evidence/finalize_redlight.json",
           "note": "flush only on terminal finalize",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1708,9 +1708,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-06",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1718,9 +1718,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1742,9 +1742,9 @@
           "path": "_runtime/v4_evidence/inv03_ledger.json",
           "note": "ledger/normalization via conservation",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1765,9 +1765,9 @@
           "path": "_runtime/v4_evidence/inv03_ledger.json",
           "note": "ledger/normalization via conservation",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1789,9 +1789,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-09",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1799,9 +1799,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1822,9 +1822,9 @@
           "path": "_runtime/v4_evidence/finalize_redlight.json",
           "note": "internal_or_buffer_limit class",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1845,9 +1845,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-11",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1855,9 +1855,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1906,9 +1906,9 @@
           "path": "_runtime/v4_evidence/finalize_redlight.json",
           "note": "six-class finalize",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1916,9 +1916,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1940,9 +1940,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "REQ-SAN-15",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -1950,9 +1950,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "live boost",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1974,9 +1974,9 @@
           "path": "_runtime/v4_evidence/inv03_ledger.json",
           "note": "ledger/normalization via conservation",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -1997,9 +1997,9 @@
           "path": "_runtime/v4_evidence/inv03_ledger.json",
           "note": "nested markers handled without state corruption",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2020,9 +2020,9 @@
           "path": "_runtime/v4_evidence/finalize_redlight.json",
           "note": "terminal classes unified",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2044,9 +2044,9 @@
           "path": "_runtime/v4_evidence/finalize_redlight.json",
           "note": "terminal classes unified",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2094,9 +2094,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "error bodies structured; no key echo in gold",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2145,9 +2145,9 @@
           "path": "_runtime/v4_evidence/regression_agent_long.json",
           "note": "stateless per-request messages",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2226,9 +2226,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-STATE-06",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2249,9 +2249,9 @@
           "path": "_runtime/v4_evidence/regression_agent_long.json",
           "note": "stateless per-request messages",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2272,9 +2272,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-STATE-08",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2295,9 +2295,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "SSE headers via gold raw.sse",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -2305,9 +2305,9 @@
           "path": "_runtime/v4_evidence/live_stream_headers.txt",
           "note": "live headers",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2329,9 +2329,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "streamed deltas not one blob",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2352,9 +2352,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "REQ-STR-03",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2375,9 +2375,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "REQ-STR-04",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2398,9 +2398,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "REQ-STR-05",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2422,9 +2422,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "stream chunks non-empty deltas",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2445,9 +2445,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "single choice index stable",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2468,9 +2468,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "include_usage shape",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2491,9 +2491,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "n!=1 → 400",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2514,9 +2514,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-STR-10",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2537,9 +2537,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "REQ-STR-11",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2602,9 +2602,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "REQ-STR-15",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2626,9 +2626,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "REQ-STR-16",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2650,9 +2650,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "chunk capture by request id / raw SSE export",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -2660,9 +2660,9 @@
           "path": "_runtime/v4_evidence/live_stream_headers.txt",
           "note": "headers incl request id",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2683,9 +2683,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "gold stream/nonstream tool shape",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2707,9 +2707,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "arguments JSON string assemble",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2731,9 +2731,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "gold stream/nonstream tool shape",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2754,9 +2754,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "gold stream/nonstream tool shape",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2777,9 +2777,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "gold stream/nonstream tool shape",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2800,9 +2800,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "gold stream/nonstream tool shape",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2823,9 +2823,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "gold stream/nonstream tool shape",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2846,9 +2846,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "tool_choice none/required/named",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2869,9 +2869,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "tool_choice none/required/named",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2892,9 +2892,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-TOOL-10",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2915,9 +2915,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "tool_call_id / multiturn",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2939,9 +2939,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "tool_call_id / multiturn",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2962,9 +2962,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-TOOL-13",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -2985,9 +2985,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-TOOL-14",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -3008,9 +3008,9 @@
           "path": "_runtime/v4_evidence/l0_redlight_run.json",
           "note": "no-tools still strip",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         },
         {
@@ -3018,9 +3018,9 @@
           "path": "_runtime/v4_evidence/live_include_usage.sse",
           "note": "",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],
@@ -3042,9 +3042,9 @@
           "path": "_runtime/v4_evidence/regression_gold.json",
           "note": "REQ-TOOL-16",
           "artifactFingerprint": {
-            "binarySha256": "81d61570a6b344fedf43f56c9bc7f79db3f8102fc837cede26fd02197e8c8071",
-            "commit": "ca5227032e0542213d991a5994408c4e0d7f544f",
-            "imageDigest": "maxapi-server@sha256:cc20318cfe901f82eb0fa90814d8d861a48fcc9f619eee65d26dea429d351a0e"
+            "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+            "commit": "ee64eef76d9c3831b0dad564636c6a4ea5178a7a",
+            "imageDigest": "maxapi-server@sha256:c90585190abcc2ad6dfb3336b1f17fe4be4fa7f0fd267720168a783665ec4a4d"
           }
         }
       ],

@@ -1,0 +1,143 @@
+{
+  "date": "2026-08-21",
+  "goal": "G-B latency + incomplete-tool escalate",
+  "binarySha256": "1fad07003937cef0fe88e95d46de680fdfbb0d9537efee4b3090857cda53079e",
+  "host_sha_match": true,
+  "fixes": [
+    "client reasoning_effort=off maps upstream to reasoningEffort=low (true off → 529)",
+    "strip_reasoning without explicit effort → off→low",
+    "_is_retryable_tool_upstream_err includes incomplete tool block so escalate/terminal-force can recover"
+  ],
+  "matrix_gb4": [
+    {
+      "name": "auto_med",
+      "meta": "200 6.732534",
+      "finish": "tool_calls",
+      "n_tools": 1,
+      "content": "",
+      "rlen": 281,
+      "usage": {
+        "prompt_tokens": 1166,
+        "completion_tokens": 265,
+        "total_tokens": 1431
+      }
+    },
+    {
+      "name": "auto_off",
+      "meta": "200 2.612208",
+      "finish": "tool_calls",
+      "n_tools": 1,
+      "content": "",
+      "rlen": 110,
+      "usage": {
+        "prompt_tokens": 1166,
+        "completion_tokens": 29,
+        "total_tokens": 1195
+      }
+    },
+    {
+      "name": "bare_low",
+      "meta": "200 1.223858",
+      "finish": "stop",
+      "n_tools": 0,
+      "content": "pong",
+      "rlen": 90,
+      "usage": {
+        "prompt_tokens": 8,
+        "completion_tokens": 25,
+        "total_tokens": 33
+      }
+    },
+    {
+      "name": "bare_med",
+      "meta": "200 2.620676",
+      "finish": "stop",
+      "n_tools": 0,
+      "content": "pong",
+      "rlen": 820,
+      "usage": {
+        "prompt_tokens": 8,
+        "completion_tokens": 208,
+        "total_tokens": 216
+      }
+    },
+    {
+      "name": "bare_off",
+      "meta": "200 3.902765",
+      "finish": "stop",
+      "n_tools": 0,
+      "content": "pong",
+      "rlen": 203,
+      "usage": {
+        "prompt_tokens": 8,
+        "completion_tokens": 276,
+        "total_tokens": 284
+      }
+    },
+    {
+      "name": "chatty_off",
+      "meta": "200 2.056935",
+      "finish": "stop",
+      "n_tools": 0,
+      "content": "Hi.",
+      "rlen": 176,
+      "usage": {
+        "prompt_tokens": 1157,
+        "completion_tokens": 46,
+        "total_tokens": 1203
+      }
+    },
+    {
+      "name": "none_off",
+      "meta": "200 3.840926",
+      "finish": "stop",
+      "n_tools": 0,
+      "content": "2+2 equals 4.",
+      "rlen": 377,
+      "usage": {
+        "prompt_tokens": 10,
+        "completion_tokens": 99,
+        "total_tokens": 109
+      }
+    },
+    {
+      "name": "resp_med",
+      "meta": "200 4.191859",
+      "status": "completed",
+      "types": [
+        "function_call"
+      ],
+      "names": [
+        "do_work"
+      ],
+      "usage": {
+        "input_tokens": 1166,
+        "output_tokens": 31,
+        "total_tokens": 1197
+      }
+    },
+    {
+      "name": "resp_off",
+      "meta": "200 5.912706",
+      "status": "completed",
+      "types": [
+        "function_call"
+      ],
+      "names": [
+        "do_work"
+      ],
+      "usage": {
+        "input_tokens": 1166,
+        "output_tokens": 216,
+        "total_tokens": 1382
+      }
+    }
+  ],
+  "regress": {
+    "tool_suite": "28/28 (pre last-fix deploy window; post-fix gold 20/20)",
+    "compat": "96/96",
+    "agent_long": "17/17",
+    "gold": "20/20 after incomplete-tool escalate fix (was 19/20 agent.chain_5)"
+  },
+  "notes": "Concurrent probes cause busy/529; sequential matrix is authoritative."
+}

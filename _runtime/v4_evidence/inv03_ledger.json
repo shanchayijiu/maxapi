@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T04:05:57Z",
+  "generatedAt": "2026-08-21T00:48:00Z",
   "id": "INV-03",
   "status": "pass",
   "cases": [
@@ -31,7 +31,7 @@
       "content": "pre  post",
       "tools": [
         {
-          "id": "call_bXUecRayZvvVw1y6dQVgGP1W",
+          "id": "call_KGLP1TifoWGX2rjLkdTU4y1l",
           "name": "N",
           "arguments": {}
         }
@@ -62,7 +62,7 @@
       "content": "pre  post",
       "tools": [
         {
-          "id": "call_VyPZQwwILgOKcKM9IrpkZqHK",
+          "id": "call_UvL6sGelDOlXJ2ActN3BGyU4",
           "name": "N",
           "arguments": {}
         }
@@ -110,7 +110,7 @@
       "content": "你好  世界",
       "tools": [
         {
-          "id": "call_5Ey8JxlF9ZAMZsby7L6Vv3Kg",
+          "id": "call_RDcgvfJrFo0Atte85F1SqZJj",
           "name": "U",
           "arguments": {
             "x": "中文"

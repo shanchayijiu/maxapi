@@ -1,0 +1,122 @@
+[
+  {
+    "name": "models.list",
+    "ok": true,
+    "detail": "n=11 sample=['Claude Sonnet 5', 'Claude Opus 5', 'claude-opus-4-6', 'gpt-5.6-sol', 'gpt-5.6-luna']",
+    "t": 4.65
+  },
+  {
+    "name": "nonstream.text",
+    "ok": true,
+    "detail": "fr=stop text='GOLD_OK' errs=[] usage=CompletionUsage(completion_tokens=116, prompt_tokens=8, total_tokens=124, completion_tokens_details=None, prompt_tokens_details=None)",
+    "t": 5.93
+  },
+  {
+    "name": "stream.text",
+    "ok": true,
+    "detail": "role=True fr=stop chunks=90 text='STREAM_OK'",
+    "t": 8.73
+  },
+  {
+    "name": "nonstream.tool",
+    "ok": true,
+    "detail": "fr=tool_calls n=1 attempt=0 name=get_time args={'tz': 'UTC'} id=call_6KKPN784vZ55zPuWFQ5eMXkO type=function",
+    "t": 6.15
+  },
+  {
+    "name": "stream.tool",
+    "ok": true,
+    "detail": "fr=tool_calls | role=True | deltas=2 | n_idx=1 | first_args_empty=True | args_incr=True | [0] id=call_kpnZ3NZswze3f1PbqQVDRRZ8 type=function name=get_time args={'tz': 'UTC'}",
+    "t": 8.28
+  },
+  {
+    "name": "multiturn.tool_refill",
+    "ok": true,
+    "detail": "fr2=stop content='The current time in UTC is **12:00 PM on August 19, 2026** (2026-08-19T12:00:00Z).' tools2=0",
+    "t": 8.61
+  },
+  {
+    "name": "tool_choice.none",
+    "ok": true,
+    "detail": "fr=stop tcs=None",
+    "t": 9.15
+  },
+  {
+    "name": "tool_choice.required",
+    "ok": true,
+    "detail": "fr=tool_calls n=1 attempt=0",
+    "t": 7.52
+  },
+  {
+    "name": "tool_choice.named",
+    "ok": true,
+    "detail": "fr=tool_calls name=get_time",
+    "t": 3.69
+  },
+  {
+    "name": "parallel.tools",
+    "ok": true,
+    "detail": "fr=tool_calls names=['get_time', 'add'] multi=True (multi preferred not required if model refuses)",
+    "t": 8.94
+  },
+  {
+    "name": "error.bad_model",
+    "ok": true,
+    "detail": "status=404 type=NotFoundError body={'message': 'The model `this-model-definitely-does-not-exist-xyz` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_found'} msg=Error code: 404 - {'error': {'message': 'The model `this-model-definitely-does-not-exist-xyz` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'param': 'model', 'code': 'model_not_found'}}",
+    "t": 2.34
+  },
+  {
+    "name": "stream.include_usage",
+    "ok": true,
+    "detail": "usage_seen=True fr=stop",
+    "t": 8.02
+  },
+  {
+    "name": "raw.sse_tool_wire",
+    "ok": true,
+    "detail": "st=200 ct='text/event-stream; charset=utf-8' cache='no-cache, no-transform' xab='no' te='chunked' conn='keep-alive' done=True shards=2 shape=True usage=True",
+    "t": 7.72
+  },
+  {
+    "name": "raw.sse_include_usage",
+    "ok": true,
+    "detail": "usage_chunk=True",
+    "t": 0.0
+  },
+  {
+    "name": "agent.chain_5",
+    "ok": true,
+    "detail": "rounds=5/5 final_ok=True text='ALL_DONE' ['r0:ok', 'r1:ok', 'r2:ok', 'r3:ok', 'r4:ok']",
+    "t": 25.46
+  },
+  {
+    "name": "error.n_gt_1",
+    "ok": true,
+    "detail": "st=400 body={\"error\": {\"message\": \"Only n=1 is supported (upstream is a single stream).\", \"type\": \"invalid_request_error\", \"param\": \"n\", \"code\": \"invalid_request_error\"}}",
+    "t": 0.0
+  },
+  {
+    "name": "response_format.json_object",
+    "ok": true,
+    "detail": "text='{\"ok\": true}' parsed={'ok': True}",
+    "t": 14.22
+  },
+  {
+    "name": "endpoint.embeddings_501",
+    "ok": true,
+    "detail": "st=501 body={\"error\": {\"message\": \"This endpoint is not implemented by maxapi (chat-only proxy). Use POST /v1/chat/completions.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"not_i",
+    "t": 0.01
+  },
+  {
+    "name": "unit.context_and_params",
+    "ok": true,
+    "detail": "code=400 etype=context_length_exceeded body={'error': {'message': 'too long', 'type': 'invalid_request_error', 'param': 'messages', 'code': 'context_length_exceeded'}} pe={'error': {'message': 'Only n=1 is supported (upstream is a single stream).', 'type': 'invalid_request_error', 'param': 'n', 'code': 'invalid_request_error'}}",
+    "t": 0.12
+  },
+  {
+    "name": "params.sampling_silent",
+    "ok": true,
+    "detail": "fr=stop text='PING'",
+    "t": 4.27
+  }
+]

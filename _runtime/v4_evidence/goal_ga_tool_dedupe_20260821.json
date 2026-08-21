@@ -1,0 +1,37 @@
+{
+  "date": "2026-08-21",
+  "goal": "G-A dual-channel tool dedupe",
+  "healthz_binarySha256": "888959db5fea889044c3abaaf1c08427a3174471433899e89492db0e14576adf",
+  "before": {
+    "auto_ns_n_tools": 2,
+    "resp_n_function_call": 2
+  },
+  "after": {
+    "auto_ns": {
+      "n": 1,
+      "name": "do_work",
+      "time_s": 4.03,
+      "leaks": []
+    },
+    "none": {
+      "n": 0,
+      "content": "2 + 2 equals 4.",
+      "time_s": 5.1
+    },
+    "resp": {
+      "n": 1,
+      "name": "do_work",
+      "time_s": 21.94
+    },
+    "stream": {
+      "n_ids": 1,
+      "name": "do_work",
+      "time_s": 10.81
+    },
+    "bare_pong": "see v_bare"
+  },
+  "fix": [
+    "upstream(): cross-channel _emit_tool_call dedupe by name+canonical args",
+    "_validate_and_coerce_tool_calls: list-level dedupe + placeholder tool_name/param_name"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "date": "2026-08-21",
+  "case": "sol_dsml_pipe_closer",
+  "normalize_open": "<tool_calls>",
+  "normalize_close": "</tool_calls>",
+  "tools": [
+    {
+      "name": "do_work",
+      "arguments": {
+        "count": 3,
+        "flag": true
+      }
+    }
+  ],
+  "content": "",
+  "leaks_in_content": [],
+  "host_sha": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9"
+}

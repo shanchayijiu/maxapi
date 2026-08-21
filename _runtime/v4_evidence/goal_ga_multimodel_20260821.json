@@ -1,0 +1,184 @@
+{
+  "date": "2026-08-21",
+  "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+  "sol_retries": [
+    {
+      "model": "gpt-5.6-sol",
+      "t": 3.91,
+      "code": 200,
+      "finish": "tool_calls",
+      "n": 1,
+      "names": [
+        "do_work"
+      ],
+      "content": "",
+      "rlen": 42,
+      "leaks": [],
+      "try": 0
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "t": 5.3,
+      "code": 200,
+      "finish": "tool_calls",
+      "n": 1,
+      "names": [
+        "do_work"
+      ],
+      "content": "",
+      "rlen": 0,
+      "leaks": [],
+      "try": 1
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "t": 19.51,
+      "code": 200,
+      "finish": "tool_calls",
+      "n": 1,
+      "names": [
+        "do_work"
+      ],
+      "content": "",
+      "rlen": 0,
+      "leaks": [],
+      "try": 2
+    }
+  ],
+  "multimodel": [
+    {
+      "model": "deepseek-v4-flash",
+      "kind": "bare",
+      "t": 3.33,
+      "content": "pong",
+      "code": 200
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "t": 2.29,
+      "code": 200,
+      "finish": "tool_calls",
+      "n": 1,
+      "names": [
+        "do_work"
+      ],
+      "content": "",
+      "rlen": 115,
+      "leaks": [],
+      "kind": "auto"
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "kind": "bare",
+      "t": 1.6,
+      "content": "pong",
+      "code": 200
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "t": 60.0,
+      "code": 200,
+      "finish": "tool_calls",
+      "n": 1,
+      "names": [
+        "do_work"
+      ],
+      "content": "",
+      "rlen": 0,
+      "leaks": [],
+      "kind": "auto"
+    },
+    {
+      "model": "qwen3.6-plus",
+      "kind": "bare",
+      "t": 7.84,
+      "content": "pong",
+      "code": 200
+    },
+    {
+      "model": "qwen3.6-plus",
+      "t": 6.99,
+      "code": 200,
+      "finish": "tool_calls",
+      "n": 1,
+      "names": [
+        "do_work"
+      ],
+      "content": "",
+      "rlen": 112,
+      "leaks": [],
+      "kind": "auto"
+    },
+    {
+      "model": "gemini-3.5-flash",
+      "kind": "bare",
+      "t": 2.08,
+      "content": "pong",
+      "code": 200
+    },
+    {
+      "model": "gemini-3.5-flash",
+      "t": 2.89,
+      "code": 200,
+      "finish": "tool_calls",
+      "n": 1,
+      "names": [
+        "do_work"
+      ],
+      "content": "",
+      "rlen": 0,
+      "leaks": [],
+      "kind": "auto"
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "kind": "bare",
+      "t": 3.53,
+      "content": "pong",
+      "code": 200
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "t": 6.3,
+      "code": 200,
+      "finish": "tool_calls",
+      "n": 1,
+      "names": [
+        "do_work"
+      ],
+      "content": "",
+      "rlen": 206,
+      "leaks": [],
+      "kind": "auto"
+    },
+    {
+      "model": "MiMo-V2.5-Pro",
+      "kind": "bare",
+      "t": 18.07,
+      "content": "pong",
+      "code": 200
+    },
+    {
+      "model": "MiMo-V2.5-Pro",
+      "t": 10.62,
+      "code": 200,
+      "finish": "tool_calls",
+      "n": 1,
+      "names": [
+        "do_work"
+      ],
+      "content": "",
+      "rlen": 260,
+      "leaks": [],
+      "kind": "auto"
+    }
+  ],
+  "summary": {
+    "sol_leaks_any": false,
+    "sol_tools_ok": true,
+    "mm_auto_tool_ge1": 6,
+    "mm_auto_n": 6,
+    "mm_any_leaks": [],
+    "mm_dup": []
+  }
+}

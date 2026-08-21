@@ -1,0 +1,74 @@
+[
+  {
+    "model": "gpt-5.6-sol",
+    "case": "action_auto",
+    "t": 4.38,
+    "finish": "tool_calls",
+    "n": 1,
+    "names": [
+      "Bash"
+    ],
+    "leaks": [],
+    "preview": "",
+    "rlen": 0
+  },
+  {
+    "model": "gpt-5.6-sol",
+    "case": "chatty_auto",
+    "t": 2.47,
+    "finish": "stop",
+    "n": 0,
+    "names": [],
+    "leaks": [],
+    "preview": "Hello!",
+    "rlen": 0
+  },
+  {
+    "model": "gpt-5.6-sol",
+    "case": "action_stream",
+    "t": 143.69,
+    "finish": "tool_calls",
+    "names": [
+      "Bash"
+    ],
+    "nshard": 3,
+    "leaks": [],
+    "preview": ""
+  },
+  {
+    "model": "deepseek-v4-flash",
+    "case": "action_auto",
+    "t": 9.72,
+    "finish": "tool_calls",
+    "n": 1,
+    "names": [
+      "Bash"
+    ],
+    "leaks": [],
+    "preview": "",
+    "rlen": 1064
+  },
+  {
+    "model": "deepseek-v4-flash",
+    "case": "chatty_auto",
+    "t": 3.36,
+    "finish": "stop",
+    "n": 0,
+    "names": [],
+    "leaks": [],
+    "preview": "Hello! How can I help you today?",
+    "rlen": 130
+  },
+  {
+    "model": "deepseek-v4-flash",
+    "case": "action_stream",
+    "t": 8.0,
+    "finish": "tool_calls",
+    "names": [
+      "Bash"
+    ],
+    "nshard": 3,
+    "leaks": [],
+    "preview": "[R] / 首先，用户消[R]息是：\"Use Bash [R]to run: echo STR[R]EAM_OK. T[R]oo[R]l onl[R]y.\" 这明确[R]要求我使用B[R]ash工具来运行命令 \"ech[R]o ST[R]RE[R]AM_OK\"。用户说[R] \"[R]Tool only[R]\"，这可能意[R]味着我只[R]需要[R]执行[R]工具调用，不需要[R]其他文本[R]。 /  / [R]根据规则，我必须以[R] "
+  }
+]

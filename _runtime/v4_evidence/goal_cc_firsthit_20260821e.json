@@ -1,0 +1,74 @@
+{
+  "date": "2026-08-21e",
+  "goal": "CC first-hit tools: escalate default OFF + compact prompt + json-action sieve + incomplete-only retry",
+  "sha": "18769b4ac6b555ab0a55085b53319c0e75d40bc3e3c6031b008fda739258697d",
+  "host_sha": "18769b4ac6b555ab0a55085b53319c0e75d40bc3e3c6031b008fda739258697d",
+  "sha_match": true,
+  "sanitizer": "markers-toolcallparser-v5-20260821-cc-inc",
+  "cc_probe": {
+    "sha": "18769b4ac6b555ab0a55085b53319c0e75d40bc3e3c6031b008fda739258697d",
+    "model": "gpt-5.6-sol",
+    "cases": [
+      {
+        "name": "action_stream",
+        "ok": true,
+        "dt": 6.72,
+        "ttfb": 0.71,
+        "tools": [
+          {
+            "name": "Bash",
+            "arguments": {
+              "command": "echo MAXAPI_V5_OK"
+            },
+            "id": "call_bZYH97RgWpKx3fqBTtWumJ1w"
+          }
+        ],
+        "leaks": [],
+        "content_preview": ""
+      },
+      {
+        "name": "action_nonstream",
+        "ok": true,
+        "dt": 7.09,
+        "tool_names": [
+          "Bash"
+        ],
+        "leaks": [],
+        "content_preview": ""
+      },
+      {
+        "name": "chatty_no_tool",
+        "ok": true,
+        "dt": 3.91,
+        "tools": 0,
+        "leaks": [],
+        "content_preview": "TCP（传输控制协议）是一种面向连接、可靠且按序传输数据的网络通信协议。"
+      },
+      {
+        "name": "required_force",
+        "ok": true,
+        "dt": 5.73,
+        "tools": [
+          "Bash"
+        ],
+        "leaks": []
+      }
+    ],
+    "pass": true,
+    "sanitizer": "markers-toolcallparser-v5-20260821-cc-inc"
+  },
+  "suites": {
+    "tool_suite": "28/28",
+    "gold": "20/20",
+    "compat": "96/96",
+    "agent_long": "17/17",
+    "dedupe_unit": "ALL OK"
+  },
+  "changes": [
+    "MAXAPI_TOOL_ESCALATE default False; stream _need_buf gated",
+    "compact first-hit _make_tools_prompt (ds2/c2a style) + force-dir + compact JSON-schema appendix",
+    "parser: ```json action``` + JSON-array tool_calls + residue strip",
+    "incomplete tool block: one forced retry independent of empty-tool escalate"
+  ],
+  "notes": "Empty-tool multi-upstream escalate removed by default. Incomplete-tool recovery retained. E3 still non-goal."
+}

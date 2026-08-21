@@ -1,0 +1,45 @@
+{
+  "title": "goal_done_100_20260821d",
+  "when": "2026-08-21T03:05:48Z",
+  "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+  "healthz_expected": {
+    "binarySha256": "791a15fa9ba9107b3b874bec862ba86fecf23a16bfa52f08552de3d3b04f4dd9",
+    "models": 11
+  },
+  "done_definition": "G-A+G-B+G-C live evidence + G-S regressions green; E3 out of scope",
+  "suites_final_sha": {
+    "gold": "20/20",
+    "compat": "96/96 FAIL 0",
+    "tool_suite": "28/28",
+    "agent_long": "17/17",
+    "v4_validate": "valid / verdict=insufficient-evidence / fail=0 / unknown=18 (mustE3)"
+  },
+  "suite_artifacts": {
+    "gold": {
+      "n": 20,
+      "ok": 20,
+      "fails": []
+    },
+    "agent_long": {
+      "n": 17,
+      "ok": 17,
+      "fails": []
+    }
+  },
+  "evidence_paths": [
+    "_runtime/v4_evidence/goal_ga_tool_dedupe_20260821.json",
+    "_runtime/v4_evidence/goal_ga_sol_dsml_dialect_20260821.json",
+    "_runtime/v4_evidence/goal_ga_multimodel_20260821.json",
+    "_runtime/v4_evidence/goal_gb_latency_20260821.json",
+    "_runtime/v4_consistency_report.json"
+  ],
+  "logs_tmp": {
+    "tool": "/tmp/tool_100b.log",
+    "compat": "/tmp/compat_100.log",
+    "agent_long": "/tmp/agent_final2.log"
+  },
+  "non_goal_remaining": [
+    "E3 canary -> v4 verdict=pass",
+    "git commit on request"
+  ]
+}
