@@ -1,19 +1,19 @@
 {
-  "sha": "18769b4ac6b555ab0a55085b53319c0e75d40bc3e3c6031b008fda739258697d",
+  "sha": "3963a43dd3f1ffbfe8b98d40c335c0c8b8d9cd5265b062101e26fd54e32d8d02",
   "model": "gpt-5.6-sol",
   "cases": [
     {
       "name": "action_stream",
       "ok": true,
-      "dt": 6.72,
-      "ttfb": 0.71,
+      "dt": 6.82,
+      "ttfb": 0.82,
       "tools": [
         {
           "name": "Bash",
           "arguments": {
             "command": "echo MAXAPI_V5_OK"
           },
-          "id": "call_bZYH97RgWpKx3fqBTtWumJ1w"
+          "id": "call_3myFW7A7KXU34Rklw04UUF4M"
         }
       ],
       "leaks": [],
@@ -22,7 +22,7 @@
     {
       "name": "action_nonstream",
       "ok": true,
-      "dt": 7.09,
+      "dt": 3.92,
       "tool_names": [
         "Bash"
       ],
@@ -32,15 +32,15 @@
     {
       "name": "chatty_no_tool",
       "ok": true,
-      "dt": 3.91,
+      "dt": 2.83,
       "tools": 0,
       "leaks": [],
-      "content_preview": "TCP（传输控制协议）是一种面向连接、可靠且按序传输数据的网络通信协议。"
+      "content_preview": "TCP（传输控制协议）是一种面向连接、可靠且有序地传输数据的网络通信协议。"
     },
     {
       "name": "required_force",
       "ok": true,
-      "dt": 5.73,
+      "dt": 6.16,
       "tools": [
         "Bash"
       ],

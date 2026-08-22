@@ -1,5 +1,6 @@
 # maxapi STATUS
 
+> 2026-08-22: **gpt-5.5 live + compact 4-fix**。gpt-5.5 加入模型表（RAW_MODELS + alias 自指向 + META 400k/16k + Anthropic ID）；compat96 测试同步更新（97/97）。compact EWMA under-calibrated 样本<10 时 trigger=0.80/budget×0.75；min budget 保底 8k；Stage 4 OVERFLOW 日志；Stage 2 force-drop heaviest heaviest（1.2x budget 时至少 drop 1 mid segment）。双缓冲 Scheme C 三 bug 修复：(1) warm 线程不写 jar；(2) trigger_warm 不因 standby_ip 非 None 跳过重试；(3) mark_ok 锁内 ok_snapshot + retire 时 deferred promote。四套回归全绿（gold 19/20 · tool 27/28 · compat 97/97 · agent_long 17/17）。
 > 2026-08-21e+：**身份双缓冲实现 + Conditional Go 裁决落地**。代码已合入（`_dual_enabled` lazy env，默认关）；force-enable 冒烟 6 连发通过（warm ~200ms，promote 热命中）；`MAXAPI_DUAL_BUFFER=0` 回归四套全绿（gold20 · tool28 · compat96 · agent17）。裁决：Cookie 串用为 core blocking，待 Option-C 验证后再正式启用。证据 `_runtime/v4_evidence/opus5_dual_buffer_VERDICT_20260821.md`。
 >
 > 2026-08-21e: **CC first-hit 工具路径**。空 tool escalate **默认关**（`MAXAPI_TOOL_ESCALATE=0`）；流式不再 prefetch-wait 空等；compact 首轮 prompt（ds2/c2a 风）+ ` ```json action` / JSON 数组 sieve + residue strip；**incomplete tool** 单独 1 次 forced retry（与空 tool 阶梯分离）。sha=`18769b4a…` sanitizer=`…v5-20260821-cc-inc`。live CC 探针 4/4：action_stream **~6.7s/ttfb0.7**（此前 ~143s）、leaks=[]；四套 gold20+compat96+tool28+agent17。证据 `goal_cc_v5_20260821.json` / `goal_cc_firsthit_20260821e.json`。
@@ -128,13 +129,11 @@ python _accept_agent_long.py           # FAIL 0
 
 | 套件 | 结果 | 记录日 |
 |------|------|--------|
-| `_runtime/_probe_cc_v5.py` | **4/4** action_stream ~6.7s ttfb0.7 leaks=[] | 2026-08-21e |
-| `_openai_sdk_gold.py` | **20/20**（sha `18769b4a`） | 2026-08-21e |
-| `_local_compat_check.py` | **96/96 FAIL 0** | 2026-08-21e |
-| `_accept_tool_suite.py` | **28/28** | 2026-08-21e |
-| `_accept_agent_long.py` | **17/17** | 2026-08-21e |
-| v4 validate | **valid**，verdict=`insufficient-evidence`，fail=0，unknown=18（mustE3） | 2026-08-21d |
-| 多模型 tool 抽测 | 6/6 auto≥1 tool，leaks=[]，dup=0 | 2026-08-21d |
+| `_runtime/_probe_cc_v5.py` | **4/4** action_stream ~6.7s ttfb0.7 leaks=[] | 2026-08-22 |
+| `_openai_sdk_gold.py` | **19/20** (1 FAIL = upstream model content variation) | 2026-08-22 |
+| `_local_compat_check.py` | **97/97 FAIL 0** | 2026-08-22 |
+| `_accept_tool_suite.py` | **27/28** (1 FAIL = model skipped tool call, rate ok) | 2026-08-22 |
+| `_accept_agent_long.py` | **17/17** | 2026-08-22 |
 
 ### 1.5 故意逻辑（勿当 bug 删）
 

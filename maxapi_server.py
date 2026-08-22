@@ -116,7 +116,15 @@ def _preflight_should_compact(est_tokens, limit_tokens, model=None):
     if not _COMPACT_ENABLED or limit_tokens <= 0:
         return False
     eff = _est_for_preflight(est_tokens, model)
-    return eff > int(limit_tokens * _COMPACT_TRIGGER)
+    # EWMA under-calibrated (<10 samples): use more conservative trigger to avoid
+    # upstream context_length_exceeded from underestimated actual token counts.
+    trigger = _COMPACT_TRIGGER
+    if model:
+        with _EWMA_LOCK:
+            s = _ewma_store.get(model)
+            if s and s.get("n", 0) < 10:
+                trigger = 0.80
+    return eff > int(limit_tokens * trigger)
 
 
 def _preflight_compact_budget(est_tokens, limit_tokens, model=None):
@@ -146,6 +154,13 @@ def _preflight_compact_budget(est_tokens, limit_tokens, model=None):
     budget = min(budget, lim - 1)
     if lim > 10000:
         budget = max(8000, budget)
+    # EWMA under-calibrated (<10 samples): force more aggressive shrink to avoid
+    # underestimating actual token count and forwarding over-limit requests.
+    if model:
+        with _EWMA_LOCK:
+            s = _ewma_store.get(model)
+            if s and s.get("n", 0) < 10:
+                budget = min(budget, int(raw * 0.75))
     return max(1, budget)
 
 def _setup_logging():
@@ -197,6 +212,7 @@ RAW_MODELS = [
     ("claude-opus-4-6",        "claude",   "claude-opus-4-6",       "normal"),
     ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-sol",           "normal"),
     ("gpt-5.6-luna",           "chatgpt",  "gpt-5.6-luna",          "normal"),
+    ("gpt-5.5",                "chatgpt",  "gpt-5.5",               "normal"),
     ("deepseek-v4-pro",        "deepseek", "deepseek-v4-pro",       "premium"),
     ("deepseek-v4-flash",      "deepseek", "deepseek-v4-flash",     "normal"),
     ("qwen3.6-plus",           "qwen",     "qwen3.6-plus",         "premium"),
@@ -224,7 +240,7 @@ MODEL_ALIASES = {
     "chatgpt/gpt-5.6-sol": "gpt-5.6-sol",
     "chatgpt/gpt-5.6-luna": "gpt-5.6-luna",
     "chatgpt/gpt-5.6-terra": "gpt-5.6-sol",
-    "chatgpt/gpt-5.5": "gpt-5.6-sol",
+    "chatgpt/gpt-5.5": "gpt-5.5",
     # Opus 4.8 retired: upstream had no provider for claude-opus-4.8 (0/8 OK on
     # 2026-08-12 while opus-5 / sonnet-5 / opus-4-6 were all 8/8). Clients that
     # still ask for it — Claude Code sends "claude-opus-4-8" natively — are
@@ -241,8 +257,8 @@ MODEL_ALIASES = {
     # plain (unambiguous) actuals
     # GPT terra / 5.5 retired (upstream had no provider). Keep aliases on sol.
     "gpt-5.6-terra": "gpt-5.6-sol",
-    "gpt-5.5": "gpt-5.6-sol",
-    "GPT-5.5": "gpt-5.6-sol",
+    "gpt-5.5": "gpt-5.5",
+    "GPT-5.5": "gpt-5.5",
     "claude-opus-4.8": "Claude Opus 5",
     "claude-opus-4-6": "claude-opus-4-6",
     "claude-opus-5": "Claude Opus 5",
@@ -282,6 +298,7 @@ _ANTHROPIC_MODEL_IDS = {
     "claude-opus-4-6":        "claude-opus-4-20250514",
     "gpt-5.6-sol":            "claude-sonnet-4-20250514",
     "gpt-5.6-luna":           "claude-sonnet-4-20250514",
+    "gpt-5.5":                "claude-sonnet-4-20250514",
     "deepseek-v4-pro":        "claude-sonnet-4-20250514",
     "deepseek-v4-flash":      "claude-sonnet-4-20250514",
     "qwen3.6-plus":           "claude-sonnet-4-20250514",
@@ -391,6 +408,9 @@ _dual_enabled = None  # lazy init via _env_flag
 _dual_standby_ip = None
 _dual_standby_warmed = False
 _dual_standby_lock = threading.Lock()
+_dual_inflight = 0          # in-flight request count (no lock, see _dual_inflight_lock)
+_dual_inflight_lock = threading.Lock()
+_dual_promote_pending = False  # retire happened but inflight>0 → defer promote
 
 
 def _dual_buffer_enabled():
@@ -403,23 +423,39 @@ def _dual_buffer_enabled():
 
 
 def _dual_warm_standby():
-    """Background: pick a new IP, do companion_touch-like warm with that XFF.
-    Runs in daemon thread, sets _dual_standby_warmed=True on success.
-    Scheme C: single jar, no parallel cookie writes — just pre-gen IP + light warm.
+    """Background: pick a new IP, store as standby. Do NOT touch global CookieJar.
+
+    Scheme C invariant: jar holds exactly one identity at any moment.
+    The actual companion warm happens in _dual_promote() during the
+    request-gap window (after response returns, before next request arrives),
+    where we can safely clear + warm without racing active requests.
     """
     global _dual_standby_ip, _dual_standby_warmed
     new_ip = rand_ip()
     with _dual_standby_lock:
         _dual_standby_ip = new_ip
-    LOG.info("[DUAL] warm start ip=%s", new_ip)
+        _dual_standby_warmed = False  # IP ready, cookie not yet warmed
+    LOG.info("[DUAL] warm start ip=%s (ip-only, no jar write)", new_ip)
+    # No network I/O here — that would race the global jar.
+
+
+def _dual_warm_sync(ip, timeout=8.0):
+    """Synchronous companion warm for a given IP. Runs in request-gap window.
+
+    Scheme C: this is the ONLY place that writes cookies for a non-active IP.
+    Called after the response has been sent, so no active request is using
+    the jar simultaneously.
+    Returns True on success, False on failure.
+    """
+    if not ip:
+        return False
     t0 = time.monotonic()
     try:
-        # Light warm: hit landing page with forged XFF to get session cookies
         gen_at_start = COOKIE_JAR.snapshot_generation()
-        conn = http.client.HTTPSConnection(BASE, timeout=10, context=ssl.create_default_context())
+        conn = http.client.HTTPSConnection(BASE, timeout=timeout, context=ssl.create_default_context())
         h = dict(BROWSER_GET_HEADERS)
-        h["X-Forwarded-For"] = new_ip
-        h["X-Real-IP"] = new_ip
+        h["X-Forwarded-For"] = ip
+        h["X-Real-IP"] = ip
         h["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
         h["Sec-Fetch-Dest"] = "document"
         h["Sec-Fetch-Mode"] = "navigate"
@@ -433,33 +469,21 @@ def _dual_warm_standby():
             pass
         conn.close()
         elapsed = int((time.monotonic() - t0) * 1000)
-        with _dual_standby_lock:
-            _dual_standby_warmed = True
-        LOG.info("[DUAL] warm done ip=%s latency_ms=%d", new_ip, elapsed)
+        LOG.info("[DUAL] sync warm ok ip=%s latency_ms=%d", ip, elapsed)
+        return True
     except Exception as e:
         elapsed = int((time.monotonic() - t0) * 1000)
-        LOG.info("[DUAL] warm failed ip=%s latency_ms=%d reason=%s", new_ip, elapsed, e)
-        with _dual_standby_lock:
-            _dual_standby_warmed = False
-
-
-def _dual_trigger_warm():
-    """Called from identity_mark_ok (no lock held). Fire-and-forget daemon thread."""
-    if not _dual_buffer_enabled():
-        return
-    with _dual_standby_lock:
-        if _dual_standby_warmed or _dual_standby_ip:
-            return  # already warm or warming
-    try:
-        threading.Thread(target=_dual_warm_standby, daemon=True).start()
-    except Exception as e:
-        LOG.debug("[DUAL] thread start failed: %s", e)
+        LOG.info("[DUAL] sync warm failed ip=%s latency_ms=%d reason=%s", ip, elapsed, e)
+        return False
 
 
 def _dual_promote():
-    """Called after 2nd OK: async clear jar + switch active to standby IP.
-    Scheme C: no parallel dual-cookie; clear jar then warm with new IP.
-    Returns the new IP (may still be warming when next request arrives).
+    """Called after 2nd OK (in request-gap, response already sent).
+
+    Scheme C: clear jar → switch active IP → sync warm new IP.
+    Warm happens here (not in a daemon thread) because identity_mark_ok
+    is only called after the response has been flushed — no request is
+    actively using the jar at this point.
     """
     global _identity_ip, _identity_ok, _dual_standby_ip, _dual_standby_warmed
     with _dual_standby_lock:
@@ -470,24 +494,45 @@ def _dual_promote():
     if not standby_ip:
         LOG.info("[DUAL] promote miss: no standby")
         return None
-    LOG.info("[DUAL] promote standby=%s warmed=%s", standby_ip, warmed)
-    # Clear jar and switch to standby IP (single-jar scheme C)
+    LOG.info("[DUAL] promote standby=%s cookie_warmed=%s", standby_ip, warmed)
+    # Step 1: clear jar (old identity cookies)
     try:
         COOKIE_JAR.clear(bump=True)
     except Exception:
         pass
+    # Step 2: switch identity
     with _identity_lock:
         _identity_ip = standby_ip
         _identity_ok = 0
-    # Trigger warm for next standby
+    # Step 3: sync warm — only if we don't already have warm cookies
+    if not warmed:
+        _dual_warm_sync(standby_ip)
+    # Step 4: trigger next standby IP pre-gen (no jar write)
     _dual_trigger_warm()
     return standby_ip
 
 
+def _dual_trigger_warm():
+    """Fire-and-forget: pre-gen next standby IP. Never touches the jar."""
+    if not _dual_buffer_enabled():
+        return
+    with _dual_standby_lock:
+        if _dual_standby_warmed or _dual_standby_ip:
+            return  # already have a standby IP ready
+    try:
+        threading.Thread(target=_dual_warm_standby, daemon=True).start()
+    except Exception as e:
+        LOG.debug("[DUAL] thread start failed: %s", e)
+
+
 def identity_acquire(force_new=False):
-    global _identity_ip, _identity_ok, _dual_enabled, _dual_standby_ip, _dual_standby_warmed
+    global _identity_ip, _identity_ok, _dual_enabled, _dual_standby_ip, _dual_standby_warmed, _dual_inflight
     if _dual_enabled is None:
         _dual_enabled = _env_flag("MAXAPI_DUAL_BUFFER", False)
+    # Track in-flight count (decrement in identity_mark_ok)
+    if _dual_enabled:
+        with _dual_inflight_lock:
+            _dual_inflight += 1
     if _dual_enabled:
         with _identity_lock:
             if force_new or _identity_ip is None or _identity_ok >= _IDENTITY_MAX_OK:
@@ -517,17 +562,50 @@ def identity_mark_ok(ip):
     global _identity_ip, _identity_ok
     if not ip:
         return
+    retired = False
+    ok_snapshot = 0
     with _identity_lock:
         if ip != _identity_ip:
+            # IP changed (promoted by another thread) — still decrement inflight
+            if _dual_enabled:
+                _dual_inflight_decrement()
             return
         _identity_ok += 1
+        ok_snapshot = _identity_ok
         if _identity_ok >= _IDENTITY_MAX_OK:
             LOG.info("identity retire after %d ok uses", _identity_ok)
             _identity_ip = None
             _identity_ok = 0
-    # Dual-buffer: trigger standby warm on 1st OK (outside lock, fire-and-forget)
-    if _dual_enabled and _identity_ok == 1:
-        _dual_trigger_warm()
+            retired = True
+    # Dual-buffer scheme C (all outside _identity_lock):
+    if _dual_enabled:
+        if ok_snapshot == 1:
+            _dual_trigger_warm()
+        if retired:
+            _dual_inflight_decrement(do_promote=True)
+
+
+def _dual_inflight_decrement(do_promote=False):
+    """Decrement in-flight counter. If do_promote and inflight hits 0, run promote.
+
+    do_promote=True means the caller (identity_mark_ok on retire path) wants
+    promote to run once inflight reaches 0.  The flag is stored atomically
+    inside _dual_inflight_lock so no retire+decrement pair can race.
+    """
+    global _dual_inflight, _dual_promote_pending
+    should_promote = False
+    with _dual_inflight_lock:
+        if do_promote:
+            _dual_promote_pending = True
+        _dual_inflight -= 1
+        if _dual_inflight == 0 and _dual_promote_pending:
+            _dual_promote_pending = False
+            should_promote = True
+            LOG.info("[DUAL] inflight=0, executing deferred promote")
+    if should_promote:
+        _dual_promote()
+    elif _dual_promote_pending:
+        LOG.debug("[DUAL] promote deferred: inflight=%d", _dual_inflight)
 
 
 def identity_retire(ip, reason=""):
@@ -3689,6 +3767,13 @@ def compact_request(body, budget, model=None):
                 break
             drop_set.add(j)
             freed += int(seg_costs[j] * ratio)
+        # Force-drop at least 1 heaviest middle segment if still significantly
+        # over budget and drop_set is empty (existing logic skipped due to
+        # head+tail minimum or freed >= need before any drop).
+        if not drop_set and est > budget * 12 // 10 and mid_idx:
+            j0 = mid_idx[0]  # already sorted heaviest-first
+            drop_set.add(j0)
+            freed += int(seg_costs[j0] * ratio)
         if drop_set:
             new_segs, new_costs = [], []
             for i, s in enumerate(segs):
@@ -3735,6 +3820,10 @@ def compact_request(body, budget, model=None):
     meta = {"before": before, "after": after, "budget": budget,
             "dropped_segments": dropped, "tool_results_trimmed": trimmed,
             "text_truncated": truncated}
+
+    # Warn when compact still left the request significantly over budget.
+    if after > budget and before > 0 and after > before * 9 // 10:
+        notes.append(f"OVERFLOW after={after} budget={budget}")
 
     # Validate: ensure tool_use/tool_result pairing is intact
     if not _validate_compacted_messages(body.get("messages") or []):

@@ -72,12 +72,16 @@ try:
     check("no dead anthropic id entries", all(d in m.MODEL_BY_DISPLAY for d in m._ANTHROPIC_MODEL_IDS),
           repr([d for d in m._ANTHROPIC_MODEL_IDS if d not in m.MODEL_BY_DISPLAY]))
     check("opus-4-8 resolves to live submodel", m.resolve_model("claude-opus-4-8")[1] == "claude-opus-5", repr(m.resolve_model("claude-opus-4-8")))
-    # GPT 5.6 terra / GPT 5.5 retired (upstream had no provider, 0/8 on 2026-08-12).
-    for _rid in ("gpt-5.6-terra", "chatgpt/gpt-5.6-terra", "GPT-5.5", "chatgpt/gpt-5.5"):
+    # GPT 5.6 terra retired (upstream had no provider, 0/8 on 2026-08-12).
+    for _rid in ("gpt-5.6-terra", "chatgpt/gpt-5.6-terra"):
         check("retired gpt %r -> gpt-5.6-sol" % _rid, m.resolve_model(_rid)[1] == "gpt-5.6-sol", repr(m.resolve_model(_rid)))
     check("terra gone from model list", "gpt-5.6-terra" not in m.MODEL_DISPLAY_IDS, repr([x for x in m.MODEL_DISPLAY_IDS if "terra" in x]))
-    check("GPT-5.5 gone from model list", "GPT-5.5" not in m.MODEL_DISPLAY_IDS, repr([x for x in m.MODEL_DISPLAY_IDS if "5.5" in x]))
-    A5 = 58 + 6  # expected total after adding 6 GPT retirement checks
+    # gpt-5.5 is now a live model (upstream confirmed active 2026-08-22).
+    check("gpt-5.5 live model id", "gpt-5.5" in m.MODEL_DISPLAY_IDS, repr([x for x in m.MODEL_DISPLAY_IDS if "5.5" in x]))
+    check("gpt-5.5 alias self-resolves", m.MODEL_ALIASES.get("gpt-5.5") == "gpt-5.5", repr(m.MODEL_ALIASES.get("gpt-5.5")))
+    check("GPT-5.5 alias self-resolves", m.MODEL_ALIASES.get("GPT-5.5") == "gpt-5.5", repr(m.MODEL_ALIASES.get("GPT-5.5")))
+    check("chatgpt/gpt-5.5 alias self-resolves", m.MODEL_ALIASES.get("chatgpt/gpt-5.5") == "gpt-5.5", repr(m.MODEL_ALIASES.get("chatgpt/gpt-5.5")))
+    A5 = 58 + 8  # expected total after adding GPT terra retirement + gpt-5.5 live checks
     check("model count is %d" % len(m.MODEL_DISPLAY_IDS), len(m.MODEL_DISPLAY_IDS) == len(m.MODEL_DISPLAY_IDS), repr(m.MODEL_DISPLAY_IDS))
     # A retired Opus id must never silently fall through to DEFAULT_MODEL: that
     # would answer an Opus-class request with deepseek-v4-flash.
