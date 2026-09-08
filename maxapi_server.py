@@ -3,7 +3,7 @@
 """maxapi - se.zzmax.cn guest-bypass OpenAI-compatible HTTP service.
 
 Guest no-auth + per-attempt forged X-Forwarded-For (2/day free tier reset) + client-side
-long context -> standard OpenAI Chat Completions. 17 chat/vision models routed
+long context -> standard OpenAI Chat Completions. 22 chat-capable models routed
 through the upstream /api/chat/stream SSE endpoint. Image/video/audio generation
 models dropped: they use dedicated endpoints that return 401 for guests.
 
@@ -206,19 +206,31 @@ BROWSER_GET_HEADERS = {
 # Canonical model list in se.zzmax web display-name order.
 # Each tuple: (display_id, group, actualModelId, tier)
 # display_id is what /v1/models returns and what clients send in "model".
+# Source of truth for additions/removals: live GET /api/chat/models on
+# se.zzmax.cn. Image/video/audio-only groups are intentionally excluded.
 RAW_MODELS = [
-    ("Claude Sonnet 5",        "claude",   "claude-sonnet-5",       "premium"),
-    ("Claude Opus 5",          "claude",   "claude-opus-5",         "premium"),
-    ("claude-opus-4-6",        "claude",   "claude-opus-4-6",       "normal"),
-    ("gpt-5.6-sol",            "chatgpt",  "gpt-5.6-sol",           "normal"),
-    ("gpt-5.6-luna",           "chatgpt",  "gpt-5.6-luna",          "normal"),
-    ("gpt-5.5",                "chatgpt",  "gpt-5.5",               "normal"),
-    ("deepseek-v4-pro",        "deepseek", "deepseek-v4-pro",       "premium"),
-    ("deepseek-v4-flash",      "deepseek", "deepseek-v4-flash",     "normal"),
-    ("qwen3.6-plus",           "qwen",     "qwen3.6-plus",         "premium"),
-    ("MiMo-V2.5-Pro",          "mimo",     "qwen3.6-plus",          "premium"),
-    ("gemini-3.5-flash",       "gemini",   "gemini-3.5-flash",      "normal"),
-    ("gemini-3.1-pro-preview", "gemini",   "gemini-3.1-pro-preview","normal"),
+    ("gpt-6-astra",                  "chatgpt",  "gpt-6-astra",                  "normal"),
+    ("gpt-5.6-terra",                "chatgpt",  "gpt-5.6-terra",                "normal"),
+    ("gpt-5.6-sol",                  "chatgpt",  "gpt-5.6-sol",                  "normal"),
+    ("Claude Sonnet 5",              "claude",   "claude-sonnet-5",              "premium"),
+    ("Claude Opus 4.8",               "claude",   "claude-opus-4.8",               "premium"),
+    ("Claude Opus 5",                 "claude",   "claude-opus-5",                 "premium"),
+    ("claude-opus-4-7",               "claude",   "claude-opus-4-7",               "premium"),
+    ("claude-opus-4-8",               "claude",   "claude-opus-4-8",               "premium"),
+    ("claude-opus-4-5",               "claude",   "claude-opus-4-5",               "premium"),
+    ("claude-opus-4-6",               "claude",   "claude-opus-4-6",               "premium"),
+    ("claude-haiku-4-5",              "claude",   "claude-haiku-4-5",              "normal"),
+    ("deepseek-v4-pro",               "deepseek", "deepseek-v4-pro",               "premium"),
+    ("deepseek-v4-flash",             "deepseek", "deepseek-v4-flash",             "normal"),
+    ("deepseek-v4-flash-vision-exp",  "deepseek", "deepseek-v4-flash-vision-exp",  "premium"),
+    ("qwen3.6-plus",                  "qwen",     "qwen3.6-plus",                  "premium"),
+    ("doubao/glm-5.1",                "doubao",   "glm-5.1",                       "normal"),
+    ("minimax/glm-5.1",               "minimax",  "glm-5.1",                       "premium"),
+    ("kimi-k2.5",                     "kimi",     "kimi-k2.5",                     "premium"),
+    ("kimi-k2",                       "kimi",     "kimi-k2",                       "premium"),
+    ("MiMo-V2.5-Pro",                 "mimo",     "qwen3.6-plus",                  "premium"),
+    ("gemini-3.7-flash",              "gemini",   "gemini-3.7-flash",              "normal"),
+    ("gemini-3.6-flash",              "gemini",   "gemini-3.6-flash",              "normal"),
 ]
 
 # Ordered list of external display ids (for /v1/models).
@@ -233,42 +245,57 @@ MODEL_BY_DISPLAY = {m[0]: (m[1], m[2]) for m in RAW_MODELS}
 MODEL_ALIASES = {
     "claude-sonnet-5": "Claude Sonnet 5",
     "claude/claude-sonnet-5": "Claude Sonnet 5",
-    "claude/claude-opus-4-8": "Claude Opus 5",
+    "claude/claude-opus-4.8": "Claude Opus 4.8",
+    "claude/claude-opus-4-8": "claude-opus-4-8",
+    "Claude Opus 4.8": "Claude Opus 4.8",
+    "claude/claude-opus-4-7": "claude-opus-4-7",
+    "claude/claude-opus-4-5": "claude-opus-4-5",
+    "claude/claude-opus-4-6": "claude-opus-4-6",
     "qwen/qwen3.6-plus": "qwen3.6-plus",
     "mimo/qwen3.6-plus": "MiMo-V2.5-Pro",
     "mimo-qwen3.6-plus": "MiMo-V2.5-Pro",
+    "chatgpt/gpt-6-astra": "gpt-6-astra",
+    "chatgpt/gpt-5.6-terra": "gpt-5.6-terra",
     "chatgpt/gpt-5.6-sol": "gpt-5.6-sol",
-    "chatgpt/gpt-5.6-luna": "gpt-5.6-luna",
-    "chatgpt/gpt-5.6-terra": "gpt-5.6-sol",
-    "chatgpt/gpt-5.5": "gpt-5.5",
-    # Opus 4.8 retired: upstream had no provider for claude-opus-4.8 (0/8 OK on
-    # 2026-08-12 while opus-5 / sonnet-5 / opus-4-6 were all 8/8). Clients that
-    # still ask for it — Claude Code sends "claude-opus-4-8" natively — are
-    # routed to Opus 5 rather than 404'd. The old display name is aliased too,
-    # otherwise resolve_model() falls through to DEFAULT_MODEL and a request for
-    # an Opus-class model silently lands on deepseek-v4-flash.
-    "claude/claude-opus-4.8": "Claude Opus 5",
-    "Claude Opus 4.8": "Claude Opus 5",
-    "claude/claude-opus-4-6": "claude-opus-4-6",
-    "deepseek/deepseek-v4-pro": "deepseek-v4-pro",
-    "deepseek/deepseek-v4-flash": "deepseek-v4-flash",
-    "gemini/gemini-3.5-flash": "gemini-3.5-flash",
-    "gemini/gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
-    # plain (unambiguous) actuals
-    # GPT terra / 5.5 retired (upstream had no provider). Keep aliases on sol.
-    "gpt-5.6-terra": "gpt-5.6-sol",
-    "gpt-5.5": "gpt-5.5",
-    "GPT-5.5": "gpt-5.5",
-    "claude-opus-4.8": "Claude Opus 5",
+    "chatgpt/gpt-5.6-luna": "gpt-5.6-sol",
+    "chatgpt/gpt-5.5": "gpt-5.6-sol",
+    "doubao/glm-5.1": "doubao/glm-5.1",
+    "minimax/glm-5.1": "minimax/glm-5.1",
+    "doubao-glm-5.1": "doubao/glm-5.1",
+    "minimax-glm-5.1": "minimax/glm-5.1",
+    "kimi/kimi-k2.5": "kimi-k2.5",
+    "kimi/kimi-k2": "kimi-k2",
+    "gemini/gemini-3.7-flash": "gemini-3.7-flash",
+    "gemini/gemini-3.6-flash": "gemini-3.6-flash",
+    # Retired/renamed client ids kept as compatibility aliases.
+    "gpt-5.6-luna": "gpt-5.6-sol",
+    "gpt-5.5": "gpt-5.6-sol",
+    "GPT-5.5": "gpt-5.6-sol",
+    "gemini-3.5-flash": "gemini-3.7-flash",
+    "gemini-3.1-pro-preview": "gemini-3.7-flash",
+    "gemini/gemini-3.5-flash": "gemini-3.7-flash",
+    "gemini/gemini-3.1-pro-preview": "gemini-3.7-flash",
+    # Plain actuals; shared actuals use an explicit preferred group.
+    "gpt-6-astra": "gpt-6-astra",
+    "gpt-5.6-terra": "gpt-5.6-terra",
+    "gpt-5.6-sol": "gpt-5.6-sol",
+    "claude-opus-4.8": "Claude Opus 4.8",
+    "claude-opus-4-7": "claude-opus-4-7",
+    "claude-opus-4-8": "claude-opus-4-8",
+    "claude-opus-4-5": "claude-opus-4-5",
     "claude-opus-4-6": "claude-opus-4-6",
     "claude-opus-5": "Claude Opus 5",
     "deepseek-v4-pro": "deepseek-v4-pro",
     "deepseek-v4-flash": "deepseek-v4-flash",
-    "gemini-3.5-flash": "gemini-3.5-flash",
-    "gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
-    # ambiguous plain actuals -> canonical display (preferred group)
-    "claude-opus-4-8": "Claude Opus 5",
+    "deepseek-v4-flash-vision-exp": "deepseek-v4-flash-vision-exp",
     "qwen3.6-plus": "qwen3.6-plus",
+    # Plain glm-5.1 is ambiguous; retain the historical default group.
+    "glm-5.1": "doubao/glm-5.1",
+    "kimi-k2.5": "kimi-k2.5",
+    "kimi-k2": "kimi-k2",
+    "gemini-3.7-flash": "gemini-3.7-flash",
+    "gemini-3.6-flash": "gemini-3.6-flash",
+    "MiMo-V2.5-Pro": "MiMo-V2.5-Pro",
 }
 
 DEFAULT_MODEL = "deepseek-v4-flash"
@@ -276,35 +303,55 @@ COMPANION_PROB = 0.08
 RATE = None
 
 # Per-model capability metadata returned by /v1/models. context_length is the
-# advertised input window; max_output_tokens the advertised completion cap;
-# supports_tool_use marks DSML-routed tool endpoints. Values are advisory so
-# clients (Claude Code / Codex) display context length instead of blank.
+# live upstream contextWindow; max_output_tokens is this adapter's safe output
+# cap (the upstream catalog does not publish a completion cap). Values are
+# advisory so clients (Claude Code / Codex) display context length instead of blank.
 # group -> (context_length, max_output_tokens, supports_tool_use)
 _GROUP_META = {
-    "claude":   (200000, 8192,  True),
     "chatgpt":  (400000, 16384, True),
-    "deepseek": (128000, 8192,  True),
-    "qwen":     (131072, 8192,  True),
-    "mimo":     (131072, 8192,  True),
+    "claude":   (1000000, 8192,  True),
+    "deepseek": (1000000, 8192,  True),
+    "qwen":     (1000000, 8192,  True),
+    "mimo":     (1000000, 8192,  True),
+    "doubao":   (200000, 8192,  True),
+    "minimax":  (200000, 8192,  True),
+    "kimi":     (256000, 8192,  True),
     "gemini":   (1000000, 8192, True),
 }
-MODEL_META = {m[0]: _GROUP_META.get(m[1], (200000, 8192, True)) for m in RAW_MODELS}
+# A group can expose models with different upstream contextWindow values.
+_MODEL_META_OVERRIDES = {
+    "gpt-6-astra": (1000000, 16384, True),
+}
+MODEL_META = {
+    m[0]: _MODEL_META_OVERRIDES.get(m[0], _GROUP_META.get(m[1], (200000, 8192, True)))
+    for m in RAW_MODELS
+}
 
 # display_id -> Anthropic standard model ID (used in /v1/messages responses so
 # Claude Code can look up context_length from its internal model registry).
 _ANTHROPIC_MODEL_IDS = {
-    "Claude Sonnet 5":        "claude-sonnet-4-20250514",
-    "Claude Opus 5":          "claude-opus-5",
-    "claude-opus-4-6":        "claude-opus-4-20250514",
-    "gpt-5.6-sol":            "claude-sonnet-4-20250514",
-    "gpt-5.6-luna":           "claude-sonnet-4-20250514",
-    "gpt-5.5":                "claude-sonnet-4-20250514",
-    "deepseek-v4-pro":        "claude-sonnet-4-20250514",
-    "deepseek-v4-flash":      "claude-sonnet-4-20250514",
-    "qwen3.6-plus":           "claude-sonnet-4-20250514",
-    "MiMo-V2.5-Pro":          "claude-sonnet-4-20250514",
-    "gemini-3.5-flash":       "claude-sonnet-4-20250514",
-    "gemini-3.1-pro-preview": "claude-sonnet-4-20250514",
+    "gpt-6-astra":                 "claude-sonnet-4-20250514",
+    "gpt-5.6-terra":               "claude-sonnet-4-20250514",
+    "gpt-5.6-sol":                 "claude-sonnet-4-20250514",
+    "Claude Sonnet 5":             "claude-sonnet-5",
+    "Claude Opus 4.8":              "claude-opus-4-8",
+    "Claude Opus 5":                "claude-opus-5",
+    "claude-opus-4-7":              "claude-opus-4-7",
+    "claude-opus-4-8":              "claude-opus-4-8",
+    "claude-opus-4-5":              "claude-opus-4-5",
+    "claude-opus-4-6":              "claude-opus-4-6",
+    "claude-haiku-4-5":             "claude-haiku-4-5",
+    "deepseek-v4-pro":              "claude-sonnet-4-20250514",
+    "deepseek-v4-flash":            "claude-sonnet-4-20250514",
+    "deepseek-v4-flash-vision-exp": "claude-sonnet-4-20250514",
+    "qwen3.6-plus":                 "claude-sonnet-4-20250514",
+    "doubao/glm-5.1":               "claude-sonnet-4-20250514",
+    "minimax/glm-5.1":              "claude-sonnet-4-20250514",
+    "kimi-k2.5":                    "claude-sonnet-4-20250514",
+    "kimi-k2":                      "claude-sonnet-4-20250514",
+    "MiMo-V2.5-Pro":                "claude-sonnet-4-20250514",
+    "gemini-3.7-flash":             "claude-sonnet-4-20250514",
+    "gemini-3.6-flash":             "claude-sonnet-4-20250514",
 }
 
 def _anthropic_model_id(display_id):

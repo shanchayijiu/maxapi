@@ -47,12 +47,20 @@ image/video/audio 专用生成访客 401，maxapi **不暴露**。
 
 ## 4. 模型映射
 
-显示名来自 `RAW_MODELS`；`/v1/models` live 为准（当前 healthz `models: 11`）。
+显示名来自 `RAW_MODELS`；上游源目录为 `GET https://se.zzmax.cn/api/chat/models`，当前 live 为 22 个聊天模型（图片/视频/音频专用组不纳入文本 chat wire）：
 
-常见组：Claude Sonnet/Opus 5、claude-opus-4-6、gpt-5.6-sol/luna、deepseek-v4-*、qwen3.6-plus、MiMo-V2.5-Pro、gemini-3.5-flash、gemini-3.1-pro-preview。  
-已下线显示名经 `MODEL_ALIASES` 指到仍可用 actual（如旧 4.8/terra/5.5 → Opus 5 / sol）。
+- chatgpt：`gpt-6-astra`、`gpt-5.6-terra`、`gpt-5.6-sol`
+- claude：`claude-sonnet-5`、`claude-opus-4.8`、`claude-opus-5`、`claude-opus-4-7`、`claude-opus-4-8`、`claude-opus-4-5`、`claude-opus-4-6`、`claude-haiku-4-5`
+- deepseek：`deepseek-v4-pro`、`deepseek-v4-flash`、`deepseek-v4-flash-vision-exp`
+- qwen：`qwen3.6-plus`
+- doubao / minimax：`glm-5.1`（外部 display id 分别为 `doubao/glm-5.1`、`minimax/glm-5.1`）
+- kimi：`kimi-k2.5`、`kimi-k2`
+- mimo：`qwen3.6-plus`（外部 display id 为 `MiMo-V2.5-Pro`）
+- gemini：`gemini-3.7-flash`、`gemini-3.6-flash`
 
-改 catalog 后必须：rebuild 容器 + curl `/v1/models` + 更新 README 表（或只写「以 live 为准」）。
+已下线或改名的客户端 ID 保留在 `MODEL_ALIASES`：旧 `gpt-5.6-luna` / `gpt-5.5` → `gpt-5.6-sol`；旧 `gemini-3.5-flash` / `gemini-3.1-pro-preview` → `gemini-3.7-flash`。模型上下文元数据按 live `contextWindow` 同步，输出上限是 maxapi 自身安全上限。
+
+改 catalog 后必须：rebuild 容器 + curl `/v1/models` + 更新 README 表 + 跑 `_local_compat_check.py`（或等价 live 检查）。
 
 ## 5. 错误与重试语义（传输层）
 

@@ -59,35 +59,48 @@ try:
     check("models status 200", status.startswith("HTTP/1.1 200"), status)
     check("models context fields", all(k in model0 for k in ("context_length", "max_output_tokens", "supports_tool_use")), model0)
 
-    # Opus 4.8 was retired (upstream had no provider); the IDs clients still send
-    # must resolve to a live model, not 404.
-    check("claude-opus-4-8 alias -> Opus 5", m.MODEL_ALIASES.get("claude-opus-4-8") == "Claude Opus 5", repr(m.MODEL_ALIASES.get("claude-opus-4-8")))
-    check("claude-opus-4.8 alias -> Opus 5", m.MODEL_ALIASES.get("claude-opus-4.8") == "Claude Opus 5", repr(m.MODEL_ALIASES.get("claude-opus-4.8")))
-    check("claude/claude-opus-4-8 alias -> Opus 5", m.MODEL_ALIASES.get("claude/claude-opus-4-8") == "Claude Opus 5", repr(m.MODEL_ALIASES.get("claude/claude-opus-4-8")))
-    check("Opus 4.8 gone from model list", "Claude Opus 4.8" not in m.MODEL_DISPLAY_IDS, repr([x for x in m.MODEL_DISPLAY_IDS if "4.8" in x]))
+    # Live catalog checks: the model list mirrors the chat-capable entries from
+    # se.zzmax.cn/api/chat/models, while image/video/audio-only entries stay out.
+    for _mid in (
+        "gpt-6-astra", "gpt-5.6-terra", "gpt-5.6-sol",
+        "Claude Sonnet 5", "Claude Opus 4.8", "Claude Opus 5",
+        "claude-opus-4-7", "claude-opus-4-8", "claude-opus-4-5",
+        "claude-opus-4-6", "claude-haiku-4-5",
+        "deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp",
+        "qwen3.6-plus", "doubao/glm-5.1", "minimax/glm-5.1",
+        "kimi-k2.5", "kimi-k2", "MiMo-V2.5-Pro",
+        "gemini-3.7-flash", "gemini-3.6-flash",
+    ):
+        check("live catalog contains %s" % _mid, _mid in m.MODEL_DISPLAY_IDS,
+              repr(m.MODEL_DISPLAY_IDS))
+    check("model count is 22", len(m.MODEL_DISPLAY_IDS) == 22, repr(m.MODEL_DISPLAY_IDS))
+    check("live group metadata", m.MODEL_META["Claude Sonnet 5"][0] == 1000000
+          and m.MODEL_META["gpt-6-astra"][0] == 1000000
+          and m.MODEL_META["gpt-5.6-terra"][0] == 400000
+          and m.MODEL_META["kimi-k2.5"][0] == 256000, repr(m.MODEL_META))
+    check("shared glm id has explicit group displays",
+          m.MODEL_BY_DISPLAY["doubao/glm-5.1"][0] == "doubao"
+          and m.MODEL_BY_DISPLAY["minimax/glm-5.1"][0] == "minimax",
+          repr(m.MODEL_BY_DISPLAY))
+    check("legacy gpt-5.5 alias -> sol", m.resolve_model("gpt-5.5")[1] == "gpt-5.6-sol",
+          repr(m.resolve_model("gpt-5.5")))
+    check("legacy luna alias -> sol", m.resolve_model("gpt-5.6-luna")[1] == "gpt-5.6-sol",
+          repr(m.resolve_model("gpt-5.6-luna")))
+    check("legacy gemini alias -> 3.7", m.resolve_model("gemini-3.5-flash")[1] == "gemini-3.7-flash",
+          repr(m.resolve_model("gemini-3.5-flash")))
+    check("opus dotted id is live", m.resolve_model("claude-opus-4.8")[1] == "claude-opus-4.8",
+          repr(m.resolve_model("claude-opus-4.8")))
+    check("opus dashed id is live", m.resolve_model("claude-opus-4-8")[1] == "claude-opus-4-8",
+          repr(m.resolve_model("claude-opus-4-8")))
     check("every alias resolves to a live display id", all(v in m.MODEL_BY_DISPLAY for v in m.MODEL_ALIASES.values()),
-          repr([ (k,v) for k,v in m.MODEL_ALIASES.items() if v not in m.MODEL_BY_DISPLAY ]))
+          repr([(k, v) for k, v in m.MODEL_ALIASES.items() if v not in m.MODEL_BY_DISPLAY]))
     check("every model has an anthropic id", all(d in m._ANTHROPIC_MODEL_IDS for d in m.MODEL_DISPLAY_IDS),
           repr([d for d in m.MODEL_DISPLAY_IDS if d not in m._ANTHROPIC_MODEL_IDS]))
     check("no dead anthropic id entries", all(d in m.MODEL_BY_DISPLAY for d in m._ANTHROPIC_MODEL_IDS),
           repr([d for d in m._ANTHROPIC_MODEL_IDS if d not in m.MODEL_BY_DISPLAY]))
-    check("opus-4-8 resolves to live submodel", m.resolve_model("claude-opus-4-8")[1] == "claude-opus-5", repr(m.resolve_model("claude-opus-4-8")))
-    # GPT 5.6 terra retired (upstream had no provider, 0/8 on 2026-08-12).
-    for _rid in ("gpt-5.6-terra", "chatgpt/gpt-5.6-terra"):
-        check("retired gpt %r -> gpt-5.6-sol" % _rid, m.resolve_model(_rid)[1] == "gpt-5.6-sol", repr(m.resolve_model(_rid)))
-    check("terra gone from model list", "gpt-5.6-terra" not in m.MODEL_DISPLAY_IDS, repr([x for x in m.MODEL_DISPLAY_IDS if "terra" in x]))
-    # gpt-5.5 is now a live model (upstream confirmed active 2026-08-22).
-    check("gpt-5.5 live model id", "gpt-5.5" in m.MODEL_DISPLAY_IDS, repr([x for x in m.MODEL_DISPLAY_IDS if "5.5" in x]))
-    check("gpt-5.5 alias self-resolves", m.MODEL_ALIASES.get("gpt-5.5") == "gpt-5.5", repr(m.MODEL_ALIASES.get("gpt-5.5")))
-    check("GPT-5.5 alias self-resolves", m.MODEL_ALIASES.get("GPT-5.5") == "gpt-5.5", repr(m.MODEL_ALIASES.get("GPT-5.5")))
-    check("chatgpt/gpt-5.5 alias self-resolves", m.MODEL_ALIASES.get("chatgpt/gpt-5.5") == "gpt-5.5", repr(m.MODEL_ALIASES.get("chatgpt/gpt-5.5")))
-    A5 = 58 + 8  # expected total after adding GPT terra retirement + gpt-5.5 live checks
-    check("model count is %d" % len(m.MODEL_DISPLAY_IDS), len(m.MODEL_DISPLAY_IDS) == len(m.MODEL_DISPLAY_IDS), repr(m.MODEL_DISPLAY_IDS))
-    # A retired Opus id must never silently fall through to DEFAULT_MODEL: that
-    # would answer an Opus-class request with deepseek-v4-flash.
-    for _rid in ("claude-opus-4-8", "claude-opus-4.8", "claude/claude-opus-4-8",
-                 "claude/claude-opus-4.8", "Claude Opus 4.8"):
-        check("retired id %r -> opus-5" % _rid, m.resolve_model(_rid)[1] == "claude-opus-5", repr(m.resolve_model(_rid)))
+    for _rid in ("gpt-6-astra", "gpt-5.6-terra", "claude-opus-4-7", "claude-haiku-4-5",
+                 "deepseek-v4-flash-vision-exp", "kimi-k2.5", "gemini-3.7-flash"):
+        check("new id %r resolves" % _rid, m.model_is_known(_rid), repr(m.resolve_model(_rid)))
 
     tools = [{"type": "function", "function": {"name": "do_work", "parameters": {
         "type": "object",
@@ -286,7 +299,7 @@ try:
     expected_b1 = max(8000, min(int(195904 * 0.90) - 8192, int(198044 * 0.80)))
     check("compact_budget: uses allowed with output reserve", b1 == expected_b1, b1)
     b2 = m._compact_budget(m._TooLong(None, None), "Claude Opus 5", 250000)
-    expected_b2 = max(8000, min(int(200000 * 0.90) - 8192, int(250000 * 0.80)))
+    expected_b2 = max(8000, min(int(1000000 * 0.90) - 8192, int(250000 * 0.80)))
     check("compact_budget: blind uses model context", b2 == expected_b2, b2)
     b3 = m._compact_budget(m._TooLong(None, None), "unknown-model", 5000)
     check("compact_budget: blind falls back to floor", b3 == 8000, b3)

@@ -1,6 +1,6 @@
 # maxapi STATUS
 
-> 2026-08-22: **gpt-5.5 live + compact 4-fix**。gpt-5.5 加入模型表（RAW_MODELS + alias 自指向 + META 400k/16k + Anthropic ID）；compat96 测试同步更新（97/97）。compact EWMA under-calibrated 样本<10 时 trigger=0.80/budget×0.75；min budget 保底 8k；Stage 4 OVERFLOW 日志；Stage 2 force-drop heaviest heaviest（1.2x budget 时至少 drop 1 mid segment）。双缓冲 Scheme C 三 bug 修复：(1) warm 线程不写 jar；(2) trigger_warm 不因 standby_ip 非 None 跳过重试；(3) mark_ok 锁内 ok_snapshot + retire 时 deferred promote。四套回归全绿（gold 19/20 · tool 27/28 · compat 97/97 · agent_long 17/17）。
+> 2026-09-08: **live 模型目录同步已部署，回归暴露上游模型波动**。根据 `GET https://se.zzmax.cn/api/chat/models` 实测目录，将 `RAW_MODELS` 从 12 扩展到 22 个聊天模型，补充 gpt-6-astra、Claude 4.x/Haiku、DeepSeek vision、Kimi、glm 分组、Gemini 3.6/3.7，并把 contextWindow 元数据同步到上游 live 值；旧 luna/5.5、Gemini 旧名保留 alias。容器已 rebuild，healthz 与 `/v1/models` 均为 22，主机/容器 SHA 一致；compat 116/116、gold 20/20，tool 27/28；agent-long 1/3、CC 3/4，失败均为单次上游未发 tool。
 > 2026-08-21e+：**身份双缓冲实现 + Conditional Go 裁决落地**。代码已合入（`_dual_enabled` lazy env，默认关）；force-enable 冒烟 6 连发通过（warm ~200ms，promote 热命中）；`MAXAPI_DUAL_BUFFER=0` 回归四套全绿（gold20 · tool28 · compat96 · agent17）。裁决：Cookie 串用为 core blocking，待 Option-C 验证后再正式启用。证据 `_runtime/v4_evidence/opus5_dual_buffer_VERDICT_20260821.md`。
 >
 > 2026-08-21e: **CC first-hit 工具路径**。空 tool escalate **默认关**（`MAXAPI_TOOL_ESCALATE=0`）；流式不再 prefetch-wait 空等；compact 首轮 prompt（ds2/c2a 风）+ ` ```json action` / JSON 数组 sieve + residue strip；**incomplete tool** 单独 1 次 forced retry（与空 tool 阶梯分离）。sha=`18769b4a…` sanitizer=`…v5-20260821-cc-inc`。live CC 探针 4/4：action_stream **~6.7s/ttfb0.7**（此前 ~143s）、leaks=[]；四套 gold20+compat96+tool28+agent17。证据 `goal_cc_v5_20260821.json` / `goal_cc_firsthit_20260821e.json`。
@@ -13,7 +13,7 @@
 
 ## 0. 一句话现状
 
-单文件 `maxapi_server.py`：se.zzmax.cn **访客旁路** → OpenAI Chat / Anthropic Messages / OpenAI Responses。工具 = **compact 首轮 DSML/json-action prompt** + 双通道 `ToolCallParser`（含 residue strip）；**空 tool escalate 默认关**，仅 incomplete tool 可 1 次 forced retry。G-A/B/C/S Done 后追加 **CC first-hit**（2026-08-21e）。v4 mustE3 canary 仍 unknown（另任务）。
+单文件 `maxapi_server.py`：se.zzmax.cn **访客旁路** → OpenAI Chat / Anthropic Messages / OpenAI Responses。工具 = **compact 首轮 DSML/json-action prompt** + 双通道 `ToolCallParser`（含 residue strip）；**空 tool escalate 默认关**，仅 incomplete tool 可 1 次 forced retry。G-A/B/C/S Done 后追加 **CC first-hit**（2026-08-21e）。当前分支已同步上游 live 模型目录（22 个聊天模型）并部署到 8080；compat 116/116、gold 20/20、tool suite 27/28，agent-long 1/3、CC 3/4（各有单次上游未发 tool，非 wire/parser 崩溃）。v4 mustE3 canary 仍 unknown（另任务）。
 
 **产品口径**：API 化 = Agent drop-in；**不做**多用户/Admin/账号池产品（→ NewAPI）。
 
@@ -63,12 +63,14 @@ python _accept_agent_long.py           # FAIL 0
 - [x] 流式不截断；finalize 六类干净
 - [x] **G-B** 简单/动作回合顺序探针低秒级；escalate 含 incomplete
 - [x] thinking 参数生效（off→upstream low）
-- [x] catalog 可调用（models=11）
+- [x] catalog 可调用（models=22；目录按 2026-09-08 live upstream 同步）
 - [x] 8080 Agent 可接入（不抢 57321）
 - [x] 旁路核心保持
 - [x] v4 可复验；`insufficient-evidence` 诚实（fail=0）
 - [x] **G-C** 回归面达标
 - [ ] （**非本 Goal**）E3 → v4 `verdict=pass`
+- [x] 目录同步后的 Docker rebuild、healthz/`/v1/models` 22、live 新模型 smoke（9/9 200）
+- [ ] 上游模型目录更新后的主路径回归仍有单次 tool 遵从波动（tool 27/28、agent-long 1/3、CC 3/4）
 
 ### 手段（可换）vs 目的（不换）
 
@@ -129,11 +131,11 @@ python _accept_agent_long.py           # FAIL 0
 
 | 套件 | 结果 | 记录日 |
 |------|------|--------|
-| `_runtime/_probe_cc_v5.py` | **4/4** action_stream ~6.7s ttfb0.7 leaks=[] | 2026-08-22 |
-| `_openai_sdk_gold.py` | **19/20** (1 FAIL = upstream model content variation) | 2026-08-22 |
-| `_local_compat_check.py` | **97/97 FAIL 0** | 2026-08-22 |
-| `_accept_tool_suite.py` | **27/28** (1 FAIL = model skipped tool call, rate ok) | 2026-08-22 |
-| `_accept_agent_long.py` | **17/17** | 2026-08-22 |
+| `_runtime/_probe_cc_v5.py` | **3/4**（action_nonstream 单次未发 tool；其余无泄漏） | 2026-09-08 |
+| `_openai_sdk_gold.py` | **20/20** | 2026-09-08 |
+| `_local_compat_check.py` | **116/116 FAIL 0** | 2026-09-08 |
+| `_accept_tool_suite.py` | **27/28**（1 FAIL = 模型跳过 tool call，rate ok） | 2026-09-08 |
+| `_accept_agent_long.py` | **1/3**（round_0_tool 与 summary 单次未发 tool） | 2026-09-08 |
 
 ### 1.5 故意逻辑（勿当 bug 删）
 
@@ -175,10 +177,10 @@ python _accept_agent_long.py           # FAIL 0
 
 | 项 | 内容 |
 |----|------|
-| 已完成 | 文档 L0–L5；G-A/B/C/S Done；**2026-08-21e** CC first-hit（escalate 默认关 + compact prompt + json-action + incomplete-only retry）；四套全绿；CC 探针 4/4 ~6–7s |
-| 位置 | Goal Done + CC first-hit 落地（sha `18769b4a`） |
-| 还差 | Goal **外**：E3 canary；可选 c2a fixer；commit（听你的） |
-| 下一步 | 真 CC 体感 / commit / E3 |
+| 已完成 | live 22 模型目录同步、alias/metadata、README/上游文档；Docker rebuild；healthz 与 `/v1/models` 22；本地 compat 116/116；gold 20/20；tool 27/28 |
+| 位置 | 模型目录同步阶段基本闭环；agent-long/CC 后台结果待回收；未 commit |
+| 还差 | 上游模型单次 tool 遵从波动（agent-long/CC）；E3 canary；可选 c2a fixer；commit（听你的） |
+| 下一步 | 回收剩余回归结果，刷新 §1.4/顶部状态，再做完备性检查 |
 
 ---
 
@@ -187,12 +189,12 @@ python _accept_agent_long.py           # FAIL 0
 | 项 | 值 |
 |----|-----|
 | 探针 | `http://127.0.0.1:8080/healthz` |
-| healthz.binarySha256 | `18769b4ac6b555ab0a55085b53319c0e75d40bc3e3c6031b008fda739258697d` |
+| healthz.binarySha256 | `42f0739c033d359ac6ee2cf7be45014c719b8df4c2fa911efbb467b7782eca68`（目录同步部署） |
 | healthz.sanitizerConfigVersion | `markers-toolcallparser-v5-20260821-cc-inc` |
-| healthz.models | 11 |
+| healthz.models | 22（目录同步部署） |
 | 部署 | `docker cp maxapi_server.py maxapi:/app/` + `docker restart maxapi`（或正式 rebuild） |
-| 主机 sha | `18769b4a…`（**==** 容器） |
-| 工作树 | `M maxapi_server.py` + docs + `_runtime/v4_evidence/*`，**未 commit** |
+| 主机 sha | `42f0739c…`（**==** 容器） |
+| 工作树 | `M maxapi_server.py` + `README.md` + `STATUS.md` + `docs/upstream-se-zzmax.md` + `_local_compat_check.py`，**未 commit** |
 
 **冲突规则**：live healthz + 运行中二进制 > 源码树 > STATUS 叙述。
 

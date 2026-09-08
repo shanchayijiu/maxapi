@@ -85,20 +85,21 @@ python maxapi_server.py --host 127.0.0.1 --port 8080
 
 **以 live 为准**：`curl -sS http://127.0.0.1:8080/v1/models`。
 
-当前 catalog（`RAW_MODELS`，11）：
+当前 catalog（`RAW_MODELS`，22 个聊天模型；图片/视频/音频专用模型不暴露）
 
 | id（显示名） | 组 | 备注 |
 |--------------|----|------|
-| Claude Sonnet 5 | claude | |
-| Claude Opus 5 | claude | 旧 4.8 / `claude-opus-4-8` 别名到此 |
-| claude-opus-4-6 | claude | |
-| gpt-5.6-sol | chatgpt | terra/5.5 别名到 sol |
-| gpt-5.6-luna | chatgpt | |
-| deepseek-v4-pro / flash | deepseek | 默认 model 常为 flash |
+| gpt-6-astra / gpt-5.6-terra / gpt-5.6-sol | chatgpt | terra/sol 为上游 live；旧 luna/5.5 alias 到 sol |
+| Claude Sonnet 5 / Claude Opus 4.8 / Claude Opus 5 | claude | |
+| claude-opus-4-7 / 4-8 / 4-5 / 4-6 / claude-haiku-4-5 | claude | 上游 live IDs |
+| deepseek-v4-pro / flash / flash-vision-exp | deepseek | vision 模型仍走文本 chat wire |
 | qwen3.6-plus | qwen | |
-| MiMo-V2.5-Pro | mimo | actual 可与 qwen 共享映射 |
-| gemini-3.5-flash | gemini | |
-| gemini-3.1-pro-preview | gemini | |
+| doubao/glm-5.1 / minimax/glm-5.1 | doubao / minimax | 相同 actual ID 用组前缀区分 |
+| kimi-k2.5 / kimi-k2 | kimi | |
+| MiMo-V2.5-Pro | mimo | actual 与 qwen 共享映射 |
+| gemini-3.7-flash / gemini-3.6-flash | gemini | 旧 3.5-flash / 3.1-pro-preview alias 到 3.7 |
+
+模型目录来源：上游 `GET https://se.zzmax.cn/api/chat/models`；当前 live 目录可能变化，部署前应重新拉取并做差异检查。
 
 ## 工具边界（必读）
 
